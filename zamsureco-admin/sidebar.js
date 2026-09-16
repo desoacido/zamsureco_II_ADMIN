@@ -48,6 +48,9 @@
       </a>`;
   }).join("");
 
+  // BAGO: href na ngayon ay direktang admin_login.html (hindi na logout.html),
+  // dahil ang JS logout handler sa ibaba ang talagang bahala sa pag-sign out
+  // at pag-redirect. Iisang pinagmulan na lang ng truth, walang conflict.
   const sidebarHtml = `
     <aside class="sidebar" id="appSidebar" aria-label="Navigation menu">
       <div class="brand">
@@ -68,7 +71,7 @@
 
       <!-- Sign Out / Logout Button -->
       <div class="mt-auto pt-4" style="margin-top: auto; padding-top: 16px;">
-        <a href="logout.html" id="logoutBtn" class="logout-btn" title="Sign Out">
+        <a href="admin_login.html" id="logoutBtn" class="logout-btn" title="Sign Out">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
           </svg>
@@ -354,6 +357,31 @@
           const collapsed = document.documentElement.classList.contains("sidebar-collapsed");
           localStorage.setItem("sidebar_collapsed", collapsed);
         }
+      });
+    }
+
+    // 5. BAGO: Sentralisadong Logout Handler
+    // Ito na lang ang SATU-SATONG lugar kung saan nangyayari ang sign out.
+    // preventDefault() para hindi na sumunod ang browser sa href — tayo na
+    // mismo ang mag-a-redirect pagkatapos matapos ang signOut() ni Supabase.
+    // Kailangan lang na naka-load na ang Supabase client bago mag-click
+    // (window.supabaseClient dapat naka-set sa bawat page, tingnan ang note
+    // sa ibaba kung paano i-set up ito).
+    const logoutBtn = document.getElementById("logoutBtn");
+    if (logoutBtn) {
+      logoutBtn.addEventListener("click", async (e) => {
+        e.preventDefault();
+
+        const client = window.supabaseClient || window._supabase;
+        if (client && client.auth) {
+          try {
+            await client.auth.signOut();
+          } catch (err) {
+            console.error("Logout error:", err);
+          }
+        }
+
+        window.location.href = "admin_login.html";
       });
     }
   });
