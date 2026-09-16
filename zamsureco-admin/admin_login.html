@@ -49,6 +49,19 @@
     transition:border-color .15s ease, box-shadow .15s ease;
   }
   input:focus{outline:none; border-color:var(--navy-700); box-shadow:0 0 0 3px rgba(21,58,122,0.12); background:#fff;}
+  .forgot-password-container {
+    text-align: right;
+    margin-top: 8px;
+    margin-bottom: 4px;
+  }
+  .forgot-password-container a {
+    font-size: 12px;
+    color: var(--navy-700);
+    text-decoration: none;
+  }
+  .forgot-password-container a:hover {
+    text-decoration: underline;
+  }
   button{
     width:100%; margin-top:18px; padding:12px; font-size:14px;
     background:var(--navy-800); color:#fff; border:none; border-radius:8px;
@@ -82,13 +95,20 @@
     <form id="loginForm">
       <label>Email</label>
       <input type="email" id="loginEmail" placeholder="admin@zamsureco2.com" required autocomplete="username">
+      
       <label>Password</label>
       <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
+      
+      <div class="forgot-password-container">
+        <a href="forgot_password.html">Forgot Password?</a>
+      </div>
+
       <button type="submit" id="loginBtn">Sign In</button>
     </form>
+    
     <p id="loginError" class="login-error"></p>
-    <p class="login-footnote">Sistema para sa pag-manage ng mga ulat at patalastas.</p>
-    <a href="index.html" class="back-link">&larr; Bumalik sa Home</a>
+    <p class="login-footnote">System for managing reports and announcements.</p>
+    <a href="index.html" class="back-link">&larr; Back to Home</a>
   </div>
 
   <script>
@@ -102,7 +122,7 @@
     const loginError = document.getElementById('loginError');
     const loginBtn = document.getElementById('loginBtn');
 
-    // Auto-redirect kung naka-login na dati
+    // Auto-redirect if already logged in
     (async () => {
       const { data: { session } } = await _supabase.auth.getSession();
       if (session) {
@@ -125,13 +145,12 @@
         loginBtn.disabled = false;
         loginBtn.textContent = 'Sign In';
         loginError.textContent = /invalid/i.test(error.message)
-          ? 'Mali ang email o password. Subukan ulit.'
+          ? 'Invalid email or password. Please try again.'
           : error.message;
         loginError.style.display = 'block';
         return;
       }
 
-      // Direkta na agad sa dashboard dahil hindi na chine-check ang 'admins' table
       window.location.href = HOME_PAGE;
     });
   </script>
