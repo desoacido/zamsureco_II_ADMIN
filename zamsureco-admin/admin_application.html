@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZAMSURECO II — Applications</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          navy: { 900:'#081D45', 800:'#0D2E63', 700:'#153a7a' },
+          amber: { DEFAULT:'#F2A93B', deep:'#C97C1B' },
+        },
+        fontFamily: {
+          display: ['Space Grotesk','sans-serif'],
+          body: ['Inter','sans-serif'],
+          mono: ['IBM Plex Mono','monospace'],
+        }
+      }
+    }
+  }
+</script>
+<style>
+  body{font-family:'Inter',sans-serif;}
+  .pulse-dot{animation:pulse 2s infinite;}
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(16,185,129,0.55);}
+    70%{box-shadow:0 0 0 6px rgba(16,185,129,0);}
+    100%{box-shadow:0 0 0 0 rgba(16,185,129,0);}
+  }
+  .ticket-id{font-family:'IBM Plex Mono',monospace;}
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-body overflow-x-hidden">
+
+  <!-- Dito i-i-inject ng sidebar.js ang shared sidebar at hamburger menu -->
+  <div id="sidebar-root"></div>
+
+  <!-- Main Content Wrapper -->
+  <div class="main-content flex-1 flex flex-col h-screen overflow-hidden">
+    <!-- Navbar (Eksaktong Uniform Style sa Incident Reports) -->
+    <nav class="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center shadow-sm flex-shrink-0">
+      <div class="flex items-center space-x-4">
+        <!-- Hamburger Button -->
+        <button class="hamburger-btn bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl w-10 h-10 flex flex-col items-center justify-center gap-1 cursor-pointer transition shadow-sm flex-shrink-0" id="sidebarToggle" aria-label="Toggle navigation menu">
+          <span class="block w-4 h-0.5 bg-slate-700 rounded-full"></span>
+          <span class="block w-4 h-0.5 bg-slate-700 rounded-full"></span>
+          <span class="block w-4 h-0.5 bg-slate-700 rounded-full"></span>
+        </button>
+        <div>
+          <h1 class="text-lg font-display font-bold text-navy-900 leading-tight">New Connection Applications</h1>
+          <p class="text-xs text-slate-500">Review and process requests for new service connections</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <span class="h-2.5 w-2.5 rounded-full bg-emerald-500 pulse-dot"></span>
+        <span class="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full font-medium border border-slate-200 ticket-id">Ipil Grid Connected</span>
+      </div>
+    </nav>
+
+    <!-- Main Scrollable Area -->
+    <main class="flex-1 overflow-y-auto p-8 bg-slate-50">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+        <div id="applicationsContainer">
+          <div class="text-center py-12 text-slate-400" id="emptyState">
+            <svg class="w-12 h-12 mx-auto mb-3 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+            <p class="text-sm font-medium">No new applications at the moment.</p>
+          </div>
+          <div id="tableWrapper" class="overflow-x-auto" style="display:none;">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-100/70 text-slate-600 text-xs uppercase tracking-wider font-semibold border-b border-slate-200">
+                  <th class="p-4">Applicant Name</th>
+                  <th class="p-4">Details</th>
+                  <th class="p-4">Date Applied</th>
+                </tr>
+              </thead>
+              <tbody id="applicationTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://zrnvivattocqvxlxzsld.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_PUfegf_zyb5B_gVas_SLyw_mto9NFGF';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    async function checkAuth() {
+      const { data: { session } } = await _supabase.auth.getSession();
+      if (!session) { window.location.href = 'admin_login.html'; return; }
+      if (session.user && session.user.email) {
+        const loggedInEl = document.getElementById('loggedInAs');
+        if(loggedInEl) loggedInEl.innerHTML = `<strong style="color:#fff;">${session.user.email}</strong>`;
+      }
+      fetchApplications();
+    }
+
+    document.addEventListener('click', async (e) => {
+      if (e.target.closest('#logoutBtn')) {
+        await _supabase.auth.signOut();
+        window.location.href = 'admin_login.html';
+      }
+    });
+
+    checkAuth();
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+
+    async function fetchApplications() {
+      const { data, error } = await _supabase.from('applications').select('*').order('created_at', { ascending: false });
+      
+      const emptyState = document.getElementById('emptyState');
+      const tableWrapper = document.getElementById('tableWrapper');
+      const tbody = document.getElementById('applicationTableBody');
+
+      if (error || !data || data.length === 0) {
+        emptyState.style.display = 'block';
+        tableWrapper.style.display = 'none';
+        return;
+      }
+
+      emptyState.style.display = 'none';
+      tableWrapper.style.display = 'block';
+      tbody.innerHTML = '';
+
+      data.forEach(item => {
+        tbody.innerHTML += `<tr class="hover:bg-slate-50/80 transition">
+          <td class="p-4 font-semibold text-slate-900">${escapeHtml(item.name || item.full_name || 'N/A')}</td>
+          <td class="p-4 text-slate-600">${escapeHtml(item.details || item.address || '')}</td>
+          <td class="p-4 text-xs text-slate-500 ticket-id">${item.created_at ? new Date(item.created_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}</td>
+        </tr>`;
+      });
+    }
+  </script>
+
+  <!-- Tawagin ang sidebar.js para lumitaw ang shared sidebar -->
+  <script src="sidebar.js"></script>
+</body>
+</html>

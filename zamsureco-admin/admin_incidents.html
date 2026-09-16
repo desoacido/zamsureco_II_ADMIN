@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZAMSURECO II — Incident Reports Management</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Leaflet CSS for Map -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          navy: { 900:'#081D45', 800:'#0D2E63', 700:'#153a7a' },
+          amber: { DEFAULT:'#F2A93B', deep:'#C97C1B' },
+        },
+        fontFamily: {
+          display: ['Space Grotesk','sans-serif'],
+          body: ['Inter','sans-serif'],
+          mono: ['IBM Plex Mono','monospace'],
+        }
+      }
+    }
+  }
+</script>
+<style>
+  body{font-family:'Inter',sans-serif;}
+  .pulse-dot{animation:pulse 2s infinite;}
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(16,185,129,0.55);}
+    70%{box-shadow:0 0 0 6px rgba(16,185,129,0);}
+    100%{box-shadow:0 0 0 0 rgba(16,185,129,0);}
+  }
+  .status-rail{display:flex;align-items:center;margin:4px 0 22px;}
+  .status-node{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;position:relative;}
+  .status-node .node-dot{width:15px;height:15px;border-radius:50%;background:#E2E6ED;border:3px solid #E2E6ED;z-index:1;transition:all .2s ease;}
+  .status-node .node-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#9AA3B5;}
+  .status-node.done .node-dot{background:#10B981;border-color:#10B981;}
+  .status-node.done .node-label{color:#10B981;}
+  .status-node.active .node-dot{background:#F2A93B;border-color:#F2A93B;box-shadow:0 0 0 4px rgba(242,169,59,0.22);}
+  .status-node.active .node-label{color:#C97C1B;}
+  .status-line{flex:1;height:2px;background:#E2E6ED;margin-bottom:19px;}
+  .status-line.done{background:#10B981;}
+  .ticket-id{font-family:'IBM Plex Mono',monospace;}
+  #modalMap { height: 200px; width: 100%; border-radius: 0.75rem; z-index: 10; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-body overflow-x-hidden">
+  <!-- Dito i-i-inject ng sidebar.js ang shared sidebar at hamburger menu -->
+  <div id="sidebar-root"></div>
+
+  <!-- Main Content Wrapper -->
+  <div class="main-content flex-1 flex flex-col h-screen overflow-hidden">
+    <!-- Navbar -->
+    <nav class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm flex-shrink-0">
+      <div class="flex items-center space-x-4">
+        <!-- Hamburger Button -->
+        <button class="hamburger-btn bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 rounded-xl w-10 h-10 flex flex-col items-center justify-center gap-1 cursor-pointer transition flex-shrink-0" id="sidebarToggle" aria-label="Toggle navigation menu">
+          <span class="block w-4 h-0.5 bg-gray-700 rounded-full"></span>
+          <span class="block w-4 h-0.5 bg-gray-700 rounded-full"></span>
+          <span class="block w-4 h-0.5 bg-gray-700 rounded-full"></span>
+        </button>
+        <div>
+          <h1 class="text-lg font-display font-bold text-gray-900 leading-tight">Incident Reports Management</h1>
+          <p class="text-xs text-gray-500">Monitor power disruption & line fault reports</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-3">
+        <span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+        <span class="text-xs bg-gray-100 text-gray-700 px-3 py-1.5 rounded-full font-medium border border-gray-200">Ipil Grid Connected</span>
+      </div>
+    </nav>
+
+    <!-- Main Scrollable Area -->
+    <main class="flex-1 overflow-y-auto p-8 bg-slate-50">
+      <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+        <div>
+          <h2 class="text-2xl font-display font-bold text-navy-900">Incoming Incidents</h2>
+          <p class="text-sm text-slate-500 mt-0.5">Monitor and dispatch power disruption or line fault reports across Pangi, Poblacion, and Ipil Heights.</p>
+        </div>
+        <button onclick="fetchIncidents()" class="bg-navy-800 hover:bg-navy-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition flex items-center space-x-2">
+          <span>Refresh List</span>
+        </button>
+      </div>
+
+      <!-- Stat strip -->
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        <div class="bg-white border border-slate-200 rounded-xl p-4 relative overflow-hidden">
+          <div class="absolute left-0 top-0 bottom-0 w-1 bg-navy-800"></div>
+          <div class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Total</div>
+          <div id="statTotal" class="text-2xl font-display font-bold text-navy-900 mt-1">0</div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl p-4 relative overflow-hidden">
+          <div class="absolute left-0 top-0 bottom-0 w-1 bg-amber"></div>
+          <div class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Pending</div>
+          <div id="statPending" class="text-2xl font-display font-bold text-navy-900 mt-1">0</div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl p-4 relative overflow-hidden">
+          <div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
+          <div class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">In Progress</div>
+          <div id="statProgress" class="text-2xl font-display font-bold text-navy-900 mt-1">0</div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl p-4 relative overflow-hidden">
+          <div class="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500"></div>
+          <div class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Resolved</div>
+          <div id="statResolved" class="text-2xl font-display font-bold text-navy-900 mt-1">0</div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl p-4 relative overflow-hidden">
+          <div class="absolute left-0 top-0 bottom-0 w-1 bg-rose-500"></div>
+          <div class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Rejected</div>
+          <div id="statRejected" class="text-2xl font-display font-bold text-navy-900 mt-1">0</div>
+        </div>
+      </div>
+
+      <div id="diagBanner" class="hidden mb-5 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl p-4"></div>
+
+      <!-- Table Card -->
+      <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-200">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-100/70 text-slate-600 text-xs uppercase tracking-wider font-semibold border-b border-slate-200">
+                <th class="p-4">Ticket</th>
+                <th class="p-4">Category</th>
+                <th class="p-4">Location</th>
+                <th class="p-4">Details</th>
+                <th class="p-4">Status</th>
+                <th class="p-4">Assigned Crew</th>
+                <th class="p-4">Date Reported</th>
+                <th class="p-4 text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody id="incident-table-body" class="divide-y divide-slate-100 text-sm">
+              <tr><td colspan="8" class="p-8 text-center text-slate-400 font-medium">Loading reports...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal -->
+  <div id="detail-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-3xl max-w-xl w-full shadow-2xl border border-slate-100 overflow-hidden max-h-[90vh] overflow-y-auto">
+      <div class="bg-gradient-to-br from-navy-900 to-navy-800 text-white px-8 py-5 flex justify-between items-center sticky top-0 z-20">
+        <div>
+          <p id="modal-ticket" class="text-[11px] text-blue-200 ticket-id">TICKET</p>
+          <h3 class="text-lg font-display font-bold mt-0.5">Incident Review</h3>
+        </div>
+        <button onclick="closeModal()" class="text-white/70 hover:text-white bg-white/10 hover:bg-white/20 p-2 rounded-full transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <div class="p-8">
+        <div id="status-rail-wrap">
+          <div class="status-rail">
+            <div class="status-node" id="node-pending"><div class="node-dot"></div><div class="node-label">Pending</div></div>
+            <div class="status-line" id="line-1"></div>
+            <div class="status-node" id="node-progress"><div class="node-dot"></div><div class="node-label">In Progress</div></div>
+            <div class="status-line" id="line-2"></div>
+            <div class="status-node" id="node-resolved"><div class="node-dot"></div><div class="node-label">Resolved</div></div>
+          </div>
+        </div>
+
+        <div id="rejected-banner" class="hidden mb-4 bg-rose-50 border border-rose-200 rounded-2xl p-4">
+          <p class="text-xs font-bold uppercase tracking-wider text-rose-700 mb-1">Report Rejected</p>
+          <p id="rejected-reason-text" class="text-sm text-rose-700"></p>
+        </div>
+
+        <div id="modal-content" class="space-y-3.5 text-sm text-slate-600"></div>
+
+        <!-- Map Container Exclusive to Ipil -->
+        <div class="mt-4">
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Map Location (Ipil Grid):</label>
+          <div id="modalMap"></div>
+        </div>
+
+        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-slate-100">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Assigned Crew / Lineman:</label>
+            <input type="text" id="crewInput" placeholder="e.g., Line Crew Alpha (Team 3)" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 transition">
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Estimated Restoration (ETR):</label>
+            <input type="datetime-local" id="etrInput" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 transition">
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Reason for Rejection (kailangan lang kapag rire-reject):</label>
+          <textarea id="rejectReasonInput" rows="2" placeholder="hal. Hindi malinaw ang larawan, hindi kaugnay sa insidente..." class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 transition"></textarea>
+        </div>
+
+        <div id="modal-error" class="hidden mt-3 text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-3"></div>
+
+        <div class="mt-8 flex flex-wrap justify-end gap-2.5">
+          <button id="btn-progress" onclick="updateStatus('In Progress')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide shadow-sm transition">Assign / In Progress</button>
+          <button id="btn-resolve" onclick="updateStatus('Resolved')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide shadow-sm transition">Mark as Resolved</button>
+          <button id="btn-reject" onclick="rejectReport()" class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide shadow-sm transition">Reject Report</button>
+          <button onclick="closeModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://zrnvivattocqvxlxzsld.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_PUfegf_zyb5B_gVas_SLyw_mto9NFGF';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let selectedReportId = null;
+    let reportsCache = [];
+    let modalMap = null;
+    let modalMarker = null;
+
+    async function checkAuth() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) { window.location.href = 'admin_login.html'; return; }
+      if (session.user && session.user.email) {
+        const loggedInEl = document.getElementById('loggedInAs');
+        if(loggedInEl) loggedInEl.innerHTML = `<strong style="color:#fff;">${session.user.email}</strong>`;
+      }
+      fetchIncidents();
+    }
+
+    // Safe logout event delegation para sa dynamic sidebar
+    document.addEventListener('click', async (e) => {
+      if (e.target.closest('#logoutBtn')) {
+        await supabaseClient.auth.signOut();
+        window.location.href = 'admin_login.html';
+      }
+    });
+
+    checkAuth();
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+
+    function ticketRef(item) {
+      const year = new Date(item.created_at).getFullYear();
+      const num = String(item.id).padStart(5, '0');
+      return `ZSII-${year}-${num}`;
+    }
+
+    async function fetchIncidents() {
+      const tbody = document.getElementById('incident-table-body');
+      tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-slate-400 font-medium">Fetching records...</td></tr>`;
+
+      const { data, error } = await supabaseClient
+        .from('incident_reports')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-rose-500 font-medium">Error: ${escapeHtml(error.message)}</td></tr>`;
+        return;
+      }
+
+      reportsCache = data || [];
+      document.getElementById('statTotal').textContent = reportsCache.length;
+      document.getElementById('statPending').textContent = reportsCache.filter(d => !d.status || d.status === 'Pending').length;
+      document.getElementById('statProgress').textContent = reportsCache.filter(d => d.status === 'In Progress').length;
+      document.getElementById('statResolved').textContent = reportsCache.filter(d => d.status === 'Resolved').length;
+      document.getElementById('statRejected').textContent = reportsCache.filter(d => d.status === 'Rejected').length;
+
+      if (reportsCache.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-slate-400 font-medium">No pending incident reports found.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = '';
+      reportsCache.forEach((item, index) => {
+        let badgeColor = 'bg-amber-100 text-amber-800 border border-amber-200';
+        if (item.status === 'In Progress') badgeColor = 'bg-blue-100 text-blue-800 border border-blue-200';
+        if (item.status === 'Resolved') badgeColor = 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+        if (item.status === 'Rejected') badgeColor = 'bg-rose-100 text-rose-800 border border-rose-200';
+
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-slate-50/80 transition';
+        row.innerHTML = `
+          <td class="p-4 ticket-id text-xs text-slate-500">${ticketRef(item)}</td>
+          <td class="p-4 font-semibold text-slate-900">${escapeHtml(item.category)}</td>
+          <td class="p-4 text-slate-600">${escapeHtml(item.location)}</td>
+          <td class="p-4 text-slate-600 truncate max-w-xs">${escapeHtml(item.description)}</td>
+          <td class="p-4"><span class="px-3 py-1 rounded-full text-xs font-bold inline-flex items-center ${badgeColor}">${escapeHtml(item.status || 'Pending')}</span></td>
+          <td class="p-4">${escapeHtml(item.assigned_to || 'Unassigned')}</td>
+          <td class="p-4 text-xs text-slate-500 ticket-id">${new Date(item.created_at).toLocaleString('en-PH', { dateStyle:'medium', timeStyle:'short' })}</td>
+          <td class="p-4 text-center">
+            <button data-index="${index}" class="open-btn bg-slate-100 hover:bg-navy-800 hover:text-white text-navy-800 px-3.5 py-1.5 rounded-lg text-xs font-bold transition">Review</button>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+
+      document.querySelectorAll('.open-btn').forEach(btn => {
+        btn.addEventListener('click', () => openModal(reportsCache[Number(btn.dataset.index)]));
+      });
+    }
+
+    function setStatusRail(status) {
+      const stages = ['pending', 'progress', 'resolved'];
+      const idx = status === 'Resolved' ? 2 : status === 'In Progress' ? 1 : 0;
+      stages.forEach((s, i) => {
+        const node = document.getElementById(`node-${s}`);
+        node.classList.remove('done', 'active');
+        if (i < idx) node.classList.add('done');
+        else if (i === idx) node.classList.add('active');
+      });
+      document.getElementById('line-1').classList.toggle('done', idx >= 1);
+      document.getElementById('line-2').classList.toggle('done', idx >= 2);
+    }
+
+    function openModal(item) {
+      selectedReportId = item.id;
+      document.getElementById('modal-error').classList.add('hidden');
+      document.getElementById('modal-ticket').textContent = ticketRef(item);
+
+      const railWrap = document.getElementById('status-rail-wrap');
+      const rejectedBanner = document.getElementById('rejected-banner');
+      if (item.status === 'Rejected') {
+        railWrap.classList.add('hidden');
+        rejectedBanner.classList.remove('hidden');
+        document.getElementById('rejected-reason-text').textContent = item.reject_reason || 'Walang detalyeng ibinigay.';
+      } else {
+        railWrap.classList.remove('hidden');
+        rejectedBanner.classList.add('hidden');
+        setStatusRail(item.status || 'Pending');
+      }
+      document.getElementById('rejectReasonInput').value = '';
+
+      document.getElementById('crewInput').value = item.assigned_to || '';
+      document.getElementById('etrInput').value = item.etr ? item.etr.slice(0, 16) : '';
+
+      let imageHtml = item.image_url
+        ? `<div class="mt-3"><p class="font-semibold text-xs text-slate-500 uppercase tracking-wider mb-1.5">Attachment Proof:</p><img src="${item.image_url}" class="h-36 rounded-2xl object-cover w-full border border-slate-200"></div>`
+        : ``;
+
+      document.getElementById('modal-content').innerHTML = `
+        <div class="grid grid-cols-2 gap-2 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+          <div><span class="text-xs text-slate-400 block uppercase font-bold">Category</span><strong class="text-slate-800">${escapeHtml(item.category)}</strong></div>
+          <div><span class="text-xs text-slate-400 block uppercase font-bold">Status</span><strong class="text-slate-800">${escapeHtml(item.status || 'Pending')}</strong></div>
+        </div>
+        <p><strong>Location:</strong> ${escapeHtml(item.location)}</p>
+        <p><strong>Description:</strong> ${escapeHtml(item.description)}</p>
+        ${imageHtml}
+      `;
+
+      document.getElementById('detail-modal').classList.remove('hidden');
+      document.getElementById('detail-modal').classList.add('flex');
+
+      // Initialize Leaflet Map centered in Ipil (Default: 7.8286, 122.5833)
+      setTimeout(() => {
+        const lat = item.latitude ? Number(item.latitude) : 7.8286;
+        const lng = item.longitude ? Number(item.longitude) : 122.5833;
+
+        if (!modalMap) {
+          modalMap = L.map('modalMap').setView([lat, lng], 14);
+          // FIX: Napalitan ang tile source mula OpenStreetMap papuntang CartoDB
+          // dahil na-block ang IP/domain sa OSM tile servers ("Access blocked" error)
+          // dahil sa mabigat na paulit-ulit na requests noong development/testing.
+          // Mas mabait ang CartoDB sa ganitong usage habang nagtetest tayo.
+          L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            maxZoom: 19,
+            subdomains: 'abcd',
+            attribution: '© OpenStreetMap contributors © CARTO'
+          }).addTo(modalMap);
+        } else {
+          modalMap.setView([lat, lng], 14);
+          if (modalMarker) modalMap.removeLayer(modalMarker);
+        }
+
+        modalMarker = L.marker([lat, lng]).addTo(modalMap)
+          .bindPopup(`<b>${escapeHtml(item.category)}</b><br>${escapeHtml(item.location)}`)
+          .openPopup();
+        
+        modalMap.invalidateSize();
+      }, 300);
+    }
+
+    function closeModal() {
+      document.getElementById('detail-modal').classList.add('hidden');
+      document.getElementById('detail-modal').classList.remove('flex');
+      selectedReportId = null;
+    }
+
+    async function updateStatus(newStatus) {
+      if (selectedReportId === null) return;
+
+      const assignedCrewValue = document.getElementById('crewInput').value.trim();
+      const etrValue = document.getElementById('etrInput').value;
+      const errBox = document.getElementById('modal-error');
+      errBox.classList.add('hidden');
+
+      const { data, error } = await supabaseClient
+        .from('incident_reports')
+        .update({
+          status: newStatus,
+          assigned_to: assignedCrewValue,
+          etr: etrValue ? etrValue : null
+        })
+        .eq('id', selectedReportId)
+        .select();
+
+      if (error) {
+        errBox.textContent = error.message;
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      closeModal();
+      fetchIncidents();
+    }
+
+    async function rejectReport() {
+      if (selectedReportId === null) return;
+      const reason = document.getElementById('rejectReasonInput').value.trim();
+      const errBox = document.getElementById('modal-error');
+      errBox.classList.add('hidden');
+
+      if (!reason) {
+        errBox.textContent = 'Kailangan mong maglagay ng dahilan bago i-reject ang report.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      const { error } = await supabaseClient
+        .from('incident_reports')
+        .update({ status: 'Rejected', reject_reason: reason })
+        .eq('id', selectedReportId)
+        .select();
+
+      if (error) {
+        errBox.textContent = error.message;
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      closeModal();
+      fetchIncidents();
+    }
+  </script>
+
+  <!-- Tawagin ang sidebar.js para lumitaw ang shared sidebar -->
+  <script src="sidebar.js"></script>
+</body>
+</html>

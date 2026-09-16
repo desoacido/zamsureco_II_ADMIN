@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZAMSURECO II — FAQs & Service Inquiries</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          navy: { 900:'#081D45', 800:'#0D2E63', 700:'#153a7a' },
+          amber: { DEFAULT:'#F2A93B', deep:'#C97C1B' },
+        },
+        fontFamily: {
+          display: ['Space Grotesk','sans-serif'],
+          body: ['Inter','sans-serif'],
+          mono: ['IBM Plex Mono','monospace'],
+        }
+      }
+    }
+  }
+</script>
+<style>
+  body{font-family:'Inter',sans-serif;}
+  .faq-answer{max-height:0;overflow:hidden;transition:max-height .3s ease-out,padding .3s ease;}
+  .card.active .faq-answer{max-height:300px;}
+  .card.active .arrow{transform:rotate(180deg);}
+  .arrow{transition:transform .3s ease;}
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-body overflow-x-hidden">
+  <!-- Dito i-i-inject ng sidebar.js ang shared sidebar at hamburger menu -->
+  <div id="sidebar-root"></div>
+
+  <!-- Main Content Wrapper -->
+  <div class="main-content flex-1 flex flex-col h-screen overflow-hidden">
+    <!-- Navbar -->
+    <nav class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm flex-shrink-0">
+      <div class="flex items-center space-x-4">
+        <button class="hamburger-btn bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 rounded-xl w-10 h-10 flex flex-col items-center justify-center gap-1 cursor-pointer transition flex-shrink-0" id="sidebarToggle" aria-label="Toggle navigation menu">
+          <span class="block w-4 h-0.5 bg-gray-700 rounded-full"></span>
+          <span class="block w-4 h-0.5 bg-gray-700 rounded-full"></span>
+          <span class="block w-4 h-0.5 bg-gray-700 rounded-full"></span>
+        </button>
+        <div>
+          <h1 class="text-lg font-display font-bold text-gray-900 leading-tight">FAQs & Service Inquiries</h1>
+          <p class="text-xs text-gray-500">Manage common questions shown to applicants and members</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-3">
+        <button id="addFaqBtn" onclick="openFormModal()" class="bg-navy-800 hover:bg-navy-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition">
+          + Add FAQ
+        </button>
+      </div>
+    </nav>
+
+    <!-- Main Scrollable Area -->
+    <main class="flex-1 overflow-y-auto p-8 bg-slate-50">
+      <div class="max-w-3xl mx-auto">
+        <div class="mb-6">
+          <h2 class="text-2xl font-display font-bold text-navy-900">Common service inquiries</h2>
+          <p class="text-sm text-slate-500 mt-0.5">Click a question to preview. Only active FAQs appear in the user app.</p>
+        </div>
+
+        <div id="diagBanner" class="hidden mb-5 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl p-4"></div>
+
+        <div id="faq-list" class="space-y-3">
+          <p class="text-center text-slate-400 text-sm py-8">Loading FAQs...</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Add/Edit Modal -->
+  <div id="form-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-100 overflow-hidden">
+      <div class="bg-navy-800 text-white px-6 py-4 flex justify-between items-center">
+        <h3 id="form-title" class="text-base font-display font-bold">Add FAQ</h3>
+        <button onclick="closeFormModal()" class="text-white/70 hover:text-white bg-white/10 hover:bg-white/20 p-2 rounded-full transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div class="p-6 space-y-4">
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Question</label>
+          <input type="text" id="questionInput" placeholder="hal. Ano ang requirements..." class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 transition">
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Answer</label>
+          <textarea id="answerInput" rows="4" placeholder="Isulat ang sagot dito..." class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 transition"></textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Sort order</label>
+            <input type="number" id="sortInput" value="0" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 transition">
+          </div>
+          <div class="flex items-end pb-2.5">
+            <label class="flex items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox" id="activeInput" checked class="w-4 h-4 rounded border-slate-300 text-navy-800 focus:ring-navy-800">
+              Active (visible sa app)
+            </label>
+          </div>
+        </div>
+        <div id="form-error" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-3"></div>
+      </div>
+      <div class="px-6 pb-6 flex justify-end gap-2.5">
+        <button onclick="closeFormModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition">Cancel</button>
+        <button id="saveBtn" onclick="saveFaq()" class="bg-navy-800 hover:bg-navy-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold tracking-wide shadow-sm transition">Save FAQ</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://zrnvivattocqvxlxzsld.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_PUfegf_zyb5B_gVas_SLyw_mto9NFGF';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let faqsCache = [];
+    let editingId = null;
+
+    async function checkAuth() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) { window.location.href = 'admin_login.html'; return; }
+      fetchFaqs();
+    }
+
+    document.addEventListener('click', async (e) => {
+      if (e.target.closest('#logoutBtn')) {
+        await supabaseClient.auth.signOut();
+        window.location.href = 'admin_login.html';
+      }
+    });
+
+    checkAuth();
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+
+    function showBanner(msg) {
+      const b = document.getElementById('diagBanner');
+      b.textContent = msg;
+      b.classList.remove('hidden');
+    }
+
+    async function fetchFaqs() {
+      const list = document.getElementById('faq-list');
+      list.innerHTML = `<p class="text-center text-slate-400 text-sm py-8">Loading FAQs...</p>`;
+
+      const { data, error } = await supabaseClient
+        .from('faqs')
+        .select('*')
+        .order('sort_order', { ascending: true });
+
+      if (error) {
+        showBanner('Error loading FAQs: ' + error.message);
+        list.innerHTML = '';
+        return;
+      }
+
+      faqsCache = data || [];
+
+      if (faqsCache.length === 0) {
+        list.innerHTML = `<p class="text-center text-slate-400 text-sm py-8">Wala pang FAQ. I-click ang "+ Add FAQ" para magdagdag.</p>`;
+        return;
+      }
+
+      list.innerHTML = '';
+      faqsCache.forEach((faq) => {
+        const statusBadge = faq.is_active
+          ? `<span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">Active</span>`
+          : `<span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-500 border border-slate-200">Hidden</span>`;
+
+        const card = document.createElement('div');
+        card.className = 'card bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden';
+        card.innerHTML = `
+          <button class="faq-question w-full text-left px-6 py-4 flex justify-between items-center gap-4 hover:bg-slate-50 transition" onclick="toggleFaq(this)">
+            <div class="flex items-center gap-3 min-w-0">
+              ${statusBadge}
+              <span class="text-sm font-semibold text-navy-900 truncate">${escapeHtml(faq.question)}</span>
+            </div>
+            <span class="arrow text-navy-800 flex-shrink-0">&#9660;</span>
+          </button>
+          <div class="faq-answer px-6">
+            <p class="text-sm text-slate-600 leading-relaxed pt-4 border-t border-slate-100">${escapeHtml(faq.answer)}</p>
+            <div class="flex flex-wrap gap-2 pb-5 pt-4">
+              <button onclick="event.stopPropagation(); openFormModal(${faq.id})" class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition">Edit</button>
+              <button onclick="event.stopPropagation(); toggleActive(${faq.id}, ${faq.is_active})" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3.5 py-1.5 rounded-lg text-xs font-bold transition">${faq.is_active ? 'Hide' : 'Unhide'}</button>
+              <button onclick="event.stopPropagation(); deleteFaq(${faq.id})" class="bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition">Delete</button>
+            </div>
+          </div>
+        `;
+        list.appendChild(card);
+      });
+    }
+
+    function toggleFaq(button) {
+      button.parentElement.classList.toggle('active');
+    }
+
+    function openFormModal(id = null) {
+      editingId = id;
+      document.getElementById('form-error').classList.add('hidden');
+
+      if (id) {
+        const faq = faqsCache.find(f => f.id === id);
+        document.getElementById('form-title').textContent = 'Edit FAQ';
+        document.getElementById('questionInput').value = faq.question;
+        document.getElementById('answerInput').value = faq.answer;
+        document.getElementById('sortInput').value = faq.sort_order;
+        document.getElementById('activeInput').checked = faq.is_active;
+      } else {
+        document.getElementById('form-title').textContent = 'Add FAQ';
+        document.getElementById('questionInput').value = '';
+        document.getElementById('answerInput').value = '';
+        document.getElementById('sortInput').value = faqsCache.length;
+        document.getElementById('activeInput').checked = true;
+      }
+
+      document.getElementById('form-modal').classList.remove('hidden');
+      document.getElementById('form-modal').classList.add('flex');
+    }
+
+    function closeFormModal() {
+      document.getElementById('form-modal').classList.add('hidden');
+      document.getElementById('form-modal').classList.remove('flex');
+      editingId = null;
+    }
+
+    async function saveFaq() {
+      const question = document.getElementById('questionInput').value.trim();
+      const answer = document.getElementById('answerInput').value.trim();
+      const sortOrder = parseInt(document.getElementById('sortInput').value, 10) || 0;
+      const isActive = document.getElementById('activeInput').checked;
+      const errBox = document.getElementById('form-error');
+      errBox.classList.add('hidden');
+
+      if (!question || !answer) {
+        errBox.textContent = 'Kailangan punan ang tanong at sagot.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      const payload = { question, answer, sort_order: sortOrder, is_active: isActive };
+
+      let error;
+      if (editingId) {
+        ({ error } = await supabaseClient.from('faqs').update(payload).eq('id', editingId));
+      } else {
+        ({ error } = await supabaseClient.from('faqs').insert(payload));
+      }
+
+      if (error) {
+        errBox.textContent = error.message;
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      closeFormModal();
+      fetchFaqs();
+    }
+
+    async function toggleActive(id, current) {
+      const { error } = await supabaseClient
+        .from('faqs')
+        .update({ is_active: !current })
+        .eq('id', id);
+
+      if (error) { showBanner('Error: ' + error.message); return; }
+      fetchFaqs();
+    }
+
+    async function deleteFaq(id) {
+      if (!confirm('Sigurado ka bang gusto mong i-delete ang FAQ na ito?')) return;
+
+      const { error } = await supabaseClient.from('faqs').delete().eq('id', id);
+      if (error) { showBanner('Error: ' + error.message); return; }
+      fetchFaqs();
+    }
+  </script>
+
+  <!-- Tawagin ang sidebar.js para lumitaw ang shared sidebar -->
+  <script src="sidebar.js"></script>
+</body>
+</html>

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZAMSURECO II — Admin Sign In</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-900:#081D45;
+    --navy-800:#0D2E63;
+    --navy-700:#153a7a;
+    --amber:#F2A93B;
+    --amber-deep:#C97C1B;
+    --red:#DC3545;
+    --red-bg:#FCE8EA;
+    --border:#E2E6ED;
+    --text:#16233F;
+    --text-faint:#9AA3B5;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:'Inter',sans-serif; color:var(--text);
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(circle at 20% 20%, #0f3a86 0%, var(--navy-900) 55%, #050f28 100%);
+    position:relative; overflow:hidden;
+  }
+  body::before{
+    content:""; position:absolute; inset:0;
+    background-image:repeating-linear-gradient(180deg, rgba(255,255,255,0.03) 0 1px, transparent 1px 38px);
+    pointer-events:none;
+  }
+  .login-card{
+    position:relative; z-index:1;
+    background:#fff; width:380px; max-width:90vw;
+    border-radius:16px; padding:34px 32px 30px;
+    box-shadow:0 24px 60px rgba(5,15,40,0.45);
+  }
+  .login-brand{display:flex; flex-direction:column; align-items:center; gap:10px; margin-bottom:22px;}
+  .login-brand .brand-mark{width:44px; height:44px;}
+  .login-brand .login-title{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:17px; color:var(--navy-900);}
+  .login-brand .login-sub{font-size:11px; letter-spacing:1.4px; text-transform:uppercase; color:var(--amber-deep); font-weight:700; margin-top:1px;}
+  label{font-size:12px; font-weight:600; color:var(--navy-800); text-transform:uppercase; letter-spacing:0.5px; display:block; margin:14px 0 6px;}
+  input{
+    width:100%; padding:11px 13px; border:1px solid var(--border); border-radius:8px;
+    font-size:14px; font-family:'Inter',sans-serif; color:var(--text); background:#FBFCFE;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  input:focus{outline:none; border-color:var(--navy-700); box-shadow:0 0 0 3px rgba(21,58,122,0.12); background:#fff;}
+  button{
+    width:100%; margin-top:18px; padding:12px; font-size:14px;
+    background:var(--navy-800); color:#fff; border:none; border-radius:8px;
+    cursor:pointer; font-weight:600; font-family:'Inter',sans-serif;
+    transition:background .15s ease, transform .1s ease;
+  }
+  button:hover{background:var(--navy-700);}
+  button:active{transform:scale(0.98);}
+  button:disabled{opacity:0.6; cursor:default;}
+  .login-error{
+    margin-top:14px; padding:10px 12px; border-radius:8px; font-size:12.5px; font-weight:500; display:none;
+    background:var(--red-bg); color:var(--red); border:1px solid #f5c2c7;
+  }
+  .login-footnote{text-align:center; font-size:11.5px; color:var(--text-faint); margin-top:20px; line-height:1.5;}
+  .back-link{display:block; text-align:center; margin-top:15px; font-size:12px; color:var(--navy-700); text-decoration:none;}
+  .back-link:hover{text-decoration:underline;}
+</style>
+</head>
+<body>
+
+  <div class="login-card">
+    <div class="login-brand">
+      <svg class="brand-mark" viewBox="0 0 40 40" fill="none">
+        <circle cx="20" cy="20" r="19" stroke="#F2A93B" stroke-width="1.4" opacity="0.5"/>
+        <path d="M22 4 L10 22 H18 L16 36 L30 16 H21 L22 4Z" fill="#F2A93B"/>
+      </svg>
+      <div class="login-title">ZAMSURECO II</div>
+      <div class="login-sub">Admin Sign In</div>
+    </div>
+
+    <form id="loginForm">
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="admin@zamsureco2.com" required autocomplete="username">
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
+      <button type="submit" id="loginBtn">Sign In</button>
+    </form>
+    <p id="loginError" class="login-error"></p>
+    <p class="login-footnote">Sistema para sa pag-manage ng mga ulat at patalastas.</p>
+    <a href="index.html" class="back-link">&larr; Bumalik sa Home</a>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://zrnvivattocqvxlxzsld.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_PUfegf_zyb5B_gVas_SLyw_mto9NFGF';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const HOME_PAGE = 'admin_dashboard.html';
+
+    const loginForm = document.getElementById('loginForm');
+    const loginError = document.getElementById('loginError');
+    const loginBtn = document.getElementById('loginBtn');
+
+    // Auto-redirect kung naka-login na dati
+    (async () => {
+      const { data: { session } } = await _supabase.auth.getSession();
+      if (session) {
+        window.location.href = HOME_PAGE;
+      }
+    })();
+
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      loginError.style.display = 'none';
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Signing in...';
+
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+
+      const { error } = await _supabase.auth.signInWithPassword({ email, password });
+
+      if (error) {
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Sign In';
+        loginError.textContent = /invalid/i.test(error.message)
+          ? 'Mali ang email o password. Subukan ulit.'
+          : error.message;
+        loginError.style.display = 'block';
+        return;
+      }
+
+      // Direkta na agad sa dashboard dahil hindi na chine-check ang 'admins' table
+      window.location.href = HOME_PAGE;
+    });
+  </script>
+</body>
+</html>

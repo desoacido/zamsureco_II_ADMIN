@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZAMSURECO II — Admin Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          navy: { 900:'#081D45', 800:'#0D2E63', 700:'#153a7a' },
+          amber: { DEFAULT:'#F2A93B', deep:'#C97C1B' },
+        },
+        fontFamily: {
+          display: ['Space Grotesk','sans-serif'],
+          body: ['Inter','sans-serif'],
+          mono: ['IBM Plex Mono','monospace'],
+        }
+      }
+    }
+  }
+</script>
+<style>
+  body{font-family:'Inter',sans-serif;}
+  .pulse-dot{animation:pulse 2s infinite;}
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(16,185,129,0.55);}
+    70%{box-shadow:0 0 0 6px rgba(16,185,129,0);}
+    100%{box-shadow:0 0 0 0 rgba(16,185,129,0);}
+  }
+  .ticket-id{font-family:'IBM Plex Mono',monospace;}
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-body overflow-x-hidden">
+
+  <!-- Dito i-i-inject ng sidebar.js ang shared sidebar at hamburger menu -->
+  <div id="sidebar-root"></div>
+
+  <!-- Main Content Wrapper -->
+  <div class="main-content flex-1 flex flex-col h-screen overflow-hidden">
+    <!-- Navbar (Eksaktong Uniform Style sa Incident Reports) -->
+    <nav class="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center shadow-sm flex-shrink-0">
+      <div class="flex items-center space-x-4">
+        <!-- Hamburger Button -->
+        <button class="hamburger-btn bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl w-10 h-10 flex flex-col items-center justify-center gap-1 cursor-pointer transition shadow-sm flex-shrink-0" id="sidebarToggle" aria-label="Toggle navigation menu">
+          <span class="block w-4 h-0.5 bg-slate-700 rounded-full"></span>
+          <span class="block w-4 h-0.5 bg-slate-700 rounded-full"></span>
+          <span class="block w-4 h-0.5 bg-slate-700 rounded-full"></span>
+        </button>
+        <div>
+          <h1 class="text-lg font-display font-bold text-navy-900 leading-tight">Dashboard Overview</h1>
+          <p class="text-xs text-slate-500">Welcome back, Admin. Here is the current system summary.</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-3">
+        <div class="hidden sm:flex items-center space-x-2 text-xs font-mono bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg text-slate-600">
+          <span class="h-2 w-2 rounded-full bg-emerald-500 pulse-dot"></span>
+          <span id="clockText">—</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <span class="h-2.5 w-2.5 rounded-full bg-emerald-500 pulse-dot"></span>
+          <span class="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full font-medium border border-slate-200 ticket-id">Ipil Grid Connected</span>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Scrollable Area -->
+    <main class="flex-1 overflow-y-auto p-8 bg-slate-50">
+      <div class="max-w-6xl mx-auto space-y-6">
+        
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <div class="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+            <div class="text-xs font-bold uppercase tracking-wider text-slate-500">Total Announcements</div>
+            <div class="text-3xl font-display font-bold text-navy-900 mt-2" id="statAnnouncements">—</div>
+            <div class="text-xs text-slate-400 mt-1">Published advisories</div>
+          </div>
+          <div class="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+            <div class="text-xs font-bold uppercase tracking-wider text-slate-500">Pending Applications</div>
+            <div class="text-3xl font-display font-bold text-navy-900 mt-2" id="statApplications">—</div>
+            <div class="text-xs text-slate-400 mt-1">Awaiting verification</div>
+          </div>
+          <div class="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+            <div class="text-xs font-bold uppercase tracking-wider text-slate-500">Active Incidents</div>
+            <div class="text-3xl font-display font-bold text-navy-900 mt-2" id="statIncidents">—</div>
+            <div class="text-xs text-slate-400 mt-1">Unresolved power reports</div>
+          </div>
+        </div>
+
+        <!-- Quick Actions Card -->
+        <div class="bg-white border border-slate-200 p-8 rounded-2xl shadow-sm">
+          <div class="mb-4">
+            <h3 class="text-base font-display font-bold text-navy-900">System Status & Quick Actions</h3>
+            <p class="text-xs text-slate-500 mt-0.5">Manage cooperative grid operations smoothly.</p>
+          </div>
+          <p class="text-sm text-slate-600 leading-relaxed">
+            Gamitin ang sidebar sa kaliwa upang lumipat sa pagitan ng <strong>Announcements</strong> para mag-post ng mga balita, <strong>Applications</strong> para sa mga aplikasyon ng miyembro, at <strong>Incident Reports</strong> para masubaybayan ang mga power outages at brownouts sa inyong area.
+          </p>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="sidebar.js"></script>
+  <script>
+    const SUPABASE_URL = 'https://zrnvivattocqvxlxzsld.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_PUfegf_zyb5B_gVas_SLyw_mto9NFGF';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    function tickClock() {
+      const el = document.getElementById('clockText');
+      if (!el) return;
+      el.textContent = new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+    }
+    tickClock();
+    setInterval(tickClock, 1000 * 30);
+
+    async function loadDashboardStats() {
+      try {
+        const { count: annCount } = await _supabase.from('announcements').select('*', { count: 'exact', head: true });
+        if (annCount !== null) document.getElementById('statAnnouncements').textContent = annCount;
+
+        const { count: appCount } = await _supabase.from('applications').select('*', { count: 'exact', head: true });
+        if (appCount !== null) document.getElementById('statApplications').textContent = appCount;
+
+        const { count: incCount } = await _supabase.from('incidents').select('*', { count: 'exact', head: true });
+        if (incCount !== null) document.getElementById('statIncidents').textContent = incCount;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    loadDashboardStats();
+  </script>
+</body>
+</html>
