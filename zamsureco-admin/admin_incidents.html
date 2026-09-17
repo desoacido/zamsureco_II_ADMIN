@@ -369,11 +369,15 @@
           // dahil na-block ang IP/domain sa OSM tile servers ("Access blocked" error)
           // dahil sa mabigat na paulit-ulit na requests noong development/testing.
           // Mas mabait ang CartoDB sa ganitong usage habang nagtetest tayo.
-          L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+         if (!modalMap) {
+          modalMap = L.map('modalMap').setView([lat, lng], 14);
+          
+          // MAPTILER VOYAGER STYLE:
+          L.tileLayer('https://api.maptiler.com/maps/voyager/{z}/{x}/{y}.png?key=ILAGAY_MO_DITO_YUNG_MAPTILER_API_KEY_MO', {
             maxZoom: 19,
-            subdomains: 'abcd',
-            attribution: '© OpenStreetMap contributors © CARTO'
+            attribution: '&copy; MapTiler &copy; OpenStreetMap contributors'
           }).addTo(modalMap);
+
         } else {
           modalMap.setView([lat, lng], 14);
           if (modalMarker) modalMap.removeLayer(modalMarker);
