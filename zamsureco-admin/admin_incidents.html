@@ -359,21 +359,16 @@
       document.getElementById('detail-modal').classList.add('flex');
 
       // Initialize Leaflet Map centered in Ipil (Default: 7.8286, 122.5833)
+      // Initialize Leaflet Map centered in Ipil (Default: 7.8286, 122.5833)
       setTimeout(() => {
         const lat = item.latitude ? Number(item.latitude) : 7.8286;
         const lng = item.longitude ? Number(item.longitude) : 122.5833;
 
         if (!modalMap) {
           modalMap = L.map('modalMap').setView([lat, lng], 14);
-          // FIX: Napalitan ang tile source mula OpenStreetMap papuntang CartoDB
-          // dahil na-block ang IP/domain sa OSM tile servers ("Access blocked" error)
-          // dahil sa mabigat na paulit-ulit na requests noong development/testing.
-          // Mas mabait ang CartoDB sa ganitong usage habang nagtetest tayo.
-         if (!modalMap) {
-          modalMap = L.map('modalMap').setView([lat, lng], 14);
           
-          // MAPTILER VOYAGER STYLE:
-          L.tileLayer('https://api.maptiler.com/maps/voyager/{z}/{x}/{y}.png?key=JqtKbHhAXW1bqyZqdfwD', {
+          // MAPTILER STREETS-V2 STYLE:
+          L.tileLayer('https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=JqtKbHhAXW1bqyZqdfwD', {
             maxZoom: 19,
             attribution: '&copy; MapTiler &copy; OpenStreetMap contributors'
           }).addTo(modalMap);
@@ -388,7 +383,7 @@
           .openPopup();
         
         modalMap.invalidateSize();
-      } 300);
+      }, 300); // <-- May 300 at close parenthesis dito na nawala kanina
     }
 
     function closeModal() {
