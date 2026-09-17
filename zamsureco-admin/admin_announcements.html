@@ -86,7 +86,7 @@
           </div>
           <div>
             <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Attachment Image (Optional)</label>
-            <input type="file" id="imageFile" accept="image/*" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-navy-50 file:text-navy-800 hover:file:bg-navy-150 cursor-pointer border border-slate-300 rounded-xl bg-slate-50">
+            <input type="file" id="imageFile" accept="image/*" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-navy-50 file:text-navy-800 hover:file:bg-navy-100 cursor-pointer border border-slate-300 rounded-xl bg-slate-50">
           </div>
           <div>
             <button type="submit" id="submitBtn" class="bg-navy-800 hover:bg-navy-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition">Publish Announcement</button>
@@ -187,14 +187,12 @@
 
       let imageUrl = null;
 
-      // 1. Kung may piniling file, i-upload muna sa Supabase Storage
       if (imageFileInput.files && imageFileInput.files[0]) {
         const file = imageFileInput.files[0];
         const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}_${Math.random().toString(36.substring(2, 9))}.${fileExt}`;
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
         const filePath = `${fileName}`;
 
-        // Siguraduhing 'announcements-images' ang pangalan ng bucket mo sa Supabase
         const { data: uploadData, error: uploadError } = await _supabase.storage
           .from('announcements-images')
           .upload(filePath, file);
@@ -207,7 +205,6 @@
           return;
         }
 
-        // Kunin ang Public URL ng in-upload na litrato
         const { data: publicUrlData } = _supabase.storage
           .from('announcements-images')
           .getPublicUrl(filePath);
@@ -215,8 +212,6 @@
         imageUrl = publicUrlData.publicUrl;
       }
 
-      // 2. I-save ang data kasama ang image_url sa announcements table
-      // *Tandaan: Kailangan mong may column na 'image_url' (text) sa iyong Supabase table.*
       const { error } = await _supabase.from('announcements').insert([{ 
         title, 
         category, 
