@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZAMSURECO II — Upload Billing Statements</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          navy: { 900:'#081D45', 800:'#0D2E63', 700:'#153a7a' },
+          amber: { DEFAULT:'#F2A93B', deep:'#C97C1B' },
+        },
+        fontFamily: {
+          display: ['Space Grotesk','sans-serif'],
+          body: ['Inter','sans-serif'],
+          mono: ['IBM Plex Mono','monospace'],
+        }
+      }
+    }
+  }
+</script>
+<style>
+  body{font-family:'Inter',sans-serif;}
+  .ticket-id{font-family:'IBM Plex Mono',monospace;}
+  .drop-zone{border:2px dashed #CBD5E1; transition: all .15s ease;}
+  .drop-zone.drag-over{border-color:#F2A93B; background:#FFFBEB;}
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-body overflow-x-hidden">
+  <div id="sidebar-root"></div>
+
+  <div class="main-content flex-1 flex flex-col h-screen overflow-hidden">
+    <nav class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm flex-shrink-0">
+      <div class="flex items-center space-x-4">
+        <button class="hamburger-btn bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 rounded-xl w-10 h-10 flex flex-col items-center justify-center gap-1 cursor-pointer transition flex-shrink-0" id="sidebarToggle" aria-label="Toggle navigation menu">
+          <span class="block w-4 h-0.5 bg-gray-700 rounded-full"></span>
+          <span class="block w-4 h-0.5 bg-gray-700 rounded-full"></span>
+          <span class="block w-4 h-0.5 bg-gray-700 rounded-full"></span>
+        </button>
+        <div>
+          <h1 class="text-lg font-display font-bold text-gray-900 leading-tight">Upload Billing Statements</h1>
+          <p class="text-xs text-gray-500">I-upload ang CSV file ng meter readings mula sa office</p>
+        </div>
+      </div>
+    </nav>
+
+    <main class="flex-1 overflow-y-auto p-8 bg-slate-50">
+      <div class="max-w-4xl mx-auto space-y-6">
+
+        <div id="diagBanner" class="hidden bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl p-4"></div>
+        <div id="successBanner" class="hidden bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-xl p-4"></div>
+
+        <!-- Step 1: Batch Info -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+          <h3 class="text-sm font-display font-bold text-navy-900 mb-4">1. Batch Information</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Batch Name</label>
+              <input type="text" id="batchNameInput" placeholder="hal. July 2026 - Ipil Zone A" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 transition">
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Billing Month</label>
+              <input type="month" id="billingMonthInput" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 transition">
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Zone Code (opsyonal)</label>
+              <input type="text" id="zoneCodeInput" placeholder="hal. IPIL-A" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 transition">
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Uploaded By</label>
+              <input type="text" id="uploadedByInput" placeholder="Pangalan mo" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 transition">
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: File Upload -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+          <h3 class="text-sm font-display font-bold text-navy-900 mb-4">2. Upload CSV File</h3>
+          <div id="dropZone" class="drop-zone rounded-xl p-10 text-center cursor-pointer">
+            <p class="text-sm text-slate-500 mb-2">I-drag ang CSV file dito, o</p>
+            <label class="inline-block bg-navy-800 hover:bg-navy-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition cursor-pointer">
+              Piliin ang File
+              <input type="file" id="fileInput" accept=".csv" class="hidden">
+            </label>
+            <p id="fileNameLabel" class="text-xs text-slate-400 mt-3"></p>
+          </div>
+        </div>
+
+        <!-- Step 3: Preview -->
+        <div id="previewSection" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-sm font-display font-bold text-navy-900">3. Preview (<span id="rowCount">0</span> records)</h3>
+            <span id="parseWarning" class="hidden text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg"></span>
+          </div>
+          <div class="overflow-x-auto border border-slate-200 rounded-xl">
+            <table class="w-full text-left text-xs">
+              <thead>
+                <tr class="bg-slate-100/70 text-slate-600 uppercase tracking-wider font-semibold border-b border-slate-200">
+                  <th class="p-3">Acct No</th>
+                  <th class="p-3">Name</th>
+                  <th class="p-3">Address</th>
+                  <th class="p-3">kWh Used</th>
+                  <th class="p-3">Total Billed</th>
+                  <th class="p-3">Due Date</th>
+                </tr>
+              </thead>
+              <tbody id="previewTableBody" class="divide-y divide-slate-100 ticket-id"></tbody>
+            </table>
+          </div>
+
+          <div class="mt-6 flex justify-end gap-2.5">
+            <button onclick="resetUpload()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition">Cancel</button>
+            <button id="confirmUploadBtn" onclick="confirmUpload()" class="bg-navy-800 hover:bg-navy-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold tracking-wide shadow-sm transition">Confirm & Upload to Database</button>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://zrnvivattocqvxlxzsld.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_PUfegf_zyb5B_gVas_SLyw_mto9NFGF';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    window._supabase = _supabase;
+
+    // Ang mga column na EXPECTED nating makita sa CSV. Kung may column ang
+    // file na hindi dito nakalista, babalewalain lang — hindi ito error.
+    const REQUIRED_COLUMNS = [
+      'acct_no', 'acct_name', 'address', 'meter_brand', 'meter_serial',
+      'meter_type', 'billing_year_month', 'period_from', 'period_to',
+      'due_date', 'present_reading', 'previous_reading', 'kwh_used', 'total_billed'
+    ];
+
+    let parsedRows = [];
+
+    async function checkAuth() {
+      const { data: { session } } = await _supabase.auth.getSession();
+      if (!session) { window.location.href = 'admin_login.html'; return; }
+    }
+    checkAuth();
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+
+    function showError(msg) {
+      const b = document.getElementById('diagBanner');
+      b.textContent = msg;
+      b.classList.remove('hidden');
+      document.getElementById('successBanner').classList.add('hidden');
+    }
+
+    function showSuccess(msg) {
+      const b = document.getElementById('successBanner');
+      b.textContent = msg;
+      b.classList.remove('hidden');
+      document.getElementById('diagBanner').classList.add('hidden');
+    }
+
+    // --- Drag & drop wiring ---
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) handleFile(e.target.files[0]);
+    });
+
+    function handleFile(file) {
+      if (!file.name.toLowerCase().endsWith('.csv')) {
+        showError('Kailangan .csv file lang ang i-upload.');
+        return;
+      }
+
+      document.getElementById('fileNameLabel').textContent = `Selected: ${file.name}`;
+      document.getElementById('diagBanner').classList.add('hidden');
+      document.getElementById('successBanner').classList.add('hidden');
+
+      // PapaParse ang gumaganap ng buong CSV parsing — kayang-kaya nito
+      // ang mga comma sa loob ng naka-quote na fields (hal. "TAYRUS, REBECCA I"),
+      // kaya hindi na tayo mag-aalala sa mga hindi standard na pangalan.
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: (h) => h.trim(),
+        complete: (results) => {
+          if (results.errors.length > 0) {
+            console.warn('Parse warnings:', results.errors);
+          }
+          parsedRows = results.data;
+          renderPreview(results.meta.fields);
+        },
+        error: (err) => {
+          showError('Error sa pag-parse ng file: ' + err.message);
+        }
+      });
+    }
+
+    function renderPreview(headers) {
+      const missing = REQUIRED_COLUMNS.filter(col => !headers.includes(col));
+      const warningEl = document.getElementById('parseWarning');
+      if (missing.length > 0) {
+        warningEl.textContent = `Kulang na columns: ${missing.join(', ')}`;
+        warningEl.classList.remove('hidden');
+      } else {
+        warningEl.classList.add('hidden');
+      }
+
+      document.getElementById('rowCount').textContent = parsedRows.length;
+
+      const tbody = document.getElementById('previewTableBody');
+      tbody.innerHTML = '';
+      parsedRows.slice(0, 10).forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="p-3">${escapeHtml(row.acct_no)}</td>
+          <td class="p-3">${escapeHtml(row.acct_name)}</td>
+          <td class="p-3">${escapeHtml(row.address)}</td>
+          <td class="p-3">${escapeHtml(row.kwh_used)}</td>
+          <td class="p-3">${escapeHtml(row.total_billed)}</td>
+          <td class="p-3">${escapeHtml(row.due_date)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      if (parsedRows.length > 10) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="6" class="p-3 text-center text-slate-400">... at ${parsedRows.length - 10} pang records</td>`;
+        tbody.appendChild(tr);
+      }
+
+      document.getElementById('previewSection').classList.remove('hidden');
+    }
+
+    function resetUpload() {
+      parsedRows = [];
+      fileInput.value = '';
+      document.getElementById('fileNameLabel').textContent = '';
+      document.getElementById('previewSection').classList.add('hidden');
+    }
+
+    function toNumberOrNull(val) {
+      if (val === undefined || val === null || val === '') return null;
+      const n = Number(val);
+      return isNaN(n) ? null : n;
+    }
+
+    function toDateOrNull(val) {
+      if (!val) return null;
+      return val.trim();
+    }
+
+    async function confirmUpload() {
+      const batchName = document.getElementById('batchNameInput').value.trim();
+      const billingMonth = document.getElementById('billingMonthInput').value.trim();
+      const zoneCode = document.getElementById('zoneCodeInput').value.trim();
+      const uploadedBy = document.getElementById('uploadedByInput').value.trim();
+
+      if (!batchName || !billingMonth) {
+        showError('Kailangan punan ang Batch Name at Billing Month bago mag-upload.');
+        return;
+      }
+
+      if (parsedRows.length === 0) {
+        showError('Wala pang na-upload na CSV file.');
+        return;
+      }
+
+      const btn = document.getElementById('confirmUploadBtn');
+      btn.disabled = true;
+      btn.textContent = 'Uploading...';
+
+      try {
+        // 1. Gumawa muna ng batch record
+        const { data: batchData, error: batchError } = await _supabase
+          .from('reading_batches')
+          .insert({
+            batch_name: batchName,
+            billing_month: billingMonth,
+            zone_code: zoneCode || null,
+            uploaded_by: uploadedBy || null,
+            total_records: parsedRows.length,
+          })
+          .select()
+          .single();
+
+        if (batchError) throw batchError;
+
+        const batchId = batchData.id;
+
+        // 2. I-map ang bawat CSV row papunta sa billing_statements columns
+        const statementsToInsert = parsedRows.map(row => ({
+          batch_id: batchId,
+          acct_no: row.acct_no?.trim(),
+          acct_name: row.acct_name?.trim(),
+          address: row.address?.trim(),
+          meter_brand: row.meter_brand?.trim() || null,
+          meter_serial: row.meter_serial?.trim() || null,
+          meter_type: row.meter_type?.trim() || null,
+          billing_year_month: row.billing_year_month?.trim() || billingMonth,
+          period_from: toDateOrNull(row.period_from),
+          period_to: toDateOrNull(row.period_to),
+          due_date: toDateOrNull(row.due_date),
+          present_reading: toNumberOrNull(row.present_reading),
+          previous_reading: toNumberOrNull(row.previous_reading),
+          kwh_used: toNumberOrNull(row.kwh_used),
+          total_billed: toNumberOrNull(row.total_billed),
+          status: 'Unpaid',
+          // route_seq, multiplier, at ang mga JSONB breakdown fields
+          // (charges_breakdown, other_charges, universal_charges, vat_breakdown)
+          // ay hindi pa kasama sa basic CSV na ito — mananatiling null/default
+          // hanggang malaman natin ang tunay na format ng ZAMSURECO source file.
+        }));
+
+        // I-check kung may kulang na required field (acct_no)
+        const invalidRows = statementsToInsert.filter(s => !s.acct_no);
+        if (invalidRows.length > 0) {
+          throw new Error(`${invalidRows.length} row(s) ang walang acct_no. Paki-check ang CSV file.`);
+        }
+
+        // 3. I-insert lahat ng statements (batch insert, mas mabilis)
+        const { error: insertError } = await _supabase
+          .from('billing_statements')
+          .insert(statementsToInsert);
+
+        if (insertError) throw insertError;
+
+        showSuccess(`Successfully na-upload ang ${statementsToInsert.length} billing statements!`);
+        resetUpload();
+        document.getElementById('batchNameInput').value = '';
+        document.getElementById('billingMonthInput').value = '';
+        document.getElementById('zoneCodeInput').value = '';
+      } catch (err) {
+        showError('Error: ' + (err.message || JSON.stringify(err)));
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Confirm & Upload to Database';
+      }
+    }
+  </script>
+
+  <script src="sidebar.js"></script>
+</body>
+</html>
