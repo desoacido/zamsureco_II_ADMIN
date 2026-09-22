@@ -35,6 +35,11 @@
       label: "Service Inquiries",
       icon: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
     },
+    {
+      href: "admin_billing_upload.html",
+      label: "Billing Statements",
+      icon: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 14h2"/><path d="M8 17h5"/>',
+    },
   ];
 
   const currentPage = window.location.pathname.split("/").pop() || "admin_dashboard.html";
