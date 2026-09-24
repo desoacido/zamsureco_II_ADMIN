@@ -3,8 +3,9 @@
    ============================================================ */
 
 (function () {
-  // 1. Agad na i-check ang localStorage bago mag-render para walang layout flicker
-  const isCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
+  // 1. I-check agad ang localStorage bago mag-render para walang layout flicker
+  let isCollapsed = false;
+  try { isCollapsed = localStorage.getItem('sidebar_collapsed') === 'true'; } catch (e) {}
   if (isCollapsed) {
     document.documentElement.classList.add('sidebar-collapsed');
   }
@@ -12,13 +13,13 @@
   const NAV_ITEMS = [
     {
       href: "admin_dashboard.html",
-      label: "Dashboard Overview",
-      icon: '<path d="M3 11l18-5v12L3 13v-2z"/><path d="M11 13v6a2 2 0 002 2h1"/>',
+      label: "Dashboard",
+      icon: '<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
     },
     {
       href: "admin_announcements.html",
       label: "Announcements",
-      icon: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h10M7 16h6"/>',
+      icon: '<path d="M3 11l18-5v12L3 13v-2z"/><path d="M11 13v6a2 2 0 002 2h1"/>',
     },
     {
       href: "admin_application.html",
@@ -47,25 +48,21 @@
   const navHtml = NAV_ITEMS.map((item) => {
     const isActive = item.href === currentPage;
     return `
-      <a href="${item.href}" class="nav-link${isActive ? " active" : ""}" title="${item.label}">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${item.icon}</svg>
+      <a href="${item.href}" class="nav-link${isActive ? " active" : ""}" title="${item.label}"${isActive ? ' aria-current="page"' : ""}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${item.icon}</svg>
         <span class="nav-label">${item.label}</span>
       </a>`;
   }).join("");
 
-  // BAGO: href na ngayon ay direktang admin_login.html (hindi na logout.html),
-  // dahil ang JS logout handler sa ibaba ang talagang bahala sa pag-sign out
-  // at pag-redirect. Iisang pinagmulan na lang ng truth, walang conflict.
   const sidebarHtml = `
     <aside class="sidebar" id="appSidebar" aria-label="Navigation menu">
       <div class="brand">
         <svg class="brand-mark" viewBox="0 0 40 40" fill="none">
-          <circle cx="20" cy="20" r="19" stroke="#F2A93B" stroke-width="1.4" opacity="0.5"/>
           <path d="M22 4 L10 22 H18 L16 36 L30 16 H21 L22 4Z" fill="#F2A93B"/>
         </svg>
         <div class="brand-text">
           <div class="brand-title">ZAMSURECO II</div>
-          <div class="brand-sub">Grid Control Panel</div>
+          <div class="brand-sub">Admin Panel</div>
         </div>
       </div>
 
@@ -74,22 +71,16 @@
         ${navHtml}
       </div>
 
-      <!-- Sign Out / Logout Button -->
-      <div class="mt-auto pt-4" style="margin-top: auto; padding-top: 16px;">
+      <div class="sidebar-bottom">
         <a href="admin_login.html" id="logoutBtn" class="logout-btn" title="Sign Out">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+            <path d="M16 17l5-5-5-5"/>
+            <path d="M21 12H9"/>
           </svg>
           <span class="nav-label">Sign Out</span>
         </a>
-      </div>
-
-      <div class="sidebar-footer">
-        <div class="grid-pulse">
-          <span class="pulse-dot"></span> 
-          <span class="footer-text">System operational</span>
-        </div>
-        <span class="footer-text">Zamboanga del Sur II<br>Electric Cooperative</span>
+        <div class="sidebar-footer">Zamboanga del Sur II Electric Cooperative</div>
       </div>
     </aside>`;
 
@@ -100,21 +91,19 @@
       <span class="bar bar3"></span>
     </button>`;
 
-  // ---- CSS Styles para sa Persistent Layout at Push-Content ----
+  // ---- CSS: flat, solid navy, single font ----
   const styleTag = document.createElement("style");
   styleTag.id = "sidebar-shared-styles";
   styleTag.textContent = `
     :root {
-      --sidebar-width-expanded: 272px;
-      --sidebar-width-collapsed: 72px;
+      --sidebar-width-expanded: 256px;
+      --sidebar-width-collapsed: 68px;
       --navy-900: #081D45;
       --navy-800: #0D2E63;
       --amber: #F2A93B;
-      --green: #1E9E64;
-      --transition-speed: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-speed: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    /* Page Layout Container */
     body {
       display: flex;
       min-height: 100vh;
@@ -122,14 +111,15 @@
       margin: 0;
     }
 
-    /* Sidebar Base Style */
+    /* Sidebar */
     .sidebar {
       width: var(--sidebar-width-expanded);
-      background: linear-gradient(180deg, var(--navy-900) 0%, var(--navy-800) 100%);
+      background: var(--navy-900);
       color: #fff;
+      font-family: 'Inter', system-ui, sans-serif;
       display: flex;
       flex-direction: column;
-      padding: 20px 14px;
+      padding: 16px 12px;
       position: fixed;
       top: 0;
       left: 0;
@@ -137,192 +127,161 @@
       height: 100vh;
       z-index: 200;
       transition: width var(--transition-speed);
-      box-shadow: 4px 0 20px rgba(8, 15, 35, 0.15);
       overflow-x: hidden;
       overflow-y: auto;
     }
 
-    /* Main Content Layout - Kusang umaadjust ang margin-left depende sa sidebar */
+    /* Main content */
     .main-content {
       flex: 1;
       margin-left: var(--sidebar-width-expanded);
       min-width: 0;
       padding: 32px;
       transition: margin-left var(--transition-speed);
-      background: var(--bg, #EEF1F6);
+      background: var(--bg, #F8FAFC);
       min-height: 100vh;
     }
 
-    /* Kapag naka-collapse ang sidebar */
+    /* Collapsed */
     html.sidebar-collapsed .sidebar {
       width: var(--sidebar-width-collapsed);
-      padding: 20px 10px;
+      padding: 16px 8px;
     }
     html.sidebar-collapsed .main-content {
       margin-left: var(--sidebar-width-collapsed);
     }
-
-    /* Itago ang mga text labels kapag naka-collapse */
     html.sidebar-collapsed .sidebar .brand-text,
     html.sidebar-collapsed .sidebar .nav-label,
     html.sidebar-collapsed .sidebar .nav-group-label,
     html.sidebar-collapsed .sidebar .sidebar-footer {
       display: none !important;
     }
-
     html.sidebar-collapsed .sidebar .brand {
       justify-content: center;
-      padding: 10px 0 20px 0;
+      padding: 8px 0 16px 0;
     }
     html.sidebar-collapsed .sidebar .nav-link,
     html.sidebar-collapsed .sidebar .logout-btn {
       justify-content: center;
-      padding: 12px 0;
+      padding: 11px 0;
     }
 
-    /* Hamburger Button Style sa loob ng Dashboard */
+    /* Hamburger */
     .hamburger-btn {
-      background: var(--card, #FFFFFF);
-      border: 1px solid var(--border, #E2E6ED);
-      border-radius: 10px;
-      width: 42px;
-      height: 42px;
+      background: #fff;
+      border: 1px solid #E2E8F0;
+      border-radius: 6px;
+      width: 36px;
+      height: 36px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 5px;
+      gap: 4px;
       cursor: pointer;
-      box-shadow: 0 1px 2px rgba(16,24,50,0.04);
-      transition: background 0.2s, border-color 0.2s;
+      transition: background 0.15s;
       flex-shrink: 0;
     }
-    .hamburger-btn:hover {
-      background: #f8fafc;
-      border-color: var(--amber);
-    }
+    .hamburger-btn:hover { background: #F1F5F9; }
     .hamburger-btn .bar {
       display: block;
-      width: 18px;
+      width: 16px;
       height: 2px;
-      background: var(--navy-900);
-      border-radius: 2px;
+      background: #475569;
     }
 
-    /* Brand / Logo Design */
+    /* Brand */
     .brand {
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 10px 8px 20px 8px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      margin-bottom: 16px;
+      padding: 8px 8px 18px 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      margin-bottom: 14px;
     }
-    .brand-mark { width: 36px; height: 36px; flex-shrink: 0; }
+    .brand-mark { width: 30px; height: 30px; flex-shrink: 0; }
     .brand-text .brand-title {
-      font-family: 'Space Grotesk', sans-serif;
       font-weight: 700;
-      font-size: 15px;
+      font-size: 14px;
+      letter-spacing: 0.2px;
       line-height: 1.2;
     }
     .brand-text .brand-sub {
-      font-size: 9.5px;
-      color: var(--amber);
-      letter-spacing: 1.2px;
-      font-weight: 600;
-      text-transform: uppercase;
-      margin-top: 3px;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.55);
+      font-weight: 400;
+      margin-top: 2px;
     }
 
-    /* Nav Links */
+    /* Nav */
     .nav-group-label {
-      font-size: 9.5px;
-      letter-spacing: 1.2px;
+      font-size: 10.5px;
+      letter-spacing: 0.8px;
       text-transform: uppercase;
       color: rgba(255, 255, 255, 0.4);
-      padding: 10px 8px 6px;
+      padding: 6px 10px;
       font-weight: 600;
     }
     .nav-items-container {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 2px;
     }
     .nav-link, .logout-btn {
       display: flex;
       align-items: center;
       gap: 12px;
-      color: rgba(255, 255, 255, 0.78);
+      color: rgba(255, 255, 255, 0.7);
       text-decoration: none;
-      padding: 11px 12px;
-      border-radius: 10px;
+      padding: 9px 10px;
+      border-radius: 6px;
       font-size: 13.5px;
       font-weight: 500;
-      transition: all 0.2s ease;
+      transition: background 0.15s, color 0.15s;
       white-space: nowrap;
     }
     .nav-link svg, .logout-btn svg {
       width: 18px;
       height: 18px;
       flex-shrink: 0;
-      opacity: 0.8;
     }
     .nav-link:hover {
-      background: rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.06);
       color: #fff;
     }
-    .nav-link:hover svg { opacity: 1; }
     .nav-link.active {
-      background: rgba(242, 169, 59, 0.15);
+      background: rgba(255, 255, 255, 0.12);
       color: #fff;
       font-weight: 600;
-      border-left: 3px solid var(--amber);
     }
-    .nav-link.active svg { opacity: 1; color: var(--amber); }
 
-    /* Logout button style */
+    /* Bottom: sign out + footer */
+    .sidebar-bottom {
+      margin-top: auto;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
     .logout-btn {
-      background: rgba(220, 53, 69, 0.12);
-      border: 1px solid rgba(220, 53, 69, 0.25);
-      color: #fca5a5;
       width: 100%;
       cursor: pointer;
+      color: rgba(255, 255, 255, 0.6);
     }
     .logout-btn:hover {
-      background: rgba(220, 53, 69, 0.25);
+      background: rgba(255, 255, 255, 0.06);
       color: #fff;
     }
-
-    /* Footer Info */
     .sidebar-footer {
-      margin-top: 16px;
-      padding: 12px 8px;
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 10px 10px 4px;
       font-size: 11px;
-      color: rgba(255, 255, 255, 0.45);
+      color: rgba(255, 255, 255, 0.35);
       line-height: 1.4;
     }
-    .grid-pulse {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      font-size: 11px;
-      color: rgba(255, 255, 255, 0.7);
-      margin-bottom: 6px;
-    }
-    .pulse-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--green);
-      flex-shrink: 0;
-    }
 
-    /* Mobile Responsive Support */
+    /* Mobile */
     @media (max-width: 768px) {
       .sidebar {
         transform: translateX(-100%);
-        transition: transform 0.3s ease, width 0.3s ease;
+        transition: transform 0.25s ease, width 0.25s ease;
       }
       html.sidebar-open-mobile .sidebar {
         transform: translateX(0);
@@ -344,14 +303,13 @@
       document.body.insertAdjacentHTML("afterbegin", sidebarHtml);
     }
 
-    // 3. Hanapin ang topbar para awtomatikong isingit ang hamburger button sa tabi ng page title kung gusto mo, 
-    // o hayaan ang user na ilagay ito sa topbar. Ilalagay natin ito sa simula ng topbar kung available.
+    // 3. Isingit ang hamburger sa topbar kung wala pa
     const topbar = document.querySelector('.topbar');
     if (topbar && !document.getElementById('sidebarToggle')) {
       topbar.insertAdjacentHTML('afterbegin', hamburgerHtml);
     }
 
-    // 4. Toggle Event Handler gamit ang localStorage persistence
+    // 4. Toggle handler + localStorage persistence
     const toggleBtn = document.getElementById("sidebarToggle");
     if (toggleBtn) {
       toggleBtn.addEventListener("click", () => {
@@ -360,24 +318,22 @@
         } else {
           document.documentElement.classList.toggle("sidebar-collapsed");
           const collapsed = document.documentElement.classList.contains("sidebar-collapsed");
-          localStorage.setItem("sidebar_collapsed", collapsed);
+          try { localStorage.setItem("sidebar_collapsed", collapsed); } catch (e) {}
         }
       });
     }
 
-    // 5. BAGO: Sentralisadong Logout Handler
-    // Ito na lang ang SATU-SATONG lugar kung saan nangyayari ang sign out.
-    // preventDefault() para hindi na sumunod ang browser sa href — tayo na
-    // mismo ang mag-a-redirect pagkatapos matapos ang signOut() ni Supabase.
-    // Kailangan lang na naka-load na ang Supabase client bago mag-click
-    // (window.supabaseClient dapat naka-set sa bawat page, tingnan ang note
-    // sa ibaba kung paano i-set up ito).
+    // 5. Sentralisadong Logout Handler
     const logoutBtn = document.getElementById("logoutBtn");
     if (logoutBtn) {
       logoutBtn.addEventListener("click", async (e) => {
         e.preventDefault();
 
-        const client = window.supabaseClient || window._supabase;
+        // Ang "const _supabase" sa page dili makita sa window._supabase,
+        // mao nga gi-check nato ang global nga variable direkta.
+        let client = window.supabaseClient || window._supabase || null;
+        if (!client && typeof _supabase !== "undefined") client = _supabase;
+
         if (client && client.auth) {
           try {
             await client.auth.signOut();
