@@ -7,100 +7,139 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script>
   tailwind.config = {
     theme: {
       extend: {
         colors: {
           navy: { 900:'#081D45', 800:'#0D2E63', 700:'#153a7a' },
-          amber: { DEFAULT:'#F2A93B', deep:'#C97C1B' },
         },
-        fontFamily: {
-          display: ['Space Grotesk','sans-serif'],
-          body: ['Inter','sans-serif'],
-          mono: ['IBM Plex Mono','monospace'],
-        }
+        fontFamily: { sans: ['Inter','system-ui','sans-serif'] },
+        borderRadius: { DEFAULT: '6px' }
       }
     }
   }
 </script>
 <style>
-  body{font-family:'Inter',sans-serif;}
-  .pulse-dot{animation:pulse 2s infinite;}
-  @keyframes pulse{
-    0%{box-shadow:0 0 0 0 rgba(16,185,129,0.55);}
-    70%{box-shadow:0 0 0 6px rgba(16,185,129,0);}
-    100%{box-shadow:0 0 0 0 rgba(16,185,129,0);}
-  }
-  .ticket-id{font-family:'IBM Plex Mono',monospace;}
+  body { font-family: 'Inter', system-ui, sans-serif; }
+  .num { font-variant-numeric: tabular-nums; }
 </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-body overflow-x-hidden">
+<body class="bg-slate-50 text-slate-800 font-sans overflow-x-hidden">
 
-  <!-- Dito i-i-inject ng sidebar.js ang shared sidebar at hamburger menu -->
+  <!-- Dito i-inject ng sidebar.js ang shared sidebar at hamburger menu -->
   <div id="sidebar-root"></div>
 
-  <!-- Main Content Wrapper -->
-  <div class="main-content flex-1 flex flex-col h-screen overflow-hidden">
-    <!-- Navbar (Eksaktong Uniform Style sa Incident Reports) -->
-    <nav class="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center shadow-sm flex-shrink-0">
-      <div class="flex items-center space-x-4">
-        <!-- Hamburger Button -->
-        <button class="hamburger-btn bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl w-10 h-10 flex flex-col items-center justify-center gap-1 cursor-pointer transition shadow-sm flex-shrink-0" id="sidebarToggle" aria-label="Toggle navigation menu">
-          <span class="block w-4 h-0.5 bg-slate-700 rounded-full"></span>
-          <span class="block w-4 h-0.5 bg-slate-700 rounded-full"></span>
-          <span class="block w-4 h-0.5 bg-slate-700 rounded-full"></span>
+  <div class="main-content !p-0 flex-1 flex flex-col h-screen overflow-hidden">
+
+    <!-- Header -->
+    <nav class="bg-white border-b border-slate-200 px-6 h-16 flex justify-between items-center flex-shrink-0">
+      <div class="flex items-center gap-4">
+        <button class="hamburger-btn bg-white hover:bg-slate-100 border border-slate-200 rounded w-9 h-9 flex flex-col items-center justify-center gap-1 cursor-pointer transition flex-shrink-0" id="sidebarToggle" aria-label="Toggle navigation menu">
+          <span class="block w-4 h-0.5 bg-slate-600"></span>
+          <span class="block w-4 h-0.5 bg-slate-600"></span>
+          <span class="block w-4 h-0.5 bg-slate-600"></span>
         </button>
         <div>
-          <h1 class="text-lg font-display font-bold text-navy-900 leading-tight">Dashboard Overview</h1>
-          <p class="text-xs text-slate-500">Welcome back, Admin. Here is the current system summary.</p>
+          <div class="text-[11px] uppercase tracking-wide text-slate-400 leading-none">Operations</div>
+          <h1 class="text-base font-semibold text-navy-900 leading-tight mt-1">Dashboard</h1>
         </div>
       </div>
-      <div class="flex items-center space-x-3">
-        <div class="hidden sm:flex items-center space-x-2 text-xs font-mono bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg text-slate-600">
-          <span class="h-2 w-2 rounded-full bg-emerald-500 pulse-dot"></span>
-          <span id="clockText">—</span>
-        </div>
-        <div class="flex items-center space-x-2">
-          <span class="h-2.5 w-2.5 rounded-full bg-emerald-500 pulse-dot"></span>
-          <span class="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full font-medium border border-slate-200 ticket-id">Ipil Grid Connected</span>
-        </div>
+      <div class="hidden sm:flex items-center gap-4 text-sm text-slate-500">
+        <span id="adminEmail" class="text-slate-700 font-medium"></span>
+        <span class="h-4 w-px bg-slate-200"></span>
+        <span id="clockText" class="num">—</span>
       </div>
     </nav>
 
-    <!-- Main Scrollable Area -->
-    <main class="flex-1 overflow-y-auto p-8 bg-slate-50">
+    <!-- Content -->
+    <main class="flex-1 overflow-y-auto p-6 lg:p-8">
       <div class="max-w-6xl mx-auto space-y-6">
-        
-        <!-- Stats Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          <div class="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
-            <div class="text-xs font-bold uppercase tracking-wider text-slate-500">Total Announcements</div>
-            <div class="text-3xl font-display font-bold text-navy-900 mt-2" id="statAnnouncements">—</div>
-            <div class="text-xs text-slate-400 mt-1">Published advisories</div>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="bg-white border border-slate-200 rounded p-5 border-l-4 border-l-navy-800">
+            <div class="text-xs font-medium uppercase tracking-wide text-slate-500">Announcements</div>
+            <div class="text-3xl font-semibold text-navy-900 mt-2 num" id="statAnnouncements">0</div>
+            <div class="flex justify-between items-center mt-2 text-xs">
+              <span class="text-slate-400">Published advisories</span>
+              <a href="admin_announcements.html" class="text-navy-700 hover:underline font-medium">View all →</a>
+            </div>
           </div>
-          <div class="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
-            <div class="text-xs font-bold uppercase tracking-wider text-slate-500">Pending Applications</div>
-            <div class="text-3xl font-display font-bold text-navy-900 mt-2" id="statApplications">—</div>
-            <div class="text-xs text-slate-400 mt-1">Awaiting verification</div>
+          <div class="bg-white border border-slate-200 rounded p-5 border-l-4 border-l-navy-800">
+            <div class="text-xs font-medium uppercase tracking-wide text-slate-500">Applications</div>
+            <div class="text-3xl font-semibold text-navy-900 mt-2 num" id="statApplications">0</div>
+            <div class="flex justify-between items-center mt-2 text-xs">
+              <span class="text-slate-400">Awaiting verification</span>
+              <a href="admin_application.html" class="text-navy-700 hover:underline font-medium">View all →</a>
+            </div>
           </div>
-          <div class="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
-            <div class="text-xs font-bold uppercase tracking-wider text-slate-500">Active Incidents</div>
-            <div class="text-3xl font-display font-bold text-navy-900 mt-2" id="statIncidents">—</div>
-            <div class="text-xs text-slate-400 mt-1">Unresolved power reports</div>
+          <div class="bg-white border border-slate-200 rounded p-5 border-l-4 border-l-navy-800">
+            <div class="text-xs font-medium uppercase tracking-wide text-slate-500">Incident Reports</div>
+            <div class="text-3xl font-semibold text-navy-900 mt-2 num" id="statIncidents">0</div>
+            <div class="flex justify-between items-center mt-2 text-xs">
+              <span class="text-slate-400">Power interruption reports</span>
+              <a href="admin_incidents.html" class="text-navy-700 hover:underline font-medium">View all →</a>
+            </div>
           </div>
         </div>
 
-        <!-- Quick Actions Card -->
-        <div class="bg-white border border-slate-200 p-8 rounded-2xl shadow-sm">
-          <div class="mb-4">
-            <h3 class="text-base font-display font-bold text-navy-900">System Status & Quick Actions</h3>
-            <p class="text-xs text-slate-500 mt-0.5">Manage cooperative grid operations smoothly.</p>
-          </div>
-         
+        <!-- Quick actions -->
+        <div class="flex flex-wrap gap-3">
+          <a href="admin_announcements.html" class="bg-navy-800 hover:bg-navy-900 text-white text-sm font-medium px-4 py-2 rounded transition">New Announcement</a>
+          <a href="admin_application.html" class="bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 text-sm font-medium px-4 py-2 rounded transition">Review Applications</a>
+          <a href="admin_incidents.html" class="bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 text-sm font-medium px-4 py-2 rounded transition">View Incident Reports</a>
         </div>
 
+        <!-- Recent tables -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+          <section class="bg-white border border-slate-200 rounded">
+            <header class="px-5 py-3 border-b border-slate-200 flex justify-between items-center">
+              <h2 class="text-sm font-semibold text-navy-900">Recent Incident Reports</h2>
+              <a href="admin_incidents.html" class="text-xs text-navy-700 hover:underline font-medium">View all →</a>
+            </header>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="text-left text-xs uppercase tracking-wide text-slate-500 bg-slate-50">
+                    <th class="px-5 py-2 font-medium">Ref</th>
+                    <th class="px-3 py-2 font-medium">Details</th>
+                    <th class="px-3 py-2 font-medium">Date</th>
+                    <th class="px-5 py-2 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="recentIncidents" class="divide-y divide-slate-100">
+                  <tr><td colspan="4" class="px-5 py-6 text-center text-slate-400">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="bg-white border border-slate-200 rounded">
+            <header class="px-5 py-3 border-b border-slate-200 flex justify-between items-center">
+              <h2 class="text-sm font-semibold text-navy-900">Recent Applications</h2>
+              <a href="admin_application.html" class="text-xs text-navy-700 hover:underline font-medium">View all →</a>
+            </header>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="text-left text-xs uppercase tracking-wide text-slate-500 bg-slate-50">
+                    <th class="px-5 py-2 font-medium">Applicant</th>
+                    <th class="px-3 py-2 font-medium">Type</th>
+                    <th class="px-3 py-2 font-medium">Date</th>
+                    <th class="px-5 py-2 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="recentApplications" class="divide-y divide-slate-100">
+                  <tr><td colspan="4" class="px-5 py-6 text-center text-slate-400">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+        </div>
       </div>
     </main>
   </div>
@@ -111,29 +150,99 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_PUfegf_zyb5B_gVas_SLyw_mto9NFGF';
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // ---------- Helpers ----------
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    function fmtDate(v) {
+      if (!v) return '—';
+      const d = new Date(v);
+      return isNaN(d) ? '—' : d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function badge(status) {
+      const s = String(status || '—');
+      const k = s.toLowerCase();
+      let cls = 'bg-slate-100 text-slate-600 border-slate-200';
+      if (['pending', 'new', 'open', 'unresolved'].includes(k)) cls = 'bg-amber-50 text-amber-700 border-amber-200';
+      else if (['resolved', 'approved', 'completed', 'paid', 'closed'].includes(k)) cls = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      else if (['rejected', 'overdue', 'failed'].includes(k)) cls = 'bg-red-50 text-red-700 border-red-200';
+      else if (['in progress', 'processing', 'ongoing'].includes(k)) cls = 'bg-blue-50 text-blue-700 border-blue-200';
+      return `<span class="inline-block text-xs font-medium px-2 py-0.5 rounded border ${cls}">${esc(s)}</span>`;
+    }
+
+    // ---------- Header ----------
     function tickClock() {
       const el = document.getElementById('clockText');
-      if (!el) return;
-      el.textContent = new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+      if (el) el.textContent = new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
     }
     tickClock();
-    setInterval(tickClock, 1000 * 30);
+    setInterval(tickClock, 30000);
+
+    (async () => {
+      try {
+        const { data } = await _supabase.auth.getSession();
+        const email = data?.session?.user?.email;
+        if (email) document.getElementById('adminEmail').textContent = email;
+      } catch (e) { /* optional */ }
+    })();
+
+    // ---------- Stats ----------
+    async function countOf(table) {
+      const { count, error } = await _supabase.from(table).select('*', { count: 'exact', head: true });
+      if (error) { console.error(table, error.message); return null; }
+      return count;
+    }
+
+    function setStat(id, value) {
+      document.getElementById(id).textContent = value === null ? 'N/A' : value.toLocaleString();
+    }
 
     async function loadDashboardStats() {
-      try {
-        const { count: annCount } = await _supabase.from('announcements').select('*', { count: 'exact', head: true });
-        if (annCount !== null) document.getElementById('statAnnouncements').textContent = annCount;
-
-        const { count: appCount } = await _supabase.from('applications').select('*', { count: 'exact', head: true });
-        if (appCount !== null) document.getElementById('statApplications').textContent = appCount;
-
-        const { count: incCount } = await _supabase.from('incidents').select('*', { count: 'exact', head: true });
-        if (incCount !== null) document.getElementById('statIncidents').textContent = incCount;
-      } catch (e) {
-        console.error(e);
-      }
+      const [ann, app, inc] = await Promise.all([
+        countOf('announcements'), countOf('applications'), countOf('incidents')
+      ]);
+      setStat('statAnnouncements', ann);
+      setStat('statApplications', app);
+      setStat('statIncidents', inc);
     }
+
+    // ---------- Recent tables ----------
+    async function loadRecent(table, bodyId, rowFn) {
+      const body = document.getElementById(bodyId);
+      const { data, error } = await _supabase
+        .from(table).select('*').order('created_at', { ascending: false }).limit(5);
+
+      if (error) {
+        console.error(table, error.message);
+        body.innerHTML = `<tr><td colspan="4" class="px-5 py-6 text-center text-slate-400">Unable to load data.</td></tr>`;
+        return;
+      }
+      if (!data || data.length === 0) {
+        body.innerHTML = `<tr><td colspan="4" class="px-5 py-6 text-center text-slate-400">No records yet.</td></tr>`;
+        return;
+      }
+      body.innerHTML = data.map(rowFn).join('');
+    }
+
+    const incidentRow = (r) => `
+      <tr class="hover:bg-slate-50">
+        <td class="px-5 py-3 font-medium text-slate-700 num">${esc(r.reference_no || r.ticket_id || String(r.id ?? '').slice(0, 8))}</td>
+        <td class="px-3 py-3 text-slate-600">${esc(r.title || r.type || r.category || r.description || '—')}</td>
+        <td class="px-3 py-3 text-slate-500 num whitespace-nowrap">${fmtDate(r.created_at)}</td>
+        <td class="px-5 py-3">${badge(r.status)}</td>
+      </tr>`;
+
+    const applicationRow = (r) => `
+      <tr class="hover:bg-slate-50">
+        <td class="px-5 py-3 font-medium text-slate-700">${esc(r.full_name || r.name || r.applicant_name || '—')}</td>
+        <td class="px-3 py-3 text-slate-600">${esc(r.type || r.application_type || r.service_type || '—')}</td>
+        <td class="px-3 py-3 text-slate-500 num whitespace-nowrap">${fmtDate(r.created_at)}</td>
+        <td class="px-5 py-3">${badge(r.status)}</td>
+      </tr>`;
+
     loadDashboardStats();
+    loadRecent('incidents', 'recentIncidents', incidentRow);
+    loadRecent('applications', 'recentApplications', applicationRow);
   </script>
 </body>
 </html>
