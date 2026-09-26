@@ -237,18 +237,22 @@
       color: rgba(255, 255, 255, 0.68);
       text-decoration: none;
       padding: 10px 10px 10px 14px;
+      margin-left: -10px;
+      margin-right: -10px;
+      padding-left: 24px;
       font-size: 13.5px;
       font-weight: 500;
       position: relative;
-      transition: color 0.15s;
+      transition: color 0.15s, background 0.15s;
       white-space: nowrap;
     }
     .nav-tick {
       position: absolute;
       left: 0;
-      top: 6px;
-      bottom: 6px;
-      width: 3px;
+      top: 4px;
+      bottom: 4px;
+      width: 5px;
+      border-radius: 0 3px 3px 0;
       background: transparent;
       transition: background 0.15s;
     }
