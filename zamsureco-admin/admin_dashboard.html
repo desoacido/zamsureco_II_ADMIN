@@ -7,26 +7,39 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script>
   tailwind.config = {
     theme: {
       extend: {
         colors: {
-          navy: { 900:'#081D45', 800:'#0D2E63', 700:'#153a7a' },
+          ink:    { 900:'#12203A', 800:'#1B2E4F', 700:'#2A4166' },
+          paper:  { 50:'#F5F3EE', 100:'#EFEDE6' },
+          line:   '#DBD8CF',
+          copper: { 500:'#B9722E', 100:'#F3E4D2' },
+          ok:     { 600:'#3F7857', 100:'#E1EBE3' },
+          danger: { 600:'#A33B34', 100:'#F2E1DF' },
+          info:   { 600:'#2F5D8A', 100:'#DEE7EF' },
         },
-        fontFamily: { sans: ['Inter','system-ui','sans-serif'] },
-        borderRadius: { DEFAULT: '6px' }
+        fontFamily: {
+          sans: ['"IBM Plex Sans"','system-ui','sans-serif'],
+          mono: ['"IBM Plex Mono"','ui-monospace','monospace'],
+        },
+        borderRadius: { DEFAULT: '3px' }
       }
     }
   }
 </script>
 <style>
-  body { font-family: 'Inter', system-ui, sans-serif; }
-  .num { font-variant-numeric: tabular-nums; }
+  body { font-family: 'IBM Plex Sans', system-ui, sans-serif; }
+  .num { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  .meter-seg + .meter-seg { border-left: 1px solid #DBD8CF; }
+  @media (max-width: 640px) {
+    .meter-seg + .meter-seg { border-left: none; border-top: 1px solid #DBD8CF; }
+  }
 </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans overflow-x-hidden">
+<body class="bg-paper-50 text-ink-900 font-sans overflow-x-hidden">
 
   <!-- Dito i-inject ng sidebar.js ang shared sidebar at hamburger menu -->
   <div id="sidebar-root"></div>
@@ -34,106 +47,100 @@
   <div class="main-content !p-0 flex-1 flex flex-col h-screen overflow-hidden">
 
     <!-- Header -->
-    <nav class="bg-white border-b border-slate-200 px-6 h-16 flex justify-between items-center flex-shrink-0">
+    <nav class="bg-paper-50 border-b border-line px-6 h-16 flex justify-between items-center flex-shrink-0">
       <div class="flex items-center gap-4">
-        <button class="hamburger-btn bg-white hover:bg-slate-100 border border-slate-200 rounded w-9 h-9 flex flex-col items-center justify-center gap-1 cursor-pointer transition flex-shrink-0" id="sidebarToggle" aria-label="Toggle navigation menu">
-          <span class="block w-4 h-0.5 bg-slate-600"></span>
-          <span class="block w-4 h-0.5 bg-slate-600"></span>
-          <span class="block w-4 h-0.5 bg-slate-600"></span>
+        <button class="hamburger-btn bg-white hover:bg-paper-100 border border-line rounded w-9 h-9 flex flex-col items-center justify-center gap-1 cursor-pointer transition flex-shrink-0" id="sidebarToggle" aria-label="Toggle navigation menu">
+          <span class="block w-4 h-0.5 bg-ink-700"></span>
+          <span class="block w-4 h-0.5 bg-ink-700"></span>
+          <span class="block w-4 h-0.5 bg-ink-700"></span>
         </button>
-        <div>
-          <div class="text-[11px] uppercase tracking-wide text-slate-400 leading-none">Operations</div>
-          <h1 class="text-base font-semibold text-navy-900 leading-tight mt-1">Dashboard</h1>
-        </div>
+        <h1 class="text-lg font-semibold text-ink-900 leading-tight">Dashboard</h1>
       </div>
-      <div class="hidden sm:flex items-center gap-4 text-sm text-slate-500">
-        <span id="adminEmail" class="text-slate-700 font-medium"></span>
-        <span class="h-4 w-px bg-slate-200"></span>
-        <span id="clockText" class="num">—</span>
+      <div class="hidden sm:flex items-center gap-4 text-sm text-ink-700">
+        <span id="adminEmail" class="font-medium"></span>
+        <span class="h-4 w-px bg-line"></span>
+        <span id="clockText" class="num text-[13px]">—</span>
       </div>
     </nav>
 
     <!-- Content -->
     <main class="flex-1 overflow-y-auto p-6 lg:p-8">
-      <div class="max-w-6xl mx-auto space-y-6">
+      <div class="max-w-6xl mx-auto space-y-8">
 
-        <!-- Stats -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div class="bg-white border border-slate-200 rounded p-5 border-l-4 border-l-navy-800">
-            <div class="text-xs font-medium uppercase tracking-wide text-slate-500">Announcements</div>
-            <div class="text-3xl font-semibold text-navy-900 mt-2 num" id="statAnnouncements">0</div>
-            <div class="flex justify-between items-center mt-2 text-xs">
-              <span class="text-slate-400">Published advisories</span>
-              <a href="admin_announcements.html" class="text-navy-700 hover:underline font-medium">View all →</a>
+        <!-- Meter strip: one connected readout, not three identical cards -->
+        <div class="bg-white border border-line rounded flex flex-col sm:flex-row">
+          <div class="meter-seg flex-1 px-6 py-5">
+            <div class="text-sm text-ink-700">Announcements published</div>
+            <div class="flex items-end justify-between mt-2">
+              <div class="text-4xl font-semibold num text-ink-900" id="statAnnouncements">0</div>
+              <a href="admin_announcements.html" class="text-sm text-ink-700 hover:text-ink-900 underline underline-offset-2">View all</a>
             </div>
           </div>
-          <div class="bg-white border border-slate-200 rounded p-5 border-l-4 border-l-navy-800">
-            <div class="text-xs font-medium uppercase tracking-wide text-slate-500">Applications</div>
-            <div class="text-3xl font-semibold text-navy-900 mt-2 num" id="statApplications">0</div>
-            <div class="flex justify-between items-center mt-2 text-xs">
-              <span class="text-slate-400">Awaiting verification</span>
-              <a href="admin_application.html" class="text-navy-700 hover:underline font-medium">View all →</a>
+          <div class="meter-seg flex-1 px-6 py-5">
+            <div class="text-sm text-ink-700">Applications awaiting review</div>
+            <div class="flex items-end justify-between mt-2">
+              <div class="text-4xl font-semibold num text-ink-900" id="statApplications">0</div>
+              <a href="admin_application.html" class="text-sm text-ink-700 hover:text-ink-900 underline underline-offset-2">View all</a>
             </div>
           </div>
-          <div class="bg-white border border-slate-200 rounded p-5 border-l-4 border-l-navy-800">
-            <div class="text-xs font-medium uppercase tracking-wide text-slate-500">Incident Reports</div>
-            <div class="text-3xl font-semibold text-navy-900 mt-2 num" id="statIncidents">0</div>
-            <div class="flex justify-between items-center mt-2 text-xs">
-              <span class="text-slate-400">Power interruption reports</span>
-              <a href="admin_incidents.html" class="text-navy-700 hover:underline font-medium">View all →</a>
+          <div class="meter-seg flex-1 px-6 py-5 bg-copper-100/40">
+            <div class="text-sm text-copper-500 font-medium">Open incident reports</div>
+            <div class="flex items-end justify-between mt-2">
+              <div class="text-4xl font-semibold num text-ink-900" id="statIncidents">0</div>
+              <a href="admin_incidents.html" class="text-sm text-copper-500 hover:text-ink-900 underline underline-offset-2">View all</a>
             </div>
           </div>
         </div>
 
         <!-- Quick actions -->
-        <div class="flex flex-wrap gap-3">
-          <a href="admin_announcements.html" class="bg-navy-800 hover:bg-navy-900 text-white text-sm font-medium px-4 py-2 rounded transition">New Announcement</a>
-          <a href="admin_application.html" class="bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 text-sm font-medium px-4 py-2 rounded transition">Review Applications</a>
-          <a href="admin_incidents.html" class="bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 text-sm font-medium px-4 py-2 rounded transition">View Incident Reports</a>
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+          <a href="admin_announcements.html" class="bg-ink-900 hover:bg-ink-800 text-white font-medium px-4 py-2 rounded transition">New announcement</a>
+          <a href="admin_application.html" class="text-ink-800 hover:text-ink-900 underline underline-offset-2">Review applications</a>
+          <a href="admin_incidents.html" class="text-ink-800 hover:text-ink-900 underline underline-offset-2">View incident reports</a>
         </div>
 
         <!-- Recent tables -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-          <section class="bg-white border border-slate-200 rounded">
-            <header class="px-5 py-3 border-b border-slate-200 flex justify-between items-center">
-              <h2 class="text-sm font-semibold text-navy-900">Recent Incident Reports</h2>
-              <a href="admin_incidents.html" class="text-xs text-navy-700 hover:underline font-medium">View all →</a>
+          <section class="bg-white border border-line rounded">
+            <header class="px-5 py-3 border-b border-line flex justify-between items-baseline">
+              <h2 class="text-sm font-semibold text-ink-900">Recent incident reports</h2>
+              <a href="admin_incidents.html" class="text-xs text-ink-700 hover:text-ink-900 underline underline-offset-2">View all</a>
             </header>
             <div class="overflow-x-auto">
               <table class="w-full text-sm">
                 <thead>
-                  <tr class="text-left text-xs uppercase tracking-wide text-slate-500 bg-slate-50">
+                  <tr class="text-left text-ink-700 bg-paper-100">
                     <th class="px-5 py-2 font-medium">Ref</th>
                     <th class="px-3 py-2 font-medium">Details</th>
                     <th class="px-3 py-2 font-medium">Date</th>
                     <th class="px-5 py-2 font-medium">Status</th>
                   </tr>
                 </thead>
-                <tbody id="recentIncidents" class="divide-y divide-slate-100">
-                  <tr><td colspan="4" class="px-5 py-6 text-center text-slate-400">Loading…</td></tr>
+                <tbody id="recentIncidents" class="divide-y divide-line">
+                  <tr><td colspan="4" class="px-5 py-6 text-center text-ink-700/60">Loading…</td></tr>
                 </tbody>
               </table>
             </div>
           </section>
 
-          <section class="bg-white border border-slate-200 rounded">
-            <header class="px-5 py-3 border-b border-slate-200 flex justify-between items-center">
-              <h2 class="text-sm font-semibold text-navy-900">Recent Applications</h2>
-              <a href="admin_application.html" class="text-xs text-navy-700 hover:underline font-medium">View all →</a>
+          <section class="bg-white border border-line rounded">
+            <header class="px-5 py-3 border-b border-line flex justify-between items-baseline">
+              <h2 class="text-sm font-semibold text-ink-900">Recent applications</h2>
+              <a href="admin_application.html" class="text-xs text-ink-700 hover:text-ink-900 underline underline-offset-2">View all</a>
             </header>
             <div class="overflow-x-auto">
               <table class="w-full text-sm">
                 <thead>
-                  <tr class="text-left text-xs uppercase tracking-wide text-slate-500 bg-slate-50">
+                  <tr class="text-left text-ink-700 bg-paper-100">
                     <th class="px-5 py-2 font-medium">Applicant</th>
                     <th class="px-3 py-2 font-medium">Type</th>
                     <th class="px-3 py-2 font-medium">Date</th>
                     <th class="px-5 py-2 font-medium">Status</th>
                   </tr>
                 </thead>
-                <tbody id="recentApplications" class="divide-y divide-slate-100">
-                  <tr><td colspan="4" class="px-5 py-6 text-center text-slate-400">Loading…</td></tr>
+                <tbody id="recentApplications" class="divide-y divide-line">
+                  <tr><td colspan="4" class="px-5 py-6 text-center text-ink-700/60">Loading…</td></tr>
                 </tbody>
               </table>
             </div>
@@ -162,11 +169,11 @@
     function badge(status) {
       const s = String(status || '—');
       const k = s.toLowerCase();
-      let cls = 'bg-slate-100 text-slate-600 border-slate-200';
-      if (['pending', 'new', 'open', 'unresolved'].includes(k)) cls = 'bg-amber-50 text-amber-700 border-amber-200';
-      else if (['resolved', 'approved', 'completed', 'paid', 'closed'].includes(k)) cls = 'bg-emerald-50 text-emerald-700 border-emerald-200';
-      else if (['rejected', 'overdue', 'failed'].includes(k)) cls = 'bg-red-50 text-red-700 border-red-200';
-      else if (['in progress', 'processing', 'ongoing'].includes(k)) cls = 'bg-blue-50 text-blue-700 border-blue-200';
+      let cls = 'bg-paper-100 text-ink-700 border-line';
+      if (['pending', 'new', 'open', 'unresolved'].includes(k)) cls = 'bg-copper-100 text-copper-500 border-copper-500/30';
+      else if (['resolved', 'approved', 'completed', 'paid', 'closed'].includes(k)) cls = 'bg-ok-100 text-ok-600 border-ok-600/30';
+      else if (['rejected', 'overdue', 'failed'].includes(k)) cls = 'bg-danger-100 text-danger-600 border-danger-600/30';
+      else if (['in progress', 'processing', 'ongoing'].includes(k)) cls = 'bg-info-100 text-info-600 border-info-600/30';
       return `<span class="inline-block text-xs font-medium px-2 py-0.5 rounded border ${cls}">${esc(s)}</span>`;
     }
 
@@ -214,29 +221,29 @@
 
       if (error) {
         console.error(table, error.message);
-        body.innerHTML = `<tr><td colspan="4" class="px-5 py-6 text-center text-slate-400">Unable to load data.</td></tr>`;
+        body.innerHTML = `<tr><td colspan="4" class="px-5 py-6 text-center text-ink-700/60">Unable to load data.</td></tr>`;
         return;
       }
       if (!data || data.length === 0) {
-        body.innerHTML = `<tr><td colspan="4" class="px-5 py-6 text-center text-slate-400">No records yet.</td></tr>`;
+        body.innerHTML = `<tr><td colspan="4" class="px-5 py-6 text-center text-ink-700/60">No records yet.</td></tr>`;
         return;
       }
       body.innerHTML = data.map(rowFn).join('');
     }
 
     const incidentRow = (r) => `
-      <tr class="hover:bg-slate-50">
-        <td class="px-5 py-3 font-medium text-slate-700 num">${esc(r.reference_no || r.ticket_id || String(r.id ?? '').slice(0, 8))}</td>
-        <td class="px-3 py-3 text-slate-600">${esc(r.title || r.type || r.category || r.description || '—')}</td>
-        <td class="px-3 py-3 text-slate-500 num whitespace-nowrap">${fmtDate(r.created_at)}</td>
+      <tr class="hover:bg-paper-100/60">
+        <td class="px-5 py-3 font-medium text-ink-800 num">${esc(r.reference_no || r.ticket_id || String(r.id ?? '').slice(0, 8))}</td>
+        <td class="px-3 py-3 text-ink-700">${esc(r.title || r.type || r.category || r.description || '—')}</td>
+        <td class="px-3 py-3 text-ink-700 num whitespace-nowrap">${fmtDate(r.created_at)}</td>
         <td class="px-5 py-3">${badge(r.status)}</td>
       </tr>`;
 
     const applicationRow = (r) => `
-      <tr class="hover:bg-slate-50">
-        <td class="px-5 py-3 font-medium text-slate-700">${esc(r.full_name || r.name || r.applicant_name || '—')}</td>
-        <td class="px-3 py-3 text-slate-600">${esc(r.type || r.application_type || r.service_type || '—')}</td>
-        <td class="px-3 py-3 text-slate-500 num whitespace-nowrap">${fmtDate(r.created_at)}</td>
+      <tr class="hover:bg-paper-100/60">
+        <td class="px-5 py-3 font-medium text-ink-800">${esc(r.full_name || r.name || r.applicant_name || '—')}</td>
+        <td class="px-3 py-3 text-ink-700">${esc(r.type || r.application_type || r.service_type || '—')}</td>
+        <td class="px-3 py-3 text-ink-700 num whitespace-nowrap">${fmtDate(r.created_at)}</td>
         <td class="px-5 py-3">${badge(r.status)}</td>
       </tr>`;
 
