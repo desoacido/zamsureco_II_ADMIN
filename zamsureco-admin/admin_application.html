@@ -7,86 +7,98 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script>
   tailwind.config = {
     theme: {
       extend: {
         colors: {
-          navy: { 900:'#081D45', 800:'#0D2E63', 700:'#153a7a' },
-          amber: { DEFAULT:'#F2A93B', deep:'#C97C1B' },
+          ink:    { 900:'#12203A', 800:'#1B2E4F', 700:'#2A4166' },
+          paper:  { 50:'#F5F3EE', 100:'#EFEDE6' },
+          line:   '#DBD8CF',
+          copper: { 500:'#B9722E', 100:'#F3E4D2' },
+          ok:     { 600:'#3F7857', 100:'#E1EBE3' },
+          danger: { 600:'#A33B34', 100:'#F2E1DF' },
+          info:   { 600:'#2F5D8A', 100:'#DEE7EF' },
         },
         fontFamily: {
-          display: ['Space Grotesk','sans-serif'],
-          body: ['Inter','sans-serif'],
-          mono: ['IBM Plex Mono','monospace'],
-        }
+          sans: ['"IBM Plex Sans"','system-ui','sans-serif'],
+          mono: ['"IBM Plex Mono"','ui-monospace','monospace'],
+        },
+        borderRadius: { DEFAULT: '3px' }
       }
     }
   }
 </script>
 <style>
-  body{font-family:'Inter',sans-serif;}
+  body { font-family: 'IBM Plex Sans', system-ui, sans-serif; }
+  .num { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
   .pulse-dot{animation:pulse 2s infinite;}
   @keyframes pulse{
-    0%{box-shadow:0 0 0 0 rgba(16,185,129,0.55);}
-    70%{box-shadow:0 0 0 6px rgba(16,185,129,0);}
-    100%{box-shadow:0 0 0 0 rgba(16,185,129,0);}
+    0%{box-shadow:0 0 0 0 rgba(63,120,87,0.45);}
+    70%{box-shadow:0 0 0 6px rgba(63,120,87,0);}
+    100%{box-shadow:0 0 0 0 rgba(63,120,87,0);}
   }
-  .ticket-id{font-family:'IBM Plex Mono',monospace;}
+  .section-head { border-left: 3px solid #B9722E; padding-left: 12px; }
 </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-body overflow-x-hidden">
+<body class="bg-paper-50 text-ink-900 font-sans overflow-x-hidden">
 
   <!-- Dito i-i-inject ng sidebar.js ang shared sidebar at hamburger menu -->
   <div id="sidebar-root"></div>
 
   <!-- Main Content Wrapper -->
   <div class="main-content flex-1 flex flex-col h-screen overflow-hidden">
-    <!-- Navbar (Eksaktong Uniform Style sa Incident Reports) -->
-    <nav class="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center shadow-sm flex-shrink-0">
+    <!-- Navbar -->
+    <nav class="bg-paper-50 border-b border-line px-6 py-4 flex justify-between items-center flex-shrink-0">
       <div class="flex items-center space-x-4">
         <!-- Hamburger Button -->
-        <button class="hamburger-btn bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl w-10 h-10 flex flex-col items-center justify-center gap-1 cursor-pointer transition shadow-sm flex-shrink-0" id="sidebarToggle" aria-label="Toggle navigation menu">
-          <span class="block w-4 h-0.5 bg-slate-700 rounded-full"></span>
-          <span class="block w-4 h-0.5 bg-slate-700 rounded-full"></span>
-          <span class="block w-4 h-0.5 bg-slate-700 rounded-full"></span>
+        <button class="hamburger-btn bg-white hover:bg-paper-100 border border-line text-ink-700 rounded w-10 h-10 flex flex-col items-center justify-center gap-1 cursor-pointer transition flex-shrink-0" id="sidebarToggle" aria-label="Toggle navigation menu">
+          <span class="block w-4 h-0.5 bg-ink-700 rounded-full"></span>
+          <span class="block w-4 h-0.5 bg-ink-700 rounded-full"></span>
+          <span class="block w-4 h-0.5 bg-ink-700 rounded-full"></span>
         </button>
         <div>
-          <h1 class="text-lg font-display font-bold text-navy-900 leading-tight">New Connection Applications</h1>
-          <p class="text-xs text-slate-500">Review and process requests for new service connections</p>
+          <h1 class="text-lg font-semibold text-ink-900 leading-tight">New Connection Applications</h1>
+          <p class="text-xs text-ink-700 mt-0.5">Review and process requests for new service connections</p>
         </div>
       </div>
       <div class="flex items-center space-x-2">
-        <span class="h-2.5 w-2.5 rounded-full bg-emerald-500 pulse-dot"></span>
-        <span class="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full font-medium border border-slate-200 ticket-id">Ipil Grid Connected</span>
+        <span class="h-2.5 w-2.5 rounded-full bg-ok-600 pulse-dot"></span>
+        <span class="text-xs bg-white text-ink-700 px-3 py-1.5 rounded font-medium border border-line num">Ipil Grid Connected</span>
       </div>
     </nav>
 
     <!-- Main Scrollable Area -->
-    <main class="flex-1 overflow-y-auto p-8 bg-slate-50">
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
-        <div id="applicationsContainer">
-          <div class="text-center py-12 text-slate-400" id="emptyState">
-            <svg class="w-12 h-12 mx-auto mb-3 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
-            <p class="text-sm font-medium">No new applications at the moment.</p>
+    <main class="flex-1 overflow-y-auto p-8">
+      <div class="max-w-5xl mx-auto">
+        <section class="bg-white border border-line rounded">
+          <header class="section-head px-5 pt-5">
+            <h2 class="text-base font-semibold text-ink-900">Applications</h2>
+            <p class="text-xs text-ink-700 mt-0.5 mb-4">Requests for new service connections</p>
+          </header>
+          <div id="applicationsContainer">
+            <div class="text-center py-12 text-ink-700/50" id="emptyState">
+              <svg class="w-12 h-12 mx-auto mb-3 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+              <p class="text-sm font-medium">No new applications at the moment.</p>
+            </div>
+            <div id="tableWrapper" class="overflow-x-auto" style="display:none;">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="bg-paper-100 text-ink-700 text-xs font-medium border-y border-line">
+                    <th class="p-4">Applicant Name</th>
+                    <th class="p-4">Contact No.</th>
+                    <th class="p-4">Type</th>
+                    <th class="p-4">Address</th>
+                    <th class="p-4">Status</th>
+                    <th class="p-4">Date Applied</th>
+                  </tr>
+                </thead>
+                <tbody id="applicationTableBody" class="divide-y divide-line text-sm"></tbody>
+              </table>
+            </div>
           </div>
-          <div id="tableWrapper" class="overflow-x-auto" style="display:none;">
-            <table class="w-full text-left border-collapse">
-              <thead>
-                <tr class="bg-slate-100/70 text-slate-600 text-xs uppercase tracking-wider font-semibold border-b border-slate-200">
-                  <th class="p-4">Applicant Name</th>
-                  <th class="p-4">Contact No.</th>
-                  <th class="p-4">Type</th>
-                  <th class="p-4">Address</th>
-                  <th class="p-4">Status</th>
-                  <th class="p-4">Date Applied</th>
-                </tr>
-              </thead>
-              <tbody id="applicationTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
-            </table>
-          </div>
-        </div>
+        </section>
       </div>
     </main>
   </div>
@@ -143,13 +155,13 @@
       tbody.innerHTML = '';
 
       data.forEach(item => {
-        tbody.innerHTML += `<tr class="hover:bg-slate-50/80 transition">
-          <td class="p-4 font-semibold text-slate-900">${escapeHtml(item.consumer_name || 'N/A')}</td>
-          <td class="p-4 text-slate-600 ticket-id">${escapeHtml(item.contact_number || '—')}</td>
-          <td class="p-4 text-slate-600">${escapeHtml(item.application_type || '—')}</td>
-          <td class="p-4 text-slate-600">${escapeHtml(item.address || '—')}</td>
-          <td class="p-4 text-slate-600">${escapeHtml(item.status || '—')}</td>
-          <td class="p-4 text-xs text-slate-500 ticket-id">${item.created_at ? new Date(item.created_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}</td>
+        tbody.innerHTML += `<tr class="hover:bg-paper-100/60 transition">
+          <td class="p-4 font-semibold text-ink-900">${escapeHtml(item.consumer_name || 'N/A')}</td>
+          <td class="p-4 text-ink-700 num">${escapeHtml(item.contact_number || '—')}</td>
+          <td class="p-4 text-ink-700">${escapeHtml(item.application_type || '—')}</td>
+          <td class="p-4 text-ink-700">${escapeHtml(item.address || '—')}</td>
+          <td class="p-4 text-ink-700">${escapeHtml(item.status || '—')}</td>
+          <td class="p-4 text-xs text-ink-700 num">${item.created_at ? new Date(item.created_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}</td>
         </tr>`;
       });
     }
