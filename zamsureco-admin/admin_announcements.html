@@ -7,39 +7,43 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script>
   tailwind.config = {
     theme: {
       extend: {
         colors: {
-          navy: { 900:'#081D45', 800:'#0D2E63', 700:'#153a7a' },
-          amber: { DEFAULT:'#F2A93B', deep:'#C97C1B' },
+          ink:    { 900:'#12203A', 800:'#1B2E4F', 700:'#2A4166' },
+          paper:  { 50:'#F5F3EE', 100:'#EFEDE6' },
+          line:   '#DBD8CF',
+          copper: { 500:'#B9722E', 100:'#F3E4D2' },
+          ok:     { 600:'#3F7857', 100:'#E1EBE3' },
+          danger: { 600:'#A33B34', 100:'#F2E1DF' },
+          info:   { 600:'#2F5D8A', 100:'#DEE7EF' },
         },
         fontFamily: {
-          display: ['Space Grotesk','sans-serif'],
-          body: ['Inter','sans-serif'],
-          mono: ['IBM Plex Mono','monospace'],
+          sans: ['"IBM Plex Sans"','system-ui','sans-serif'],
+          mono: ['"IBM Plex Mono"','ui-monospace','monospace'],
         },
-        borderRadius: { DEFAULT: '4px' }
+        borderRadius: { DEFAULT: '3px' }
       }
     }
   }
 </script>
 <style>
-  body{font-family:'Inter',sans-serif;}
+  body { font-family: 'IBM Plex Sans', system-ui, sans-serif; }
+  .num { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
   .pulse-dot{animation:pulse 2s infinite;}
   @keyframes pulse{
-    0%{box-shadow:0 0 0 0 rgba(16,185,129,0.55);}
-    70%{box-shadow:0 0 0 6px rgba(16,185,129,0);}
-    100%{box-shadow:0 0 0 0 rgba(16,185,129,0);}
+    0%{box-shadow:0 0 0 0 rgba(63,120,87,0.45);}
+    70%{box-shadow:0 0 0 6px rgba(63,120,87,0);}
+    100%{box-shadow:0 0 0 0 rgba(63,120,87,0);}
   }
-  .ticket-id{font-family:'IBM Plex Mono',monospace;}
-  .section-head { border-left: 3px solid #F2A93B; padding-left: 12px; }
-  .cat-tag { border-left: 3px solid #0D2E63; padding: 2px 10px 2px 8px; background: #F8FAFC; }
+  .section-head { border-left: 3px solid #B9722E; padding-left: 12px; }
+  .cat-tag { border-left: 3px solid #12203A; padding: 2px 10px 2px 8px; background: #F5F3EE; }
 </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-body overflow-x-hidden">
+<body class="bg-paper-50 text-ink-900 font-sans overflow-x-hidden">
 
   <!-- Dito i-i-inject ng sidebar.js ang shared sidebar at hamburger menu -->
   <div id="sidebar-root"></div>
@@ -47,79 +51,82 @@
   <!-- Main Content Wrapper -->
   <div class="main-content flex-1 flex flex-col h-screen overflow-hidden">
     <!-- Navbar -->
-    <nav class="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center flex-shrink-0">
+    <nav class="bg-paper-50 border-b border-line px-6 py-4 flex justify-between items-center flex-shrink-0">
       <div class="flex items-center space-x-4">
         <!-- Hamburger Button -->
-        <button class="hamburger-btn bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded w-10 h-10 flex flex-col items-center justify-center gap-1 cursor-pointer transition flex-shrink-0" id="sidebarToggle" aria-label="Toggle navigation menu">
-          <span class="block w-4 h-0.5 bg-slate-700 rounded-full"></span>
-          <span class="block w-4 h-0.5 bg-slate-700 rounded-full"></span>
-          <span class="block w-4 h-0.5 bg-slate-700 rounded-full"></span>
+        <button class="hamburger-btn bg-white hover:bg-paper-100 border border-line text-ink-700 rounded w-10 h-10 flex flex-col items-center justify-center gap-1 cursor-pointer transition flex-shrink-0" id="sidebarToggle" aria-label="Toggle navigation menu">
+          <span class="block w-4 h-0.5 bg-ink-700 rounded-full"></span>
+          <span class="block w-4 h-0.5 bg-ink-700 rounded-full"></span>
+          <span class="block w-4 h-0.5 bg-ink-700 rounded-full"></span>
         </button>
         <div>
-          <h1 class="text-lg font-display font-bold text-navy-900 leading-tight">Member Announcements</h1>
-          <p class="text-xs text-slate-500">Post and manage public advisories for cooperative members</p>
+          <h1 class="text-lg font-semibold text-ink-900 leading-tight">Member Announcements</h1>
+          <p class="text-xs text-ink-700 mt-0.5">Post and manage public advisories for cooperative members</p>
         </div>
       </div>
       <div class="flex items-center space-x-2">
-        <span class="h-2.5 w-2.5 rounded-full bg-emerald-500 pulse-dot"></span>
-        <span class="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded font-medium border border-slate-200 ticket-id">Ipil Grid Connected</span>
+        <span class="h-2.5 w-2.5 rounded-full bg-ok-600 pulse-dot"></span>
+        <span class="text-xs bg-white text-ink-700 px-3 py-1.5 rounded font-medium border border-line num">Ipil Grid Connected</span>
       </div>
     </nav>
 
     <!-- Main Scrollable Area -->
-    <main class="flex-1 overflow-y-auto p-8 bg-slate-50">
-      <div class="bg-white rounded border border-slate-200 p-8">
-        <div class="section-head mb-6">
-          <h3 class="text-base font-display font-bold text-navy-900">Post new announcement</h3>
-          <p class="text-xs text-slate-500 mt-0.5">This will appear immediately on the member-facing app.</p>
-        </div>
+    <main class="flex-1 overflow-y-auto p-8">
+      <div class="max-w-4xl mx-auto space-y-8">
 
-        <form id="announcementForm" class="space-y-4 max-w-xl">
-          <div>
-            <label class="block text-xs font-medium text-slate-600 mb-1.5">Title</label>
-            <input type="text" id="title" placeholder="e.g. Scheduled Power Interruption" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 transition">
+        <section class="bg-white border border-line rounded p-8">
+          <div class="section-head mb-6">
+            <h2 class="text-base font-semibold text-ink-900">Post new announcement</h2>
+            <p class="text-xs text-ink-700 mt-0.5">This will appear immediately on the member-facing app.</p>
           </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-600 mb-1.5">Category</label>
-            <input type="text" id="category" value="DISTRIBUTION LINE UPDATE" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 transition">
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-600 mb-1.5">Content</label>
-            <textarea id="content" rows="3" placeholder="Details for cooperative members..." required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 transition"></textarea>
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-600 mb-1.5">Attachment image (optional)</label>
-            <input type="file" id="imageFile" accept="image/*" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-navy-50 file:text-navy-800 hover:file:bg-navy-100 cursor-pointer border border-slate-300 rounded bg-slate-50">
-          </div>
-          <div>
-            <button type="submit" id="submitBtn" class="bg-navy-800 hover:bg-navy-700 text-white px-5 py-2.5 rounded text-sm font-semibold transition">Publish announcement</button>
-          </div>
-        </form>
-        <p id="msg" class="mt-3 font-semibold text-xs"></p>
 
-        <hr class="my-8 border-slate-200">
+          <form id="announcementForm" class="space-y-4 max-w-xl">
+            <div>
+              <label class="block text-xs font-medium text-ink-700 mb-1.5">Title</label>
+              <input type="text" id="title" placeholder="e.g. Scheduled Power Interruption" required class="w-full px-4 py-2.5 bg-paper-50 border border-line rounded text-sm focus:outline-none focus:ring-2 focus:ring-ink-800 transition">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-ink-700 mb-1.5">Category</label>
+              <input type="text" id="category" value="DISTRIBUTION LINE UPDATE" required class="w-full px-4 py-2.5 bg-paper-50 border border-line rounded text-sm focus:outline-none focus:ring-2 focus:ring-ink-800 transition">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-ink-700 mb-1.5">Content</label>
+              <textarea id="content" rows="3" placeholder="Details for cooperative members..." required class="w-full px-4 py-2.5 bg-paper-50 border border-line rounded text-sm focus:outline-none focus:ring-2 focus:ring-ink-800 transition"></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-ink-700 mb-1.5">Attachment image (optional)</label>
+              <input type="file" id="imageFile" accept="image/*" class="w-full text-sm text-ink-700 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-paper-100 file:text-ink-800 hover:file:bg-paper-100/70 cursor-pointer border border-line rounded bg-paper-50">
+            </div>
+            <div>
+              <button type="submit" id="submitBtn" class="bg-ink-900 hover:bg-ink-800 text-white px-5 py-2.5 rounded text-sm font-semibold transition">Publish announcement</button>
+            </div>
+          </form>
+          <p id="msg" class="mt-3 font-semibold text-xs"></p>
+        </section>
 
-        <div class="section-head mb-4">
-          <h3 class="text-base font-display font-bold text-navy-900">Existing announcements</h3>
-          <p class="text-xs text-slate-500 mt-0.5">Most recent first</p>
-        </div>
+        <section class="bg-white border border-line rounded">
+          <header class="section-head px-5 pt-5">
+            <h2 class="text-base font-semibold text-ink-900">Existing announcements</h2>
+            <p class="text-xs text-ink-700 mt-0.5 mb-4">Most recent first</p>
+          </header>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-paper-100 text-ink-700 text-xs font-medium border-y border-line">
+                  <th class="p-4">Image</th>
+                  <th class="p-4">Title</th>
+                  <th class="p-4">Category</th>
+                  <th class="p-4">Content</th>
+                  <th class="p-4">Date posted</th>
+                </tr>
+              </thead>
+              <tbody id="announcementTableBody" class="divide-y divide-line text-sm">
+                <tr><td colspan="5" class="p-8 text-center text-ink-700/60 font-medium">Loading announcements...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse">
-            <thead>
-              <tr class="bg-slate-50 text-slate-600 text-xs font-medium border-b border-slate-200">
-                <th class="p-4">Image</th>
-                <th class="p-4">Title</th>
-                <th class="p-4">Category</th>
-                <th class="p-4">Content</th>
-                <th class="p-4">Date posted</th>
-              </tr>
-            </thead>
-            <tbody id="announcementTableBody" class="divide-y divide-slate-100 text-sm">
-              <tr><td colspan="5" class="p-8 text-center text-slate-400 font-medium">Loading announcements...</td></tr>
-            </tbody>
-          </table>
-        </div>
       </div>
     </main>
   </div>
@@ -153,25 +160,25 @@
       const tbody = document.getElementById('announcementTableBody');
       const { data, error } = await _supabase.from('announcements').select('*').order('created_at', { ascending: false });
       if (error) {
-        tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-rose-500 font-medium">Error: ${escapeHtml(error.message)}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-danger-600 font-medium">Error: ${escapeHtml(error.message)}</td></tr>`;
         return;
       }
       if (data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-400 font-medium">No announcements found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-ink-700/60 font-medium">No announcements found.</td></tr>`;
         return;
       }
       tbody.innerHTML = '';
       data.forEach(item => {
         const imageHtml = item.image_url 
-          ? `<img src="${escapeHtml(item.image_url)}" alt="Announcement Image" class="w-12 h-12 object-cover rounded border border-slate-200">`
-          : `<span class="text-xs text-slate-400 italic">No image</span>`;
+          ? `<img src="${escapeHtml(item.image_url)}" alt="Announcement Image" class="w-12 h-12 object-cover rounded border border-line">`
+          : `<span class="text-xs text-ink-700/50 italic">No image</span>`;
 
-        tbody.innerHTML += `<tr class="hover:bg-slate-50/80 transition">
+        tbody.innerHTML += `<tr class="hover:bg-paper-100/60 transition">
           <td class="p-4">${imageHtml}</td>
-          <td class="p-4 font-semibold text-slate-900">${escapeHtml(item.title)}</td>
-          <td class="p-4"><span class="cat-tag text-xs font-medium text-navy-800 inline-block">${escapeHtml(item.category)}</span></td>
-          <td class="p-4 text-slate-600">${escapeHtml(item.content)}</td>
-          <td class="p-4 text-xs text-slate-500 ticket-id">${new Date(item.created_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}</td>
+          <td class="p-4 font-semibold text-ink-900">${escapeHtml(item.title)}</td>
+          <td class="p-4"><span class="cat-tag text-xs font-medium text-ink-800 inline-block">${escapeHtml(item.category)}</span></td>
+          <td class="p-4 text-ink-700">${escapeHtml(item.content)}</td>
+          <td class="p-4 text-xs text-ink-700 num">${new Date(item.created_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}</td>
         </tr>`;
       });
     }
@@ -201,7 +208,7 @@
           .upload(filePath, file);
 
         if (uploadError) {
-          msg.className = 'mt-3 font-semibold text-xs text-rose-600';
+          msg.className = 'mt-3 font-semibold text-xs text-danger-600';
           msg.textContent = 'Image Upload Error: ' + uploadError.message;
           submitBtn.disabled = false;
           submitBtn.textContent = 'Publish announcement';
@@ -223,10 +230,10 @@
       }]);
 
       if (error) {
-        msg.className = 'mt-3 font-semibold text-xs text-rose-600';
+        msg.className = 'mt-3 font-semibold text-xs text-danger-600';
         msg.textContent = 'Error: ' + error.message;
       } else {
-        msg.className = 'mt-3 font-semibold text-xs text-emerald-600';
+        msg.className = 'mt-3 font-semibold text-xs text-ok-600';
         msg.textContent = 'Announcement published successfully with image!';
         document.getElementById('announcementForm').reset();
         fetchAnnouncements();
