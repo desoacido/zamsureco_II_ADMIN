@@ -45,10 +45,12 @@
 
   const currentPage = window.location.pathname.split("/").pop() || "admin_dashboard.html";
 
-  const navHtml = NAV_ITEMS.map((item) => {
+  const navHtml = NAV_ITEMS.map((item, i) => {
     const isActive = item.href === currentPage;
+    const num = String(i + 1).padStart(2, "0");
     return `
       <a href="${item.href}" class="nav-link${isActive ? " active" : ""}" title="${item.label}"${isActive ? ' aria-current="page"' : ""}>
+        <span class="nav-tick"></span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${item.icon}</svg>
         <span class="nav-label">${item.label}</span>
       </a>`;
@@ -66,7 +68,6 @@
         </div>
       </div>
 
-      <div class="nav-group-label">Operations</div>
       <div class="nav-items-container">
         ${navHtml}
       </div>
@@ -91,7 +92,7 @@
       <span class="bar bar3"></span>
     </button>`;
 
-  // ---- CSS: flat, solid navy, single font ----
+  // ---- CSS: navy + amber, with an active-item edge marker instead of a generic tinted pill ----
   const styleTag = document.createElement("style");
   styleTag.id = "sidebar-shared-styles";
   styleTag.textContent = `
@@ -119,13 +120,14 @@
       font-family: 'Inter', system-ui, sans-serif;
       display: flex;
       flex-direction: column;
-      padding: 16px 12px;
+      padding: 18px 10px;
       position: fixed;
       top: 0;
       left: 0;
       bottom: 0;
       height: 100vh;
       z-index: 200;
+      border-right: 1px solid rgba(242, 169, 59, 0.15);
       transition: width var(--transition-speed);
       overflow-x: hidden;
       overflow-y: auto;
@@ -145,26 +147,26 @@
     /* Collapsed */
     html.sidebar-collapsed .sidebar {
       width: var(--sidebar-width-collapsed);
-      padding: 16px 8px;
+      padding: 18px 6px;
     }
     html.sidebar-collapsed .main-content {
       margin-left: var(--sidebar-width-collapsed);
     }
     html.sidebar-collapsed .sidebar .brand-text,
     html.sidebar-collapsed .sidebar .nav-label,
-    html.sidebar-collapsed .sidebar .nav-group-label,
     html.sidebar-collapsed .sidebar .sidebar-footer {
       display: none !important;
     }
     html.sidebar-collapsed .sidebar .brand {
       justify-content: center;
-      padding: 8px 0 16px 0;
+      padding: 6px 0 16px 0;
     }
     html.sidebar-collapsed .sidebar .nav-link,
     html.sidebar-collapsed .sidebar .logout-btn {
       justify-content: center;
       padding: 11px 0;
     }
+    html.sidebar-collapsed .sidebar .nav-tick { left: 0; }
 
     /* Hamburger */
     .hamburger-btn {
@@ -195,50 +197,60 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 8px 8px 18px 8px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-      margin-bottom: 14px;
+      padding: 6px 10px 20px 10px;
+      margin-bottom: 12px;
+      position: relative;
     }
-    .brand-mark { width: 30px; height: 30px; flex-shrink: 0; }
+    .brand::after {
+      content: "";
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      bottom: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--amber) 0 28px, rgba(255,255,255,0.08) 28px 100%);
+    }
+    .brand-mark { width: 28px; height: 28px; flex-shrink: 0; }
     .brand-text .brand-title {
       font-weight: 700;
       font-size: 14px;
-      letter-spacing: 0.2px;
+      letter-spacing: 0.3px;
       line-height: 1.2;
     }
     .brand-text .brand-sub {
       font-size: 11px;
-      color: rgba(255, 255, 255, 0.55);
+      color: rgba(255, 255, 255, 0.5);
       font-weight: 400;
       margin-top: 2px;
     }
 
     /* Nav */
-    .nav-group-label {
-      font-size: 10.5px;
-      letter-spacing: 0.8px;
-      text-transform: uppercase;
-      color: rgba(255, 255, 255, 0.4);
-      padding: 6px 10px;
-      font-weight: 600;
-    }
     .nav-items-container {
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 1px;
     }
     .nav-link, .logout-btn {
       display: flex;
       align-items: center;
       gap: 12px;
-      color: rgba(255, 255, 255, 0.7);
+      color: rgba(255, 255, 255, 0.68);
       text-decoration: none;
-      padding: 9px 10px;
-      border-radius: 6px;
+      padding: 10px 10px 10px 14px;
       font-size: 13.5px;
       font-weight: 500;
-      transition: background 0.15s, color 0.15s;
+      position: relative;
+      transition: color 0.15s;
       white-space: nowrap;
+    }
+    .nav-tick {
+      position: absolute;
+      left: 0;
+      top: 6px;
+      bottom: 6px;
+      width: 3px;
+      background: transparent;
+      transition: background 0.15s;
     }
     .nav-link svg, .logout-btn svg {
       width: 18px;
@@ -246,34 +258,38 @@
       flex-shrink: 0;
     }
     .nav-link:hover {
-      background: rgba(255, 255, 255, 0.06);
       color: #fff;
     }
+    .nav-link:hover .nav-tick {
+      background: rgba(242, 169, 59, 0.4);
+    }
     .nav-link.active {
-      background: rgba(255, 255, 255, 0.12);
       color: #fff;
       font-weight: 600;
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .nav-link.active .nav-tick {
+      background: var(--amber);
     }
 
     /* Bottom: sign out + footer */
     .sidebar-bottom {
       margin-top: auto;
-      padding-top: 12px;
+      padding-top: 14px;
       border-top: 1px solid rgba(255, 255, 255, 0.08);
     }
     .logout-btn {
       width: 100%;
       cursor: pointer;
-      color: rgba(255, 255, 255, 0.6);
+      color: rgba(255, 255, 255, 0.55);
     }
     .logout-btn:hover {
-      background: rgba(255, 255, 255, 0.06);
       color: #fff;
     }
     .sidebar-footer {
-      padding: 10px 10px 4px;
-      font-size: 11px;
-      color: rgba(255, 255, 255, 0.35);
+      padding: 10px 10px 4px 14px;
+      font-size: 10.5px;
+      color: rgba(255, 255, 255, 0.32);
       line-height: 1.4;
     }
 
