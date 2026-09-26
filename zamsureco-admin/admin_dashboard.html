@@ -206,7 +206,7 @@
 
     async function loadDashboardStats() {
       const [ann, app, inc] = await Promise.all([
-        countOf('announcements'), countOf('applications'), countOf('incidents')
+        countOf('announcements'), countOf('service_applications'), countOf('incident_reports')
       ]);
       setStat('statAnnouncements', ann);
       setStat('statApplications', app);
@@ -248,8 +248,8 @@
       </tr>`;
 
     loadDashboardStats();
-    loadRecent('incidents', 'recentIncidents', incidentRow);
-    loadRecent('applications', 'recentApplications', applicationRow);
+    loadRecent('incident_reports', 'recentIncidents', incidentRow);
+    loadRecent('service_applications', 'recentApplications', applicationRow);
   </script>
 </body>
 </html>
