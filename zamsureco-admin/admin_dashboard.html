@@ -241,7 +241,7 @@
 
     const applicationRow = (r) => `
       <tr class="hover:bg-paper-100/60">
-        <td class="px-5 py-3 font-medium text-ink-800">${esc(r.full_name || r.name || r.applicant_name || '—')}</td>
+        <td class="px-5 py-3 font-medium text-ink-800">${esc(r.consumer_name || r.full_name || r.name || r.applicant_name || '—')}</td>
         <td class="px-3 py-3 text-ink-700">${esc(r.type || r.application_type || r.service_type || '—')}</td>
         <td class="px-3 py-3 text-ink-700 num whitespace-nowrap">${fmtDate(r.created_at)}</td>
         <td class="px-5 py-3">${badge(r.status)}</td>
