@@ -76,7 +76,10 @@
               <thead>
                 <tr class="bg-slate-100/70 text-slate-600 text-xs uppercase tracking-wider font-semibold border-b border-slate-200">
                   <th class="p-4">Applicant Name</th>
-                  <th class="p-4">Details</th>
+                  <th class="p-4">Contact No.</th>
+                  <th class="p-4">Type</th>
+                  <th class="p-4">Address</th>
+                  <th class="p-4">Status</th>
                   <th class="p-4">Date Applied</th>
                 </tr>
               </thead>
@@ -118,8 +121,13 @@
     }
 
     async function fetchApplications() {
-      const { data, error } = await _supabase.from('applications').select('*').order('created_at', { ascending: false });
-      
+      const { data, error } = await _supabase
+        .from('service_applications')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) console.error('service_applications fetch error:', error.message);
+
       const emptyState = document.getElementById('emptyState');
       const tableWrapper = document.getElementById('tableWrapper');
       const tbody = document.getElementById('applicationTableBody');
@@ -136,8 +144,11 @@
 
       data.forEach(item => {
         tbody.innerHTML += `<tr class="hover:bg-slate-50/80 transition">
-          <td class="p-4 font-semibold text-slate-900">${escapeHtml(item.name || item.full_name || 'N/A')}</td>
-          <td class="p-4 text-slate-600">${escapeHtml(item.details || item.address || '')}</td>
+          <td class="p-4 font-semibold text-slate-900">${escapeHtml(item.consumer_name || 'N/A')}</td>
+          <td class="p-4 text-slate-600 ticket-id">${escapeHtml(item.contact_number || '—')}</td>
+          <td class="p-4 text-slate-600">${escapeHtml(item.application_type || '—')}</td>
+          <td class="p-4 text-slate-600">${escapeHtml(item.address || '—')}</td>
+          <td class="p-4 text-slate-600">${escapeHtml(item.status || '—')}</td>
           <td class="p-4 text-xs text-slate-500 ticket-id">${item.created_at ? new Date(item.created_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}</td>
         </tr>`;
       });
