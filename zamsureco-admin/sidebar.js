@@ -32,6 +32,11 @@
       icon: '<path d="M13 2L3 14h7l-1 8 11-14h-7l1-6z"/>',
     },
     {
+      href: "admin_linemen.html",
+      label: "Manage Linemen",
+      icon: '<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0116 0v1"/>',
+    },
+    {
       href: "admin_inquiries.html",
       label: "Service Inquiries",
       icon: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
