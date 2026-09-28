@@ -12,200 +12,199 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script>
   tailwind.config = {
     theme: {
       extend: {
         colors: {
-          navy: { 900:'#081D45', 800:'#0D2E63', 700:'#153a7a' },
-          amber: { DEFAULT:'#F2A93B', deep:'#C97C1B' },
+          ink:    { 900:'#12203A', 800:'#1B2E4F', 700:'#2A4166' },
+          paper:  { 50:'#F5F3EE', 100:'#EFEDE6' },
+          line:   '#DBD8CF',
+          copper: { 500:'#B9722E', 100:'#F3E4D2' },
+          ok:     { 600:'#3F7857', 100:'#E1EBE3' },
+          danger: { 600:'#A33B34', 100:'#F2E1DF' },
+          info:   { 600:'#2F5D8A', 100:'#DEE7EF' },
         },
         fontFamily: {
-          display: ['Space Grotesk','sans-serif'],
-          body: ['Inter','sans-serif'],
-          mono: ['IBM Plex Mono','monospace'],
-        }
+          sans: ['"IBM Plex Sans"','system-ui','sans-serif'],
+          mono: ['"IBM Plex Mono"','ui-monospace','monospace'],
+        },
+        borderRadius: { DEFAULT: '3px' }
       }
     }
   }
 </script>
 <style>
-  body{font-family:'Inter',sans-serif;}
-  .pulse-dot{animation:pulse 2s infinite;}
-  @keyframes pulse{
-    0%{box-shadow:0 0 0 0 rgba(16,185,129,0.55);}
-    70%{box-shadow:0 0 0 6px rgba(16,185,129,0);}
-    100%{box-shadow:0 0 0 0 rgba(16,185,129,0);}
-  }
+  body { font-family: 'IBM Plex Sans', system-ui, sans-serif; }
+  .num { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  .ticket-id { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+
   .status-rail{display:flex;align-items:center;margin:4px 0 22px;}
   .status-node{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;position:relative;}
-  .status-node .node-dot{width:15px;height:15px;border-radius:50%;background:#E2E6ED;border:3px solid #E2E6ED;z-index:1;transition:all .2s ease;}
-  .status-node .node-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#9AA3B5;}
-  .status-node.done .node-dot{background:#10B981;border-color:#10B981;}
-  .status-node.done .node-label{color:#10B981;}
-  .status-node.active .node-dot{background:#F2A93B;border-color:#F2A93B;box-shadow:0 0 0 4px rgba(242,169,59,0.22);}
-  .status-node.active .node-label{color:#C97C1B;}
-  .status-line{flex:1;height:2px;background:#E2E6ED;margin-bottom:19px;}
-  .status-line.done{background:#10B981;}
-  .ticket-id{font-family:'IBM Plex Mono',monospace;}
-  #modalMap { height: 200px; width: 100%; border-radius: 0.75rem; z-index: 10; }
+  .status-node .node-dot{width:14px;height:14px;border-radius:50%;background:#DBD8CF;border:3px solid #DBD8CF;z-index:1;transition:all .2s ease;}
+  .status-node .node-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;}
+  .status-node.done .node-dot{background:#3F7857;border-color:#3F7857;}
+  .status-node.done .node-label{color:#3F7857;}
+  .status-node.active .node-dot{background:#B9722E;border-color:#B9722E;box-shadow:0 0 0 4px rgba(185,114,46,0.18);}
+  .status-node.active .node-label{color:#B9722E;}
+  .status-line{flex:1;height:2px;background:#DBD8CF;margin-bottom:19px;}
+  .status-line.done{background:#3F7857;}
+
+  #modalMap { height: 200px; width: 100%; border-radius: 3px; z-index: 10; border: 1px solid #DBD8CF; }
 </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-body overflow-x-hidden">
+<body class="bg-paper-50 text-ink-900 font-sans overflow-x-hidden">
   <!-- Dito i-i-inject ng sidebar.js ang shared sidebar at hamburger menu -->
   <div id="sidebar-root"></div>
 
   <!-- Main Content Wrapper -->
-  <div class="main-content flex-1 flex flex-col h-screen overflow-hidden">
+  <div class="main-content !p-0 flex-1 flex flex-col h-screen overflow-hidden">
     <!-- Navbar -->
-    <nav class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm flex-shrink-0">
-      <div class="flex items-center space-x-4">
-        <!-- Hamburger Button -->
-        <button class="hamburger-btn bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 rounded-xl w-10 h-10 flex flex-col items-center justify-center gap-1 cursor-pointer transition flex-shrink-0" id="sidebarToggle" aria-label="Toggle navigation menu">
-          <span class="block w-4 h-0.5 bg-gray-700 rounded-full"></span>
-          <span class="block w-4 h-0.5 bg-gray-700 rounded-full"></span>
-          <span class="block w-4 h-0.5 bg-gray-700 rounded-full"></span>
+    <nav class="bg-paper-50 border-b border-line px-6 h-16 flex justify-between items-center flex-shrink-0">
+      <div class="flex items-center gap-4">
+        <button class="hamburger-btn bg-white hover:bg-paper-100 border border-line rounded w-9 h-9 flex flex-col items-center justify-center gap-1 cursor-pointer transition flex-shrink-0" id="sidebarToggle" aria-label="Toggle navigation menu">
+          <span class="block w-4 h-0.5 bg-ink-700"></span>
+          <span class="block w-4 h-0.5 bg-ink-700"></span>
+          <span class="block w-4 h-0.5 bg-ink-700"></span>
         </button>
         <div>
-          <h1 class="text-lg font-display font-bold text-gray-900 leading-tight">Incident Reports Management</h1>
-          <p class="text-xs text-gray-500">Monitor power disruption & line fault reports</p>
+          <h1 class="text-lg font-semibold text-ink-900 leading-tight">Incident Reports Management</h1>
+          <p class="text-xs text-ink-700/70">Monitor power disruption &amp; line fault reports</p>
         </div>
       </div>
-      <div class="flex items-center space-x-3">
-        <span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
-        <span class="text-xs bg-gray-100 text-gray-700 px-3 py-1.5 rounded-full font-medium border border-gray-200">Ipil Grid Connected</span>
+      <div class="hidden sm:flex items-center gap-3 text-sm text-ink-700">
+        <span class="h-2.5 w-2.5 rounded-full bg-ok-600"></span>
+        <span class="text-xs bg-paper-100 text-ink-700 px-3 py-1.5 rounded border border-line font-medium">Ipil Grid Connected</span>
       </div>
     </nav>
 
     <!-- Main Scrollable Area -->
-    <main class="flex-1 overflow-y-auto p-8 bg-slate-50">
-      <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
-        <div>
-          <h2 class="text-2xl font-display font-bold text-navy-900">Incoming Incidents</h2>
-          <p class="text-sm text-slate-500 mt-0.5">Monitor and dispatch power disruption or line fault reports across Pangi, Poblacion, and Ipil Heights.</p>
-        </div>
-        <button onclick="fetchIncidents()" class="bg-navy-800 hover:bg-navy-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition flex items-center space-x-2">
-          <span>Refresh List</span>
-        </button>
-      </div>
+    <main class="flex-1 overflow-y-auto p-6 lg:p-8 bg-paper-50">
+      <div class="max-w-6xl mx-auto space-y-6">
 
-      <!-- Stat strip -->
-      <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-        <div class="bg-white border border-slate-200 rounded-xl p-4 relative overflow-hidden">
-          <div class="absolute left-0 top-0 bottom-0 w-1 bg-navy-800"></div>
-          <div class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Total</div>
-          <div id="statTotal" class="text-2xl font-display font-bold text-navy-900 mt-1">0</div>
+        <div class="flex justify-between items-center flex-wrap gap-4">
+          <div>
+            <h2 class="text-2xl font-semibold text-ink-900">Incoming Incidents</h2>
+            <p class="text-sm text-ink-700/70 mt-0.5">Monitor and dispatch power disruption or line fault reports across Pangi, Poblacion, and Ipil Heights.</p>
+          </div>
+          <button onclick="fetchIncidents()" class="bg-ink-900 hover:bg-ink-800 text-white px-4 py-2 rounded text-sm font-medium transition">
+            Refresh list
+          </button>
         </div>
-        <div class="bg-white border border-slate-200 rounded-xl p-4 relative overflow-hidden">
-          <div class="absolute left-0 top-0 bottom-0 w-1 bg-amber"></div>
-          <div class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Pending</div>
-          <div id="statPending" class="text-2xl font-display font-bold text-navy-900 mt-1">0</div>
-        </div>
-        <div class="bg-white border border-slate-200 rounded-xl p-4 relative overflow-hidden">
-          <div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
-          <div class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">In Progress</div>
-          <div id="statProgress" class="text-2xl font-display font-bold text-navy-900 mt-1">0</div>
-        </div>
-        <div class="bg-white border border-slate-200 rounded-xl p-4 relative overflow-hidden">
-          <div class="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500"></div>
-          <div class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Resolved</div>
-          <div id="statResolved" class="text-2xl font-display font-bold text-navy-900 mt-1">0</div>
-        </div>
-        <div class="bg-white border border-slate-200 rounded-xl p-4 relative overflow-hidden">
-          <div class="absolute left-0 top-0 bottom-0 w-1 bg-rose-500"></div>
-          <div class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Rejected</div>
-          <div id="statRejected" class="text-2xl font-display font-bold text-navy-900 mt-1">0</div>
-        </div>
-      </div>
 
-      <div id="diagBanner" class="hidden mb-5 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl p-4"></div>
-
-      <!-- Table Card -->
-      <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-200">
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse">
-            <thead>
-              <tr class="bg-slate-100/70 text-slate-600 text-xs uppercase tracking-wider font-semibold border-b border-slate-200">
-                <th class="p-4">Ticket</th>
-                <th class="p-4">Category</th>
-                <th class="p-4">Location</th>
-                <th class="p-4">Details</th>
-                <th class="p-4">Status</th>
-                <th class="p-4">Assigned Crew</th>
-                <th class="p-4">Date Reported</th>
-                <th class="p-4 text-center">Action</th>
-              </tr>
-            </thead>
-            <tbody id="incident-table-body" class="divide-y divide-slate-100 text-sm">
-              <tr><td colspan="8" class="p-8 text-center text-slate-400 font-medium">Loading reports...</td></tr>
-            </tbody>
-          </table>
+        <!-- Stat strip: connected readout, matches dashboard's meter style -->
+        <div class="bg-white border border-line rounded flex flex-col sm:flex-row">
+          <div class="px-5 py-4 flex-1 border-b sm:border-b-0 sm:border-r border-line">
+            <div class="text-[11px] uppercase tracking-wide text-ink-700/70 font-semibold">Total</div>
+            <div id="statTotal" class="text-2xl font-semibold num text-ink-900 mt-1">0</div>
+          </div>
+          <div class="px-5 py-4 flex-1 border-b sm:border-b-0 sm:border-r border-line bg-copper-100/40">
+            <div class="text-[11px] uppercase tracking-wide text-copper-500 font-semibold">Pending</div>
+            <div id="statPending" class="text-2xl font-semibold num text-ink-900 mt-1">0</div>
+          </div>
+          <div class="px-5 py-4 flex-1 border-b sm:border-b-0 sm:border-r border-line">
+            <div class="text-[11px] uppercase tracking-wide text-info-600 font-semibold">In progress</div>
+            <div id="statProgress" class="text-2xl font-semibold num text-ink-900 mt-1">0</div>
+          </div>
+          <div class="px-5 py-4 flex-1 border-b sm:border-b-0 sm:border-r border-line">
+            <div class="text-[11px] uppercase tracking-wide text-ok-600 font-semibold">Resolved</div>
+            <div id="statResolved" class="text-2xl font-semibold num text-ink-900 mt-1">0</div>
+          </div>
+          <div class="px-5 py-4 flex-1">
+            <div class="text-[11px] uppercase tracking-wide text-danger-600 font-semibold">Rejected</div>
+            <div id="statRejected" class="text-2xl font-semibold num text-ink-900 mt-1">0</div>
+          </div>
         </div>
+
+        <div id="diagBanner" class="hidden bg-danger-100 border border-danger-600/30 text-danger-600 text-sm rounded p-4"></div>
+
+        <!-- Table Card -->
+        <section class="bg-white border border-line rounded">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-sm">
+              <thead>
+                <tr class="bg-paper-100 text-ink-700 text-xs uppercase tracking-wide font-semibold border-b border-line">
+                  <th class="p-4">Ticket</th>
+                  <th class="p-3">Category</th>
+                  <th class="p-3">Location</th>
+                  <th class="p-3">Details</th>
+                  <th class="p-3">Status</th>
+                  <th class="p-3">Assigned crew</th>
+                  <th class="p-3">Date reported</th>
+                  <th class="p-4 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody id="incident-table-body" class="divide-y divide-line">
+                <tr><td colspan="8" class="p-8 text-center text-ink-700/60">Loading reports...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
     </main>
   </div>
 
   <!-- Modal -->
-  <div id="detail-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-3xl max-w-xl w-full shadow-2xl border border-slate-100 overflow-hidden max-h-[90vh] overflow-y-auto">
-      <div class="bg-gradient-to-br from-navy-900 to-navy-800 text-white px-8 py-5 flex justify-between items-center sticky top-0 z-20">
+  <div id="detail-modal" class="fixed inset-0 bg-ink-900/50 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded max-w-xl w-full shadow-xl border border-line overflow-hidden max-h-[90vh] overflow-y-auto">
+      <div class="bg-ink-900 text-white px-6 py-4 flex justify-between items-center sticky top-0 z-20">
         <div>
-          <p id="modal-ticket" class="text-[11px] text-blue-200 ticket-id">TICKET</p>
-          <h3 class="text-lg font-display font-bold mt-0.5">Incident Review</h3>
+          <p id="modal-ticket" class="text-[11px] text-white/60 ticket-id">TICKET</p>
+          <h3 class="text-base font-semibold mt-0.5">Incident review</h3>
         </div>
-        <button onclick="closeModal()" class="text-white/70 hover:text-white bg-white/10 hover:bg-white/20 p-2 rounded-full transition">
+        <button onclick="closeModal()" class="text-white/70 hover:text-white bg-white/10 hover:bg-white/20 p-1.5 rounded-full transition">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg>
         </button>
       </div>
 
-      <div class="p-8">
+      <div class="p-6">
         <div id="status-rail-wrap">
           <div class="status-rail">
             <div class="status-node" id="node-pending"><div class="node-dot"></div><div class="node-label">Pending</div></div>
             <div class="status-line" id="line-1"></div>
-            <div class="status-node" id="node-progress"><div class="node-dot"></div><div class="node-label">In Progress</div></div>
+            <div class="status-node" id="node-progress"><div class="node-dot"></div><div class="node-label">In progress</div></div>
             <div class="status-line" id="line-2"></div>
             <div class="status-node" id="node-resolved"><div class="node-dot"></div><div class="node-label">Resolved</div></div>
           </div>
         </div>
 
-        <div id="rejected-banner" class="hidden mb-4 bg-rose-50 border border-rose-200 rounded-2xl p-4">
-          <p class="text-xs font-bold uppercase tracking-wider text-rose-700 mb-1">Report Rejected</p>
-          <p id="rejected-reason-text" class="text-sm text-rose-700"></p>
+        <div id="rejected-banner" class="hidden mb-4 bg-danger-100 border border-danger-600/30 rounded p-4">
+          <p class="text-xs font-semibold uppercase tracking-wide text-danger-600 mb-1">Report rejected</p>
+          <p id="rejected-reason-text" class="text-sm text-danger-600"></p>
         </div>
 
-        <div id="modal-content" class="space-y-3.5 text-sm text-slate-600"></div>
+        <div id="modal-content" class="space-y-3 text-sm text-ink-700"></div>
 
         <!-- Map Container Exclusive to Ipil -->
         <div class="mt-4">
-          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Map Location (Ipil Grid):</label>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-ink-700 mb-1.5">Map location (Ipil Grid):</label>
           <div id="modalMap"></div>
         </div>
 
-        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-slate-100">
+        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-line">
           <div>
-            <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Assigned Crew / Lineman:</label>
-            <input type="text" id="crewInput" placeholder="e.g., Line Crew Alpha (Team 3)" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 transition">
+            <label class="block text-xs font-semibold uppercase tracking-wide text-ink-700 mb-1.5">Assigned crew / lineman:</label>
+            <input type="text" id="crewInput" placeholder="e.g., Line Crew Alpha (Team 3)" class="w-full px-3 py-2 bg-paper-50 border border-line rounded text-sm focus:outline-none focus:ring-1 focus:ring-ink-700 transition">
           </div>
           <div>
-            <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Estimated Restoration (ETR):</label>
-            <input type="datetime-local" id="etrInput" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 transition">
+            <label class="block text-xs font-semibold uppercase tracking-wide text-ink-700 mb-1.5">Estimated restoration (ETR):</label>
+            <input type="datetime-local" id="etrInput" class="w-full px-3 py-2 bg-paper-50 border border-line rounded text-sm focus:outline-none focus:ring-1 focus:ring-ink-700 transition">
           </div>
         </div>
 
         <div class="mt-4">
-          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Reason for Rejection (kailangan lang kapag rire-reject):</label>
-          <textarea id="rejectReasonInput" rows="2" placeholder="hal. Hindi malinaw ang larawan, hindi kaugnay sa insidente..." class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 transition"></textarea>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-ink-700 mb-1.5">Reason for rejection (kailangan lang kapag rire-reject):</label>
+          <textarea id="rejectReasonInput" rows="2" placeholder="hal. Hindi malinaw ang larawan, hindi kaugnay sa insidente..." class="w-full px-3 py-2 bg-paper-50 border border-line rounded text-sm focus:outline-none focus:ring-1 focus:ring-danger-600 transition"></textarea>
         </div>
 
-        <div id="modal-error" class="hidden mt-3 text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-3"></div>
+        <div id="modal-error" class="hidden mt-3 text-xs text-danger-600 bg-danger-100 border border-danger-600/30 rounded p-3"></div>
 
-        <div class="mt-8 flex flex-wrap justify-end gap-2.5">
-          <button id="btn-progress" onclick="updateStatus('In Progress')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide shadow-sm transition">Assign / In Progress</button>
-          <button id="btn-resolve" onclick="updateStatus('Resolved')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide shadow-sm transition">Mark as Resolved</button>
-          <button id="btn-reject" onclick="rejectReport()" class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide shadow-sm transition">Reject Report</button>
-          <button onclick="closeModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition">Close</button>
+        <div class="mt-6 flex flex-wrap justify-end gap-2">
+          <button id="btn-progress" onclick="updateStatus('In Progress')" class="bg-info-600 hover:opacity-90 text-white px-4 py-2 rounded text-xs font-semibold tracking-wide transition">Assign / In progress</button>
+          <button id="btn-resolve" onclick="updateStatus('Resolved')" class="bg-ok-600 hover:opacity-90 text-white px-4 py-2 rounded text-xs font-semibold tracking-wide transition">Mark as resolved</button>
+          <button id="btn-reject" onclick="rejectReport()" class="bg-danger-600 hover:opacity-90 text-white px-4 py-2 rounded text-xs font-semibold tracking-wide transition">Reject report</button>
+          <button onclick="closeModal()" class="bg-paper-100 hover:bg-line text-ink-700 px-4 py-2 rounded text-xs font-semibold tracking-wide transition">Close</button>
         </div>
       </div>
     </div>
@@ -252,9 +251,18 @@
       return `ZSII-${year}-${num}`;
     }
 
+    function statusBadge(status) {
+      const s = status || 'Pending';
+      let cls = 'bg-copper-100 text-copper-500 border-copper-500/30';
+      if (s === 'In Progress') cls = 'bg-info-100 text-info-600 border-info-600/30';
+      if (s === 'Resolved') cls = 'bg-ok-100 text-ok-600 border-ok-600/30';
+      if (s === 'Rejected') cls = 'bg-danger-100 text-danger-600 border-danger-600/30';
+      return `<span class="px-2.5 py-0.5 rounded-full text-xs font-medium inline-flex items-center border ${cls}">${escapeHtml(s)}</span>`;
+    }
+
     async function fetchIncidents() {
       const tbody = document.getElementById('incident-table-body');
-      tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-slate-400 font-medium">Fetching records...</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-ink-700/60">Fetching records...</td></tr>`;
 
       const { data, error } = await supabaseClient
         .from('incident_reports')
@@ -262,7 +270,7 @@
         .order('created_at', { ascending: false });
 
       if (error) {
-        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-rose-500 font-medium">Error: ${escapeHtml(error.message)}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-danger-600">Error: ${escapeHtml(error.message)}</td></tr>`;
         return;
       }
 
@@ -274,29 +282,24 @@
       document.getElementById('statRejected').textContent = reportsCache.filter(d => d.status === 'Rejected').length;
 
       if (reportsCache.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-slate-400 font-medium">No pending incident reports found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-ink-700/60">No pending incident reports found.</td></tr>`;
         return;
       }
 
       tbody.innerHTML = '';
       reportsCache.forEach((item, index) => {
-        let badgeColor = 'bg-amber-100 text-amber-800 border border-amber-200';
-        if (item.status === 'In Progress') badgeColor = 'bg-blue-100 text-blue-800 border border-blue-200';
-        if (item.status === 'Resolved') badgeColor = 'bg-emerald-100 text-emerald-800 border border-emerald-200';
-        if (item.status === 'Rejected') badgeColor = 'bg-rose-100 text-rose-800 border border-rose-200';
-
         const row = document.createElement('tr');
-        row.className = 'hover:bg-slate-50/80 transition';
+        row.className = 'hover:bg-paper-100/60 transition';
         row.innerHTML = `
-          <td class="p-4 ticket-id text-xs text-slate-500">${ticketRef(item)}</td>
-          <td class="p-4 font-semibold text-slate-900">${escapeHtml(item.category)}</td>
-          <td class="p-4 text-slate-600">${escapeHtml(item.location)}</td>
-          <td class="p-4 text-slate-600 truncate max-w-xs">${escapeHtml(item.description)}</td>
-          <td class="p-4"><span class="px-3 py-1 rounded-full text-xs font-bold inline-flex items-center ${badgeColor}">${escapeHtml(item.status || 'Pending')}</span></td>
-          <td class="p-4">${escapeHtml(item.assigned_to || 'Unassigned')}</td>
-          <td class="p-4 text-xs text-slate-500 ticket-id">${new Date(item.created_at).toLocaleString('en-PH', { dateStyle:'medium', timeStyle:'short' })}</td>
+          <td class="p-4 ticket-id text-xs text-ink-700/70">${ticketRef(item)}</td>
+          <td class="p-3 font-medium text-ink-900">${escapeHtml(item.category)}</td>
+          <td class="p-3 text-ink-700">${escapeHtml(item.location)}</td>
+          <td class="p-3 text-ink-700 truncate max-w-xs">${escapeHtml(item.description)}</td>
+          <td class="p-3">${statusBadge(item.status)}</td>
+          <td class="p-3 text-ink-700">${escapeHtml(item.assigned_to || 'Unassigned')}</td>
+          <td class="p-3 text-xs text-ink-700/70 num">${new Date(item.created_at).toLocaleString('en-PH', { dateStyle:'medium', timeStyle:'short' })}</td>
           <td class="p-4 text-center">
-            <button data-index="${index}" class="open-btn bg-slate-100 hover:bg-navy-800 hover:text-white text-navy-800 px-3.5 py-1.5 rounded-lg text-xs font-bold transition">Review</button>
+            <button data-index="${index}" class="open-btn bg-paper-100 hover:bg-ink-900 hover:text-white text-ink-800 px-3 py-1.5 rounded text-xs font-semibold transition">Review</button>
           </td>
         `;
         tbody.appendChild(row);
@@ -342,13 +345,13 @@
       document.getElementById('etrInput').value = item.etr ? item.etr.slice(0, 16) : '';
 
       let imageHtml = item.image_url
-        ? `<div class="mt-3"><p class="font-semibold text-xs text-slate-500 uppercase tracking-wider mb-1.5">Attachment Proof:</p><img src="${item.image_url}" class="h-36 rounded-2xl object-cover w-full border border-slate-200"></div>`
+        ? `<div class="mt-3"><p class="font-semibold text-xs text-ink-700/70 uppercase tracking-wide mb-1.5">Attachment proof:</p><img src="${item.image_url}" class="h-36 rounded object-cover w-full border border-line"></div>`
         : ``;
 
       document.getElementById('modal-content').innerHTML = `
-        <div class="grid grid-cols-2 gap-2 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-          <div><span class="text-xs text-slate-400 block uppercase font-bold">Category</span><strong class="text-slate-800">${escapeHtml(item.category)}</strong></div>
-          <div><span class="text-xs text-slate-400 block uppercase font-bold">Status</span><strong class="text-slate-800">${escapeHtml(item.status || 'Pending')}</strong></div>
+        <div class="grid grid-cols-2 gap-2 bg-paper-50 p-4 rounded border border-line">
+          <div><span class="text-xs text-ink-700/60 block uppercase font-semibold">Category</span><strong class="text-ink-900">${escapeHtml(item.category)}</strong></div>
+          <div><span class="text-xs text-ink-700/60 block uppercase font-semibold">Status</span><strong class="text-ink-900">${escapeHtml(item.status || 'Pending')}</strong></div>
         </div>
         <p><strong>Location:</strong> ${escapeHtml(item.location)}</p>
         <p><strong>Description:</strong> ${escapeHtml(item.description)}</p>
@@ -359,15 +362,13 @@
       document.getElementById('detail-modal').classList.add('flex');
 
       // Initialize Leaflet Map centered in Ipil (Default: 7.8286, 122.5833)
-      // Initialize Leaflet Map centered in Ipil (Default: 7.8286, 122.5833)
       setTimeout(() => {
         const lat = item.latitude ? Number(item.latitude) : 7.8286;
         const lng = item.longitude ? Number(item.longitude) : 122.5833;
 
         if (!modalMap) {
           modalMap = L.map('modalMap').setView([lat, lng], 14);
-          
-          // MAPTILER STREETS-V2 STYLE:
+
           L.tileLayer('https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=JqtKbHhAXW1bqyZqdfwD', {
             maxZoom: 19,
             attribution: '&copy; MapTiler &copy; OpenStreetMap contributors'
@@ -381,9 +382,9 @@
         modalMarker = L.marker([lat, lng]).addTo(modalMap)
           .bindPopup(`<b>${escapeHtml(item.category)}</b><br>${escapeHtml(item.location)}`)
           .openPopup();
-        
+
         modalMap.invalidateSize();
-      }, 300); // <-- May 300 at close parenthesis dito na nawala kanina
+      }, 300);
     }
 
     function closeModal() {
