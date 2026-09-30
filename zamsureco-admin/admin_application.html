@@ -173,6 +173,25 @@
   <!-- Toast -->
   <div id="toast" class="hidden fixed bottom-6 right-6 px-4 py-3 rounded text-sm font-semibold shadow-lg z-[400]"></div>
 
+  <!-- Confirmation dialog (replaces the browser's confirm pop-up) -->
+  <div id="confirmModal" class="hidden fixed inset-0 z-[500] flex items-center justify-center p-4" style="background:rgba(18,32,58,0.45)">
+    <div class="bg-white rounded border border-line shadow-2xl w-full max-w-md">
+      <div class="px-6 pt-6 pb-4">
+        <div class="flex items-start gap-3">
+          <div id="confirmIcon" class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"></div>
+          <div class="flex-1">
+            <h3 id="confirmTitle" class="text-base font-semibold text-ink-900"></h3>
+            <p id="confirmMessage" class="text-sm text-ink-700 mt-1"></p>
+          </div>
+        </div>
+      </div>
+      <div class="px-6 py-4 bg-paper-50 border-t border-line flex justify-end gap-2 rounded-b">
+        <button id="confirmCancel" class="btn-ghost">Cancel</button>
+        <button id="confirmOk" class="btn-primary">OK</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const SUPABASE_URL = 'https://zrnvivattocqvxlxzsld.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_PUfegf_zyb5B_gVas_SLyw_mto9NFGF';
@@ -241,7 +260,8 @@
     });
 
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeDrawer();
+      const modalOpen = !document.getElementById('confirmModal').classList.contains('hidden');
+      if (e.key === 'Escape' && !modalOpen) closeDrawer();
     });
 
     checkAuth();
@@ -307,6 +327,44 @@
 
     function isActive(a) {
       return !['Energized', 'Rejected'].includes(a.status || 'Pending');
+    }
+
+    // Styled confirmation box. Resolves true when OK is pressed.
+    // tone: 'ok' (green), 'danger' (red), or 'primary' (navy)
+    function confirmDialog({ title, message, okText = 'OK', tone = 'primary' }) {
+      return new Promise(resolve => {
+        const modal = document.getElementById('confirmModal');
+        const okBtn = document.getElementById('confirmOk');
+        const cancelBtn = document.getElementById('confirmCancel');
+        const icon = document.getElementById('confirmIcon');
+
+        const tones = {
+          ok:      { btn: 'btn-ok',      bg: '#E1EBE3', color: '#3F7857', svg: '<path d="M13 2L3 14h7l-1 8 11-14h-7l1-6z"/>' },
+          danger:  { btn: 'btn-danger',  bg: '#F2E1DF', color: '#A33B34', svg: '<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/>' },
+          primary: { btn: 'btn-primary', bg: '#DEE7EF', color: '#2F5D8A', svg: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/>' },
+        };
+        const t = tones[tone] || tones.primary;
+
+        document.getElementById('confirmTitle').textContent = title;
+        document.getElementById('confirmMessage').textContent = message;
+        okBtn.textContent = okText;
+        okBtn.className = t.btn;
+        icon.style.background = t.bg;
+        icon.innerHTML = `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="${t.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${t.svg}</svg>`;
+
+        modal.classList.remove('hidden');
+        okBtn.focus();
+
+        const close = (result) => {
+          modal.classList.add('hidden');
+          okBtn.onclick = cancelBtn.onclick = modal.onclick = document.onkeydown = null;
+          resolve(result);
+        };
+        okBtn.onclick = () => close(true);
+        cancelBtn.onclick = () => close(false);
+        modal.onclick = (e) => { if (e.target === modal) close(false); };
+        document.onkeydown = (e) => { if (e.key === 'Escape') close(false); };
+      });
     }
 
     // PMES schedule text per connection type, taken from the requirement list
@@ -876,10 +934,16 @@
         'Installation scheduled.');
     }
 
-    function actEnergize() {
+    async function actEnergize() {
       const acct = val('acctNo');
       if (!acct) { toast('Please enter the account number.', false); return; }
-      if (!confirm(`Mark as energized and give account number ${acct}?`)) return;
+      const ok = await confirmDialog({
+        title: 'Mark as energized?',
+        message: `Account number ${acct} will be given to ${current?.consumer_name || 'the applicant'}. Their app will switch to this account number and billing can start.`,
+        okText: 'Mark as energized',
+        tone: 'ok',
+      });
+      if (!ok) return;
       updateApp({ account_number: acct, status: 'Energized' },
         'Energized! The account number was sent to the member\'s profile.');
     }
@@ -888,10 +952,17 @@
       updateApp({ remarks: val('remarksInput') || null }, 'Note saved.');
     }
 
-    function actReject() {
+    async function actReject() {
       const reason = val('rejectReason');
       if (!reason) { toast('Please write the reason for rejection.', false); return; }
-      if (!confirm('Reject this application? The applicant will see the reason.')) return;
+      const ok = await confirmDialog({
+        title: 'Reject this application?',
+        message: 'The applicant will see this reason in their app.' +
+          (current?.slot_reserved ? ' The reserved pole slot will be returned.' : ''),
+        okText: 'Reject',
+        tone: 'danger',
+      });
+      if (!ok) return;
       updateApp({ remarks: reason, status: 'Rejected' }, 'Application rejected.');
     }
 
