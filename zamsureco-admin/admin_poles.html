@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZAMSURECO II — Grid &amp; Poles</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          navy:   { 900:'#081D45', 800:'#0D2E63', 700:'#153A7A' },
+          paper:  { 50:'#F7F8FA', 100:'#EEF1F6' },
+          line:   '#DDE3EC',
+          amber:  { 500:'#F2A93B', 100:'#FCEACB' },
+          ok:     { 600:'#3F7857', 100:'#E1EBE3' },
+          danger: { 600:'#A33B34', 100:'#F2E1DF' },
+          info:   { 600:'#2F5D8A', 100:'#DEE7EF' },
+        },
+        fontFamily: {
+          sans: ['"IBM Plex Sans"','system-ui','sans-serif'],
+          mono: ['"IBM Plex Mono"','ui-monospace','monospace'],
+        },
+        borderRadius: { DEFAULT: '3px' }
+      }
+    }
+  }
+</script>
+<style>
+  body { font-family: 'IBM Plex Sans', system-ui, sans-serif; }
+  .num { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  .pulse-dot{animation:pulse 2s infinite;}
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(63,120,87,0.45);}
+    70%{box-shadow:0 0 0 6px rgba(63,120,87,0);}
+    100%{box-shadow:0 0 0 0 rgba(63,120,87,0);}
+  }
+  .section-head { border-left: 3px solid #F2A93B; padding-left: 12px; }
+  #gridMap { height: 420px; z-index: 0; }
+  #gridMap.picking { cursor: crosshair; }
+  .cell-input { width: 100%; padding: 6px 8px; background: #F7F8FA; border: 1px solid #DDE3EC; border-radius: 3px; font-size: 13px; }
+  .cell-input:focus { outline: none; box-shadow: 0 0 0 2px #0D2E63; }
+  .row-flash { animation: flash 1.6s ease; }
+  @keyframes flash { 0% { background: #FCEACB; } 100% { background: transparent; } }
+  .legend-dot { width: 10px; height: 10px; border-radius: 9999px; display: inline-block; border: 2px solid #fff; box-shadow: 0 0 0 1px #DDE3EC; }
+</style>
+</head>
+<body class="bg-paper-50 text-navy-900 font-sans overflow-x-hidden">
+
+  <!-- Dito i-i-inject ng sidebar.js ang shared sidebar at hamburger menu -->
+  <div id="sidebar-root"></div>
+
+  <div class="main-content flex-1 flex flex-col h-screen overflow-hidden">
+    <!-- Navbar -->
+    <nav class="bg-paper-50 border-b border-line px-6 py-4 flex justify-between items-center flex-shrink-0">
+      <div class="flex items-center space-x-4">
+        <button class="hamburger-btn bg-white hover:bg-paper-100 border border-line text-navy-700 rounded w-10 h-10 flex flex-col items-center justify-center gap-1 cursor-pointer transition flex-shrink-0" id="sidebarToggle" aria-label="Toggle navigation menu">
+          <span class="block w-4 h-0.5 bg-navy-700 rounded-full"></span>
+          <span class="block w-4 h-0.5 bg-navy-700 rounded-full"></span>
+          <span class="block w-4 h-0.5 bg-navy-700 rounded-full"></span>
+        </button>
+        <div>
+          <h1 class="text-lg font-semibold text-navy-900 leading-tight">Grid &amp; Poles</h1>
+          <p class="text-xs text-navy-700/60 mt-0.5">Manage distribution poles, service slots, and energized status</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <span class="h-2.5 w-2.5 rounded-full bg-ok-600 pulse-dot"></span>
+        <span class="text-xs bg-white text-navy-700 px-3 py-1.5 rounded font-medium border border-line num">Ipil Grid Connected</span>
+      </div>
+    </nav>
+
+    <main class="flex-1 overflow-y-auto p-8">
+      <div class="max-w-6xl mx-auto space-y-8">
+
+        <!-- Stats -->
+        <section class="grid grid-cols-2 md:grid-cols-5 bg-white border border-line rounded divide-x divide-line">
+          <div class="p-5">
+            <p class="text-xs text-navy-700/70">Total poles</p>
+            <p id="statTotal" class="text-3xl font-semibold num mt-1">–</p>
+          </div>
+          <div class="p-5">
+            <p class="text-xs text-navy-700/70">Energized</p>
+            <p id="statEnergized" class="text-3xl font-semibold num mt-1 text-ok-600">–</p>
+          </div>
+          <div class="p-5">
+            <p class="text-xs text-navy-700/70">Non-energized</p>
+            <p id="statOff" class="text-3xl font-semibold num mt-1 text-navy-700/60">–</p>
+          </div>
+          <div class="p-5">
+            <p class="text-xs text-navy-700/70">Full (no slots)</p>
+            <p id="statFull" class="text-3xl font-semibold num mt-1 text-danger-600">–</p>
+          </div>
+          <div class="p-5">
+            <p class="text-xs text-navy-700/70">Open service slots</p>
+            <p id="statSlots" class="text-3xl font-semibold num mt-1 text-info-600">–</p>
+          </div>
+        </section>
+
+        <!-- Map -->
+        <section class="bg-white border border-line rounded">
+          <header class="section-head px-5 pt-5 pb-4 flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <h2 class="text-base font-semibold text-navy-900">Grid map</h2>
+              <p class="text-xs text-navy-700/60 mt-0.5">Same data the member app shows. Click a pole to jump to its row.</p>
+            </div>
+            <div class="flex items-center gap-4 text-xs text-navy-700">
+              <span class="flex items-center gap-1.5"><span class="legend-dot" style="background:#3F7857"></span>Energized</span>
+              <span class="flex items-center gap-1.5"><span class="legend-dot" style="background:#A33B34"></span>Full</span>
+              <span class="flex items-center gap-1.5"><span class="legend-dot" style="background:#9CA3AF"></span>Non-energized</span>
+            </div>
+          </header>
+          <div id="gridMap" class="border-t border-line"></div>
+        </section>
+
+        <!-- Add pole -->
+        <section class="bg-white border border-line rounded p-8">
+          <div class="section-head mb-6">
+            <h2 class="text-base font-semibold text-navy-900">Add new pole</h2>
+            <p class="text-xs text-navy-700/60 mt-0.5">Click "Pick location on map," then click the pole's spot on the map above.</p>
+          </div>
+
+          <form id="addPoleForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-navy-700 mb-1.5">Pole code</label>
+              <input type="text" id="newCode" placeholder="e.g. POLE-019" required class="cell-input num">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-navy-700 mb-1.5">Type</label>
+              <select id="newType" class="cell-input">
+                <option value="Main Line">Main Line</option>
+                <option value="Sub-line" selected>Sub-line</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-navy-700 mb-1.5">Available slots</label>
+              <input type="number" id="newSlots" min="0" value="5" required class="cell-input num">
+            </div>
+            <div class="flex items-end">
+              <label class="flex items-center gap-2 text-sm text-navy-800 pb-2 cursor-pointer">
+                <input type="checkbox" id="newEnergized" checked class="w-4 h-4 accent-green-700">
+                Energized
+              </label>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-navy-700 mb-1.5">Line group <span class="text-navy-700/50">(optional)</span></label>
+              <input type="text" id="newLineGroup" placeholder="e.g. MAIN-A" class="cell-input num">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-navy-700 mb-1.5">Sequence on line <span class="text-navy-700/50">(optional)</span></label>
+              <input type="number" id="newSequence" min="1" placeholder="e.g. 8" class="cell-input num">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-navy-700 mb-1.5">Latitude</label>
+              <input type="number" step="any" id="newLat" required class="cell-input num" placeholder="Pick on map">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-navy-700 mb-1.5">Longitude</label>
+              <input type="number" step="any" id="newLng" required class="cell-input num" placeholder="Pick on map">
+            </div>
+            <div class="md:col-span-4 flex items-center gap-3 flex-wrap">
+              <button type="button" id="pickLocationBtn" class="bg-paper-100 hover:bg-line text-navy-800 px-4 py-2.5 rounded text-sm font-semibold transition border border-line">Pick location on map</button>
+              <button type="submit" id="addPoleBtn" class="bg-navy-900 hover:bg-navy-800 text-white px-5 py-2.5 rounded text-sm font-semibold transition">Add pole</button>
+              <span id="addMsg" class="text-xs font-semibold"></span>
+            </div>
+          </form>
+        </section>
+
+        <!-- Poles table -->
+        <section class="bg-white border border-line rounded">
+          <header class="section-head px-5 pt-5 pb-4 flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <h2 class="text-base font-semibold text-navy-900">All poles</h2>
+              <p class="text-xs text-navy-700/60 mt-0.5">Edit a row, then click Save. Changes appear on the member app right away.</p>
+            </div>
+            <input type="search" id="searchInput" placeholder="Search pole code or line..." class="cell-input max-w-xs">
+          </header>
+          <div class="overflow-x-auto border-t border-line">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-paper-100 text-navy-700 text-xs font-medium border-b border-line">
+                  <th class="p-3">Pole code</th>
+                  <th class="p-3">Type</th>
+                  <th class="p-3 text-center">Energized</th>
+                  <th class="p-3 w-28">Available slots</th>
+                  <th class="p-3 w-32">Line group</th>
+                  <th class="p-3 w-24">Sequence</th>
+                  <th class="p-3">Location</th>
+                  <th class="p-3 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody id="polesTableBody" class="divide-y divide-line text-sm">
+                <tr><td colspan="8" class="p-8 text-center text-navy-700/60 font-medium">Loading poles...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="hidden fixed bottom-6 right-6 px-4 py-3 rounded text-sm font-semibold shadow-lg z-50"></div>
+
+  <script>
+    const SUPABASE_URL = 'https://zrnvivattocqvxlxzsld.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_PUfegf_zyb5B_gVas_SLyw_mto9NFGF';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let poles = [];
+    let map = null;
+    let poleLayer = null;
+    let lineLayer = null;
+    let newPoleMarker = null;
+    let pickingLocation = false;
+    let firstFit = true;
+
+    async function checkAuth() {
+      const { data: { session } } = await _supabase.auth.getSession();
+      if (!session) { window.location.href = 'admin_login.html'; return; }
+      initMap();
+      loadPoles();
+    }
+
+    document.addEventListener('click', async (e) => {
+      if (e.target.closest('#logoutBtn')) {
+        await _supabase.auth.signOut();
+        window.location.href = 'admin_login.html';
+      }
+    });
+
+    checkAuth();
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+
+    function toast(text, ok = true) {
+      const t = document.getElementById('toast');
+      t.className = 'fixed bottom-6 right-6 px-4 py-3 rounded text-sm font-semibold shadow-lg z-50 ' +
+        (ok ? 'bg-ok-100 text-ok-600 border border-ok-600/30' : 'bg-danger-100 text-danger-600 border border-danger-600/30');
+      t.textContent = text;
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => t.classList.add('hidden'), 3000);
+    }
+
+    function friendlyError(error) {
+      const m = error?.message || String(error);
+      if (m.toLowerCase().includes('row-level security')) {
+        return 'Blocked by Supabase RLS: the admin account is not allowed to change the poles table yet.';
+      }
+      return m;
+    }
+
+    function poleColor(p) {
+      if (!p.is_energized) return '#9CA3AF';
+      if ((p.available_slots ?? 0) === 0) return '#A33B34';
+      return '#3F7857';
+    }
+
+    // ---------------------------------------------------------
+    // MAP
+    // ---------------------------------------------------------
+    function initMap() {
+      map = L.map('gridMap').setView([7.8018, 122.6155], 16);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors',
+      }).addTo(map);
+      lineLayer = L.layerGroup().addTo(map);
+      poleLayer = L.layerGroup().addTo(map);
+
+      map.on('click', (e) => {
+        if (!pickingLocation) return;
+        setNewPoleLocation(e.latlng.lat, e.latlng.lng);
+        stopPicking();
+      });
+    }
+
+    function renderMap() {
+      poleLayer.clearLayers();
+      lineLayer.clearLayers();
+
+      // Distribution lines (grouped by line_group, ordered by sequence)
+      const groups = {};
+      poles.forEach(p => {
+        if (!p.line_group) return;
+        (groups[p.line_group] = groups[p.line_group] || []).push(p);
+      });
+      Object.values(groups).forEach(members => {
+        if (members.length < 2) return;
+        members.sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+        const isMain = members.some(p => (p.pole_type || '').toLowerCase().includes('main'));
+        for (let i = 0; i < members.length - 1; i++) {
+          const a = members[i], b = members[i + 1];
+          const energized = a.is_energized && b.is_energized;
+          L.polyline(
+            [[a.latitude, a.longitude], [b.latitude, b.longitude]],
+            { color: energized ? '#2F5D8A' : '#9CA3AF', weight: isMain ? 5 : 3, opacity: 0.85 }
+          ).addTo(lineLayer);
+        }
+      });
+
+      // Poles
+      const bounds = [];
+      poles.forEach(p => {
+        const lat = Number(p.latitude), lng = Number(p.longitude);
+        const marker = L.circleMarker([lat, lng], {
+          radius: 8,
+          color: '#FFFFFF',
+          weight: 2,
+          fillColor: poleColor(p),
+          fillOpacity: 1,
+        }).addTo(poleLayer);
+        marker.bindTooltip(
+          `<b>${escapeHtml(p.pole_code)}</b><br>${escapeHtml(p.pole_type || '')}<br>` +
+          `${p.is_energized ? 'Energized' : 'Non-energized'} · ${p.available_slots ?? 0} slot(s)`,
+          { direction: 'top' }
+        );
+        marker.on('click', () => {
+          if (pickingLocation) return;
+          focusRow(p.id);
+        });
+        bounds.push([lat, lng]);
+      });
+
+      if (firstFit && bounds.length) {
+        map.fitBounds(bounds, { padding: [40, 40] });
+        firstFit = false;
+      }
+    }
+
+    function setNewPoleLocation(lat, lng) {
+      document.getElementById('newLat').value = lat.toFixed(6);
+      document.getElementById('newLng').value = lng.toFixed(6);
+      if (newPoleMarker) newPoleMarker.remove();
+      newPoleMarker = L.marker([lat, lng]).addTo(map).bindTooltip('New pole', { permanent: true, direction: 'top' });
+    }
+
+    function startPicking() {
+      pickingLocation = true;
+      document.getElementById('gridMap').classList.add('picking');
+      const btn = document.getElementById('pickLocationBtn');
+      btn.textContent = 'Click the map… (cancel)';
+      document.getElementById('gridMap').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function stopPicking() {
+      pickingLocation = false;
+      document.getElementById('gridMap').classList.remove('picking');
+      document.getElementById('pickLocationBtn').textContent = 'Pick location on map';
+    }
+
+    document.getElementById('pickLocationBtn').addEventListener('click', () => {
+      if (pickingLocation) stopPicking();
+      else startPicking();
+    });
+
+    // ---------------------------------------------------------
+    // DATA
+    // ---------------------------------------------------------
+    async function loadPoles() {
+      const { data, error } = await _supabase.from('poles').select('*').order('pole_code', { ascending: true });
+      const tbody = document.getElementById('polesTableBody');
+
+      if (error) {
+        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-danger-600 font-medium">Error: ${escapeHtml(error.message)}</td></tr>`;
+        return;
+      }
+
+      poles = (data || []).map(p => ({
+        ...p,
+        latitude: Number(p.latitude),
+        longitude: Number(p.longitude),
+        available_slots: Number(p.available_slots ?? 0),
+      }));
+
+      renderStats();
+      renderMap();
+      renderTable();
+    }
+
+    function renderStats() {
+      const total = poles.length;
+      const energized = poles.filter(p => p.is_energized).length;
+      const full = poles.filter(p => p.is_energized && p.available_slots === 0).length;
+      const openSlots = poles.filter(p => p.is_energized).reduce((sum, p) => sum + (p.available_slots || 0), 0);
+      document.getElementById('statTotal').textContent = total;
+      document.getElementById('statEnergized').textContent = energized;
+      document.getElementById('statOff').textContent = total - energized;
+      document.getElementById('statFull').textContent = full;
+      document.getElementById('statSlots').textContent = openSlots;
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('polesTableBody');
+      const q = document.getElementById('searchInput').value.trim().toLowerCase();
+      const rows = poles.filter(p =>
+        !q ||
+        (p.pole_code || '').toLowerCase().includes(q) ||
+        (p.line_group || '').toLowerCase().includes(q) ||
+        (p.pole_type || '').toLowerCase().includes(q)
+      );
+
+      if (rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-navy-700/60 font-medium">${poles.length ? 'No poles match your search.' : 'No poles yet. Add one above.'}</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = rows.map(p => `
+        <tr id="row-${p.id}" data-id="${p.id}" class="hover:bg-paper-100/60 transition">
+          <td class="p-3">
+            <div class="flex items-center gap-2">
+              <span class="legend-dot" style="background:${poleColor(p)}"></span>
+              <span class="font-semibold num">${escapeHtml(p.pole_code)}</span>
+            </div>
+          </td>
+          <td class="p-3">
+            <select class="cell-input f-type">
+              <option value="Main Line" ${p.pole_type === 'Main Line' ? 'selected' : ''}>Main Line</option>
+              <option value="Sub-line" ${p.pole_type === 'Sub-line' ? 'selected' : ''}>Sub-line</option>
+            </select>
+          </td>
+          <td class="p-3 text-center">
+            <input type="checkbox" class="f-energized w-4 h-4 accent-green-700 cursor-pointer" ${p.is_energized ? 'checked' : ''}>
+          </td>
+          <td class="p-3">
+            <input type="number" min="0" class="cell-input num f-slots" value="${p.available_slots}">
+          </td>
+          <td class="p-3">
+            <input type="text" class="cell-input num f-line" value="${escapeHtml(p.line_group ?? '')}" placeholder="—">
+          </td>
+          <td class="p-3">
+            <input type="number" min="1" class="cell-input num f-seq" value="${p.sequence ?? ''}" placeholder="—">
+          </td>
+          <td class="p-3 text-xs num text-navy-700/70">${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}</td>
+          <td class="p-3 text-center whitespace-nowrap">
+            <button onclick="savePole('${p.id}')" class="text-xs bg-navy-900 hover:bg-navy-800 text-white px-3 py-1.5 rounded font-semibold">Save</button>
+            <button onclick="deletePole('${p.id}', '${escapeHtml(p.pole_code)}')" class="text-xs text-danger-600 underline underline-offset-2 font-medium ml-2">Delete</button>
+          </td>
+        </tr>`).join('');
+    }
+
+    document.getElementById('searchInput').addEventListener('input', renderTable);
+
+    function focusRow(id) {
+      const search = document.getElementById('searchInput');
+      if (search.value) { search.value = ''; renderTable(); }
+      const row = document.getElementById('row-' + id);
+      if (!row) return;
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      row.classList.remove('row-flash');
+      void row.offsetWidth;
+      row.classList.add('row-flash');
+    }
+
+    async function savePole(id) {
+      const row = document.getElementById('row-' + id);
+      const slots = parseInt(row.querySelector('.f-slots').value, 10);
+      const seqRaw = row.querySelector('.f-seq').value;
+
+      if (isNaN(slots) || slots < 0) { toast('Available slots must be 0 or more.', false); return; }
+
+      const update = {
+        pole_type: row.querySelector('.f-type').value,
+        is_energized: row.querySelector('.f-energized').checked,
+        available_slots: slots,
+        line_group: row.querySelector('.f-line').value.trim() || null,
+        sequence: seqRaw ? parseInt(seqRaw, 10) : null,
+      };
+
+      const { error } = await _supabase.from('poles').update(update).eq('id', id);
+      if (error) { toast('Error: ' + friendlyError(error), false); return; }
+
+      toast('Pole updated. The member app will show the change.');
+      await loadPoles();
+      focusRow(id);
+    }
+
+    async function deletePole(id, code) {
+      if (!confirm(`Sigurado ka bang tatanggalin ang ${code}? Hindi na ito mababawi.`)) return;
+      const { error } = await _supabase.from('poles').delete().eq('id', id);
+      if (error) { toast('Error: ' + friendlyError(error), false); return; }
+      toast(`${code} deleted.`);
+      loadPoles();
+    }
+
+    document.getElementById('addPoleForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const addMsg = document.getElementById('addMsg');
+      const btn = document.getElementById('addPoleBtn');
+
+      const code = document.getElementById('newCode').value.trim().toUpperCase();
+      const lat = parseFloat(document.getElementById('newLat').value);
+      const lng = parseFloat(document.getElementById('newLng').value);
+      const slots = parseInt(document.getElementById('newSlots').value, 10);
+      const seqRaw = document.getElementById('newSequence').value;
+
+      if (poles.some(p => (p.pole_code || '').toUpperCase() === code)) {
+        addMsg.className = 'text-xs font-semibold text-danger-600';
+        addMsg.textContent = `${code} already exists.`;
+        return;
+      }
+      if (isNaN(lat) || isNaN(lng)) {
+        addMsg.className = 'text-xs font-semibold text-danger-600';
+        addMsg.textContent = 'Pick the location on the map first.';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Adding...';
+
+      const { error } = await _supabase.from('poles').insert([{
+        pole_code: code,
+        pole_type: document.getElementById('newType').value,
+        is_energized: document.getElementById('newEnergized').checked,
+        available_slots: isNaN(slots) ? 0 : slots,
+        line_group: document.getElementById('newLineGroup').value.trim() || null,
+        sequence: seqRaw ? parseInt(seqRaw, 10) : null,
+        latitude: lat,
+        longitude: lng,
+      }]);
+
+      btn.disabled = false;
+      btn.textContent = 'Add pole';
+
+      if (error) {
+        addMsg.className = 'text-xs font-semibold text-danger-600';
+        addMsg.textContent = 'Error: ' + friendlyError(error);
+        return;
+      }
+
+      addMsg.className = 'text-xs font-semibold text-ok-600';
+      addMsg.textContent = `${code} added.`;
+      setTimeout(() => { addMsg.textContent = ''; }, 3000);
+
+      document.getElementById('addPoleForm').reset();
+      document.getElementById('newSlots').value = 5;
+      document.getElementById('newEnergized').checked = true;
+      if (newPoleMarker) { newPoleMarker.remove(); newPoleMarker = null; }
+      loadPoles();
+    });
+  </script>
+
+  <!-- Tawagin ang sidebar.js para gumana ang shared drawer navigation -->
+  <script src="sidebar.js"></script>
+</body>
+</html>
