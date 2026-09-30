@@ -272,6 +272,16 @@
       return v ? new Date(v).toISOString() : null;
     }
 
+    // Current date/time in <input type="datetime-local"> format, used as the minimum
+    function nowLocalInput() {
+      return toLocalInput(new Date().toISOString());
+    }
+
+    // Schedules must be in the future
+    function isPast(v) {
+      return v && new Date(v) < new Date();
+    }
+
     function val(id) {
       const el = document.getElementById(id);
       return el ? el.value.trim() : '';
@@ -478,7 +488,7 @@
           return actionCard('Set the PMES schedule', `
             ${hint ? `<p class="text-xs text-ink-700 mb-3">PMES for ${escapeHtml(app.connection_type)}: <b>${escapeHtml(hint)}</b></p>` : ''}
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div><label class="text-xs font-medium text-ink-700">Date &amp; time</label><input id="pmesDate" type="datetime-local" class="field mt-1" value="${toLocalInput(app.pmes_schedule)}"></div>
+              <div><label class="text-xs font-medium text-ink-700">Date &amp; time</label><input id="pmesDate" type="datetime-local" class="field mt-1" min="${nowLocalInput()}" value="${toLocalInput(app.pmes_schedule)}"></div>
               <div><label class="text-xs font-medium text-ink-700">Venue</label><input id="pmesVenue" type="text" class="field mt-1" placeholder="e.g. ZAMSURECO II Ipil Office" value="${escapeHtml(app.pmes_venue || '')}"></div>
             </div>
             <button class="btn-primary mt-3" onclick="actSetPmes()">Save PMES schedule</button>`);
@@ -496,7 +506,7 @@
           return actionCard('Schedule the submission of papers', `
             <p class="text-xs text-ink-700 mb-3">The applicant will bring the papers to the office on this date. Nothing is uploaded.</p>
             <label class="text-xs font-medium text-ink-700">Date &amp; time</label>
-            <input id="subDate" type="datetime-local" class="field mt-1" value="${toLocalInput(app.submission_schedule)}">
+            <input id="subDate" type="datetime-local" class="field mt-1" min="${nowLocalInput()}" value="${toLocalInput(app.submission_schedule)}">
             <button class="btn-primary mt-3" onclick="actSetSubmission()">Save submission schedule</button>`);
 
         case 'Submission Scheduled': {
@@ -541,7 +551,7 @@
         case 'Paid':
           return actionCard('Schedule the installation', `
             <label class="text-xs font-medium text-ink-700">Installation date &amp; time</label>
-            <input id="instDate" type="datetime-local" class="field mt-1" value="${toLocalInput(app.installation_schedule)}">
+            <input id="instDate" type="datetime-local" class="field mt-1" min="${nowLocalInput()}" value="${toLocalInput(app.installation_schedule)}">
             <button class="btn-primary mt-3" onclick="actSetInstallation()">Save installation schedule</button>`);
 
         case 'Installation Scheduled':
@@ -570,7 +580,7 @@
     function inspectionForm(app, disabled) {
       return `
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div><label class="text-xs font-medium text-ink-700">Inspection date &amp; time</label><input id="inspDate" type="datetime-local" class="field mt-1" value="${toLocalInput(app.inspection_schedule)}" ${disabled ? 'disabled' : ''}></div>
+          <div><label class="text-xs font-medium text-ink-700">Inspection date &amp; time</label><input id="inspDate" type="datetime-local" class="field mt-1" min="${nowLocalInput()}" value="${toLocalInput(app.inspection_schedule)}" ${disabled ? 'disabled' : ''}></div>
           <div><label class="text-xs font-medium text-ink-700">Engineer</label><input id="inspName" type="text" class="field mt-1" placeholder="e.g. Engr. Juan Dela Cruz" value="${escapeHtml(app.inspector_name || '')}" ${disabled ? 'disabled' : ''}></div>
         </div>
         <button class="btn-primary mt-3" onclick="actSetInspection()" ${disabled ? 'disabled' : ''}>Schedule inspection</button>`;
@@ -741,6 +751,7 @@
     function actSetPmes() {
       const date = val('pmesDate');
       if (!date) { toast('Please set the PMES date and time.', false); return; }
+      if (isPast(date)) { toast('The PMES schedule cannot be in the past.', false); return; }
       updateApp({
         pmes_schedule: fromLocalInput(date),
         pmes_venue: val('pmesVenue') || null,
@@ -755,6 +766,7 @@
     function actSetSubmission() {
       const date = val('subDate');
       if (!date) { toast('Please set the submission date and time.', false); return; }
+      if (isPast(date)) { toast('The submission schedule cannot be in the past.', false); return; }
       updateApp({ submission_schedule: fromLocalInput(date), status: 'Submission Scheduled' },
         'Submission schedule saved.');
     }
@@ -764,6 +776,7 @@
       const date = val('inspDate');
       const name = val('inspName');
       if (!date || !name) { toast('Please set the inspection date and the engineer.', false); return; }
+      if (isPast(date)) { toast('The inspection schedule cannot be in the past.', false); return; }
       updateApp({
         inspection_schedule: fromLocalInput(date),
         inspector_name: name,
@@ -797,6 +810,7 @@
     function actSetInstallation() {
       const date = val('instDate');
       if (!date) { toast('Please set the installation date and time.', false); return; }
+      if (isPast(date)) { toast('The installation schedule cannot be in the past.', false); return; }
       updateApp({ installation_schedule: fromLocalInput(date), status: 'Installation Scheduled' },
         'Installation scheduled.');
     }
