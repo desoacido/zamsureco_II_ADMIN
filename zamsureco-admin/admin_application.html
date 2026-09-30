@@ -6,6 +6,8 @@
 <title>ZAMSURECO II — Applications</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script>
@@ -40,6 +42,27 @@
     100%{box-shadow:0 0 0 0 rgba(63,120,87,0);}
   }
   .section-head { border-left: 3px solid #B9722E; padding-left: 12px; }
+
+  .field { width: 100%; padding: 8px 10px; background: #F5F3EE; border: 1px solid #DBD8CF; border-radius: 3px; font-size: 13px; }
+  .field:focus { outline: none; box-shadow: 0 0 0 2px #1B2E4F; }
+  .btn-primary { background: #12203A; color: #fff; padding: 8px 14px; border-radius: 3px; font-size: 13px; font-weight: 600; }
+  .btn-primary:hover { background: #1B2E4F; }
+  .btn-primary:disabled { background: #9AA3B2; cursor: not-allowed; }
+  .btn-ok { background: #3F7857; color: #fff; padding: 8px 14px; border-radius: 3px; font-size: 13px; font-weight: 600; }
+  .btn-danger { background: #A33B34; color: #fff; padding: 8px 14px; border-radius: 3px; font-size: 13px; font-weight: 600; }
+  .btn-ghost { background: #EFEDE6; color: #1B2E4F; padding: 8px 14px; border-radius: 3px; font-size: 13px; font-weight: 600; border: 1px solid #DBD8CF; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+
+  /* Drawer */
+  #drawerBackdrop { background: rgba(18, 32, 58, 0.35); }
+  #drawer { width: min(720px, 100vw); transform: translateX(100%); transition: transform .22s ease; }
+  #drawer.open { transform: translateX(0); }
+  #appMap { height: 220px; z-index: 0; }
+
+  /* Stepper */
+  .step-dot { width: 22px; height: 22px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+  .step-line { flex: 1; height: 2px; min-width: 8px; }
 </style>
 </head>
 <body class="bg-paper-50 text-ink-900 font-sans overflow-x-hidden">
@@ -52,7 +75,6 @@
     <!-- Navbar -->
     <nav class="bg-paper-50 border-b border-line px-6 py-4 flex justify-between items-center flex-shrink-0">
       <div class="flex items-center space-x-4">
-        <!-- Hamburger Button -->
         <button class="hamburger-btn bg-white hover:bg-paper-100 border border-line text-ink-700 rounded w-10 h-10 flex flex-col items-center justify-center gap-1 cursor-pointer transition flex-shrink-0" id="sidebarToggle" aria-label="Toggle navigation menu">
           <span class="block w-4 h-0.5 bg-ink-700 rounded-full"></span>
           <span class="block w-4 h-0.5 bg-ink-700 rounded-full"></span>
@@ -60,7 +82,7 @@
         </button>
         <div>
           <h1 class="text-lg font-semibold text-ink-900 leading-tight">New Connection Applications</h1>
-          <p class="text-xs text-ink-700 mt-0.5">Review and process requests for new service connections</p>
+          <p class="text-xs text-ink-700 mt-0.5">Schedule, track, and process requests for new service connections</p>
         </div>
       </div>
       <div class="flex items-center space-x-2">
@@ -71,30 +93,66 @@
 
     <!-- Main Scrollable Area -->
     <main class="flex-1 overflow-y-auto p-8">
-      <div class="max-w-5xl mx-auto">
+      <div class="max-w-6xl mx-auto space-y-6">
+
+        <!-- Summary -->
+        <section class="grid grid-cols-2 md:grid-cols-4 bg-white border border-line rounded divide-x divide-line">
+          <div class="p-5">
+            <p class="text-xs text-ink-700">Needs action</p>
+            <p id="statActive" class="text-3xl font-semibold num mt-1">–</p>
+          </div>
+          <div class="p-5">
+            <p class="text-xs text-ink-700">For inspection</p>
+            <p id="statInspection" class="text-3xl font-semibold num mt-1 text-info-600">–</p>
+          </div>
+          <div class="p-5">
+            <p class="text-xs text-ink-700">Energized</p>
+            <p id="statEnergized" class="text-3xl font-semibold num mt-1 text-ok-600">–</p>
+          </div>
+          <div class="p-5">
+            <p class="text-xs text-ink-700">Flagged</p>
+            <p id="statFlagged" class="text-3xl font-semibold num mt-1 text-danger-600">–</p>
+          </div>
+        </section>
+
         <section class="bg-white border border-line rounded">
-          <header class="section-head px-5 pt-5">
-            <h2 class="text-base font-semibold text-ink-900">Applications</h2>
-            <p class="text-xs text-ink-700 mt-0.5 mb-4">Requests for new service connections</p>
+          <header class="section-head px-5 pt-5 pb-4 flex items-end justify-between gap-4 flex-wrap">
+            <div>
+              <h2 class="text-base font-semibold text-ink-900">Applications</h2>
+              <p class="text-xs text-ink-700 mt-0.5">Click Manage to schedule the next step. Applicants see every change in the app.</p>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <select id="statusFilter" class="field" style="width:auto">
+                <option value="active">Needs action</option>
+                <option value="all">All applications</option>
+                <option value="flagged">Flagged only</option>
+                <option value="Energized">Energized</option>
+                <option value="Rejected">Rejected</option>
+              </select>
+              <input id="searchInput" type="search" placeholder="Search name or contact..." class="field" style="width:220px">
+            </div>
           </header>
           <div id="applicationsContainer">
-            <div class="text-center py-12 text-ink-700/50" id="emptyState">
+            <div class="text-center py-12 text-ink-700/50" id="emptyState" style="display:none;">
               <svg class="w-12 h-12 mx-auto mb-3 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
-              <p class="text-sm font-medium">No new applications at the moment.</p>
+              <p class="text-sm font-medium" id="emptyText">No applications at the moment.</p>
             </div>
-            <div id="tableWrapper" class="overflow-x-auto" style="display:none;">
+            <div id="tableWrapper" class="overflow-x-auto border-t border-line">
               <table class="w-full text-left border-collapse">
                 <thead>
-                  <tr class="bg-paper-100 text-ink-700 text-xs font-medium border-y border-line">
-                    <th class="p-4">Applicant Name</th>
-                    <th class="p-4">Contact No.</th>
-                    <th class="p-4">Type</th>
-                    <th class="p-4">Address</th>
+                  <tr class="bg-paper-100 text-ink-700 text-xs font-medium border-b border-line">
+                    <th class="p-4">Applicant</th>
+                    <th class="p-4">Connection type</th>
+                    <th class="p-4">Eligibility</th>
                     <th class="p-4">Status</th>
-                    <th class="p-4">Date Applied</th>
+                    <th class="p-4">Next step</th>
+                    <th class="p-4">Date applied</th>
+                    <th class="p-4 text-center">Action</th>
                   </tr>
                 </thead>
-                <tbody id="applicationTableBody" class="divide-y divide-line text-sm"></tbody>
+                <tbody id="applicationTableBody" class="divide-y divide-line text-sm">
+                  <tr><td colspan="7" class="p-8 text-center text-ink-700/60">Loading applications...</td></tr>
+                </tbody>
               </table>
             </div>
           </div>
@@ -103,18 +161,71 @@
     </main>
   </div>
 
+  <!-- Manage drawer -->
+  <div id="drawerBackdrop" class="hidden fixed inset-0 z-[300]" onclick="closeDrawer()"></div>
+  <aside id="drawer" class="fixed top-0 right-0 bottom-0 bg-paper-50 border-l border-line z-[310] overflow-y-auto shadow-2xl">
+    <div id="drawerContent"></div>
+  </aside>
+
+  <!-- Toast -->
+  <div id="toast" class="hidden fixed bottom-6 right-6 px-4 py-3 rounded text-sm font-semibold shadow-lg z-[400]"></div>
+
   <script>
     const SUPABASE_URL = 'https://zrnvivattocqvxlxzsld.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_PUfegf_zyb5B_gVas_SLyw_mto9NFGF';
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // The order an application moves through
+    const STEPS = [
+      { status: 'Pending',                label: 'Applied' },
+      { status: 'PMES Scheduled',         label: 'PMES scheduled' },
+      { status: 'PMES Completed',         label: 'PMES done' },
+      { status: 'Submission Scheduled',   label: 'Papers' },
+      { status: 'For Inspection',         label: 'Inspection' },
+      { status: 'For Payment',            label: 'Payment' },
+      { status: 'Paid',                   label: 'Paid' },
+      { status: 'Installation Scheduled', label: 'Installation' },
+      { status: 'Energized',              label: 'Energized' },
+    ];
+
+    const NEXT_STEP = {
+      'Pending':                'Set PMES schedule',
+      'PMES Scheduled':         'Mark PMES attendance',
+      'PMES Completed':         'Schedule paper submission',
+      'Submission Scheduled':   'Check received papers',
+      'For Inspection':         'Record inspection result',
+      'Inspection Failed':      'Re-inspect or reject',
+      'For Payment':            'Record payment',
+      'Paid':                   'Schedule installation',
+      'Installation Scheduled': 'Energize & give account no.',
+      'Energized':              'Completed',
+      'Rejected':               '—',
+    };
+
+    const STATUS_STYLE = {
+      'Pending':                'background:#F3E4D2;color:#8A4F17',
+      'PMES Scheduled':         'background:#DEE7EF;color:#2F5D8A',
+      'PMES Completed':         'background:#DEE7EF;color:#2F5D8A',
+      'Submission Scheduled':   'background:#DEE7EF;color:#2F5D8A',
+      'For Inspection':         'background:#DEE7EF;color:#2F5D8A',
+      'Inspection Failed':      'background:#F2E1DF;color:#A33B34',
+      'For Payment':            'background:#F3E4D2;color:#8A4F17',
+      'Paid':                   'background:#E1EBE3;color:#3F7857',
+      'Installation Scheduled': 'background:#E1EBE3;color:#3F7857',
+      'Energized':              'background:#3F7857;color:#fff',
+      'Rejected':               'background:#A33B34;color:#fff',
+    };
+
+    let applications = [];
+    let pmesHints = {};        // connection_type -> PMES schedule text
+    let current = null;        // application open in the drawer
+    let currentReqs = [];
+    let appMap = null;
+
     async function checkAuth() {
       const { data: { session } } = await _supabase.auth.getSession();
       if (!session) { window.location.href = 'admin_login.html'; return; }
-      if (session.user && session.user.email) {
-        const loggedInEl = document.getElementById('loggedInAs');
-        if(loggedInEl) loggedInEl.innerHTML = `<strong style="color:#fff;">${session.user.email}</strong>`;
-      }
+      loadPmesHints();
       fetchApplications();
     }
 
@@ -125,45 +236,592 @@
       }
     });
 
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeDrawer();
+    });
+
     checkAuth();
 
+    // ------------------------------------------------------------------
+    // HELPERS
+    // ------------------------------------------------------------------
     function escapeHtml(str) {
-      if (!str) return '';
+      if (str === null || str === undefined) return '';
       return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
     }
 
+    function fmtDate(v) {
+      if (!v) return '';
+      return new Date(v).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+    }
+
+    function fmtPeso(v) {
+      if (v === null || v === undefined || v === '') return '';
+      return '₱' + Number(v).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    // ISO timestamp -> value for <input type="datetime-local">
+    function toLocalInput(v) {
+      if (!v) return '';
+      const d = new Date(v);
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    function fromLocalInput(v) {
+      return v ? new Date(v).toISOString() : null;
+    }
+
+    function val(id) {
+      const el = document.getElementById(id);
+      return el ? el.value.trim() : '';
+    }
+
+    function statusBadge(status) {
+      const s = status || 'Pending';
+      return `<span class="badge" style="${STATUS_STYLE[s] || 'background:#EFEDE6;color:#2A4166'}">${escapeHtml(s)}</span>`;
+    }
+
+    function toast(text, ok = true) {
+      const t = document.getElementById('toast');
+      t.className = 'fixed bottom-6 right-6 px-4 py-3 rounded text-sm font-semibold shadow-lg z-[400] ' +
+        (ok ? 'bg-ok-100 text-ok-600 border border-ok-600/30' : 'bg-danger-100 text-danger-600 border border-danger-600/30');
+      t.textContent = text;
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => t.classList.add('hidden'), 3200);
+    }
+
+    function isActive(a) {
+      return !['Energized', 'Rejected'].includes(a.status || 'Pending');
+    }
+
+    // PMES schedule text per connection type, taken from the requirement list
+    async function loadPmesHints() {
+      const { data } = await _supabase
+        .from('requirement_templates')
+        .select('connection_type, details')
+        .eq('auto_key', 'pmes');
+      (data || []).forEach(r => { pmesHints[r.connection_type] = r.details; });
+    }
+
+    // ------------------------------------------------------------------
+    // LIST
+    // ------------------------------------------------------------------
     async function fetchApplications() {
       const { data, error } = await _supabase
         .from('service_applications')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) console.error('service_applications fetch error:', error.message);
+      if (error) {
+        document.getElementById('applicationTableBody').innerHTML =
+          `<tr><td colspan="7" class="p-8 text-center text-danger-600 font-medium">Error: ${escapeHtml(error.message)}</td></tr>`;
+        return;
+      }
 
+      applications = data || [];
+      renderStats();
+      renderTable();
+    }
+
+    function renderStats() {
+      document.getElementById('statActive').textContent = applications.filter(isActive).length;
+      document.getElementById('statInspection').textContent = applications.filter(a => a.status === 'For Inspection').length;
+      document.getElementById('statEnergized').textContent = applications.filter(a => a.status === 'Energized').length;
+      document.getElementById('statFlagged').textContent = applications.filter(a => a.is_flagged && isActive(a)).length;
+    }
+
+    function renderTable() {
+      const filter = document.getElementById('statusFilter').value;
+      const q = document.getElementById('searchInput').value.trim().toLowerCase();
+
+      const rows = applications.filter(a => {
+        if (filter === 'active' && !isActive(a)) return false;
+        if (filter === 'flagged' && !a.is_flagged) return false;
+        if (['Energized', 'Rejected'].includes(filter) && a.status !== filter) return false;
+        if (q) {
+          const hay = `${a.consumer_name || ''} ${a.contact_number || ''}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+
+      const tbody = document.getElementById('applicationTableBody');
       const emptyState = document.getElementById('emptyState');
       const tableWrapper = document.getElementById('tableWrapper');
-      const tbody = document.getElementById('applicationTableBody');
 
-      if (error || !data || data.length === 0) {
+      if (rows.length === 0) {
         emptyState.style.display = 'block';
         tableWrapper.style.display = 'none';
+        document.getElementById('emptyText').textContent =
+          applications.length ? 'No applications match this filter.' : 'No applications at the moment.';
         return;
       }
 
       emptyState.style.display = 'none';
       tableWrapper.style.display = 'block';
-      tbody.innerHTML = '';
 
-      data.forEach(item => {
-        tbody.innerHTML += `<tr class="hover:bg-paper-100/60 transition">
-          <td class="p-4 font-semibold text-ink-900">${escapeHtml(item.consumer_name || 'N/A')}</td>
-          <td class="p-4 text-ink-700 num">${escapeHtml(item.contact_number || '—')}</td>
-          <td class="p-4 text-ink-700">${escapeHtml(item.application_type || '—')}</td>
-          <td class="p-4 text-ink-700">${escapeHtml(item.address || '—')}</td>
-          <td class="p-4 text-ink-700">${escapeHtml(item.status || '—')}</td>
-          <td class="p-4 text-xs text-ink-700 num">${item.created_at ? new Date(item.created_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}</td>
+      tbody.innerHTML = rows.map(a => {
+        const elig = a.eligibility_status || '—';
+        const eligColor = elig.startsWith('Eligible') ? 'text-ok-600' : (elig.startsWith('Requires') ? 'text-copper-500' : 'text-ink-700');
+        const flagged = a.is_flagged ? `<span class="badge ml-2" style="background:#F2E1DF;color:#A33B34">FLAGGED</span>` : '';
+        const poleInfo = a.nearest_pole
+          ? `<div class="text-xs text-ink-700/70 num">${escapeHtml(a.nearest_pole)} · ${Number(a.distance || 0).toFixed(1)} m</div>`
+          : '';
+        return `<tr class="hover:bg-paper-100/60 transition">
+          <td class="p-4">
+            <div class="font-semibold text-ink-900">${escapeHtml(a.consumer_name || 'N/A')}${flagged}</div>
+            <div class="text-xs text-ink-700 num">${escapeHtml(a.contact_number || '—')}</div>
+          </td>
+          <td class="p-4 text-ink-700">${escapeHtml(a.connection_type || '—')}</td>
+          <td class="p-4">
+            <div class="text-xs font-semibold ${eligColor}">${escapeHtml(elig)}</div>
+            ${poleInfo}
+          </td>
+          <td class="p-4">${statusBadge(a.status)}</td>
+          <td class="p-4 text-xs text-ink-700">${escapeHtml(NEXT_STEP[a.status || 'Pending'] || '—')}</td>
+          <td class="p-4 text-xs text-ink-700 num">${a.created_at ? escapeHtml(fmtDate(a.created_at)) : 'N/A'}</td>
+          <td class="p-4 text-center">
+            <button class="btn-primary" data-manage="${a.id}">Manage</button>
+          </td>
         </tr>`;
+      }).join('');
+    }
+
+    document.getElementById('statusFilter').addEventListener('change', renderTable);
+    document.getElementById('searchInput').addEventListener('input', renderTable);
+    document.getElementById('applicationTableBody').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-manage]');
+      if (btn) openDrawer(btn.dataset.manage);
+    });
+
+    // ------------------------------------------------------------------
+    // DRAWER
+    // ------------------------------------------------------------------
+    async function openDrawer(id) {
+      document.getElementById('drawerBackdrop').classList.remove('hidden');
+      document.getElementById('drawer').classList.add('open');
+      document.getElementById('drawerContent').innerHTML =
+        `<div class="p-10 text-center text-sm text-ink-700/60">Loading application...</div>`;
+      await loadCurrent(id);
+    }
+
+    function closeDrawer() {
+      document.getElementById('drawerBackdrop').classList.add('hidden');
+      document.getElementById('drawer').classList.remove('open');
+      if (appMap) { appMap.remove(); appMap = null; }
+      current = null;
+    }
+
+    async function loadCurrent(id) {
+      const [{ data: app, error }, { data: reqs }] = await Promise.all([
+        _supabase.from('service_applications').select('*').eq('id', id).single(),
+        _supabase.from('application_requirements').select('*').eq('application_id', id).order('sort_order', { ascending: true }),
+      ]);
+
+      if (error || !app) {
+        document.getElementById('drawerContent').innerHTML =
+          `<div class="p-10 text-center text-sm text-danger-600">Could not load application: ${escapeHtml(error?.message || 'not found')}</div>`;
+        return;
+      }
+
+      current = app;
+      currentReqs = reqs || [];
+
+      let pole = null;
+      if (app.nearest_pole) {
+        const { data: p } = await _supabase
+          .from('poles')
+          .select('pole_code, latitude, longitude, available_slots, is_energized')
+          .eq('pole_code', app.nearest_pole)
+          .maybeSingle();
+        pole = p;
+      }
+
+      renderDrawer(app, currentReqs, pole);
+    }
+
+    function renderStepper(status) {
+      if (status === 'Rejected') return '';
+      let idx = STEPS.findIndex(s => s.status === status);
+      const failed = status === 'Inspection Failed';
+      if (failed) idx = STEPS.findIndex(s => s.status === 'For Inspection');
+      if (idx < 0) idx = 0;
+
+      return `<div class="flex items-center gap-1 overflow-x-auto pb-1">` + STEPS.map((s, i) => {
+        const done = i < idx || status === 'Energized';
+        const now = i === idx && status !== 'Energized';
+        const color = done ? '#3F7857' : (now ? (failed ? '#A33B34' : '#B9722E') : '#DBD8CF');
+        const textColor = done || now ? '#fff' : '#2A4166';
+        const dot = `<div class="flex flex-col items-center gap-1" style="min-width:58px">
+            <div class="step-dot" style="background:${color};color:${textColor}">${done ? '✓' : i + 1}</div>
+            <div class="text-[10px] text-center leading-tight ${now ? 'font-semibold text-ink-900' : 'text-ink-700/70'}">${s.label}</div>
+          </div>`;
+        const line = i < STEPS.length - 1
+          ? `<div class="step-line" style="background:${i < idx || status === 'Energized' ? '#3F7857' : '#DBD8CF'};margin-bottom:16px"></div>`
+          : '';
+        return dot + line;
+      }).join('') + `</div>`;
+    }
+
+    function allPapersReceived() {
+      return currentReqs.length === 0 || currentReqs.every(r => r.is_received);
+    }
+
+    // The card that shows the ONE thing the admin should do next
+    function renderNextAction(app) {
+      const status = app.status || 'Pending';
+      const hint = pmesHints[app.connection_type];
+
+      switch (status) {
+        case 'Pending':
+          return actionCard('Set the PMES schedule', `
+            ${hint ? `<p class="text-xs text-ink-700 mb-3">PMES for ${escapeHtml(app.connection_type)}: <b>${escapeHtml(hint)}</b></p>` : ''}
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div><label class="text-xs font-medium text-ink-700">Date &amp; time</label><input id="pmesDate" type="datetime-local" class="field mt-1" value="${toLocalInput(app.pmes_schedule)}"></div>
+              <div><label class="text-xs font-medium text-ink-700">Venue</label><input id="pmesVenue" type="text" class="field mt-1" placeholder="e.g. ZAMSURECO II Ipil Office" value="${escapeHtml(app.pmes_venue || '')}"></div>
+            </div>
+            <button class="btn-primary mt-3" onclick="actSetPmes()">Save PMES schedule</button>`);
+
+        case 'PMES Scheduled':
+          return actionCard('Did the applicant attend the PMES?', `
+            <p class="text-sm text-ink-800 mb-3">Scheduled: <b>${escapeHtml(fmtDate(app.pmes_schedule))}</b>${app.pmes_venue ? ` · ${escapeHtml(app.pmes_venue)}` : ''}</p>
+            <div class="flex gap-2 flex-wrap">
+              <button class="btn-ok" onclick="actPmesAttended()">Mark as attended</button>
+              <button class="btn-ghost" onclick="actResetStatus('Pending', 'Moved back so you can set a new PMES schedule.')">Reschedule</button>
+            </div>
+            <p class="text-xs text-ink-700/70 mt-2">Marking attendance also checks off the PMES requirement automatically.</p>`);
+
+        case 'PMES Completed':
+          return actionCard('Schedule the submission of papers', `
+            <p class="text-xs text-ink-700 mb-3">The applicant will bring the papers to the office on this date. Nothing is uploaded.</p>
+            <label class="text-xs font-medium text-ink-700">Date &amp; time</label>
+            <input id="subDate" type="datetime-local" class="field mt-1" value="${toLocalInput(app.submission_schedule)}">
+            <button class="btn-primary mt-3" onclick="actSetSubmission()">Save submission schedule</button>`);
+
+        case 'Submission Scheduled': {
+          const ready = allPapersReceived();
+          return actionCard('Check the papers, then schedule the inspection', `
+            <p class="text-sm text-ink-800 mb-3">Submission date: <b>${escapeHtml(fmtDate(app.submission_schedule))}</b></p>
+            ${ready
+              ? `<p class="text-xs text-ok-600 font-semibold mb-3">All papers received. You can schedule the inspection.</p>`
+              : `<p class="text-xs text-copper-500 font-semibold mb-3">Tick each paper below as it is received. Inspection can be scheduled once everything is complete.</p>`}
+            ${inspectionForm(app, !ready)}
+            <button class="btn-ghost mt-2" onclick="actResetStatus('PMES Completed', 'Moved back so you can set a new submission date.')">Change submission date</button>`);
+        }
+
+        case 'Inspection Failed':
+          return actionCard('Inspection failed: re-inspect or reject', `
+            ${app.inspection_remarks ? `<p class="text-sm text-danger-600 mb-3">Engineer's findings: ${escapeHtml(app.inspection_remarks)}</p>` : ''}
+            <p class="text-xs text-ink-700 mb-3">Once the applicant has fixed the findings, schedule a new inspection.</p>
+            ${inspectionForm(app, false)}`);
+
+        case 'For Inspection':
+          return actionCard('Record the inspection result', `
+            <p class="text-sm text-ink-800 mb-3">Inspection: <b>${escapeHtml(fmtDate(app.inspection_schedule))}</b> · Engineer: <b>${escapeHtml(app.inspector_name || '—')}</b></p>
+            <label class="text-xs font-medium text-ink-700">Engineer's remarks / findings</label>
+            <textarea id="inspRemarks" rows="2" class="field mt-1" placeholder="Required if failed">${escapeHtml(app.inspection_remarks || '')}</textarea>
+            <div class="mt-3">
+              <label class="text-xs font-medium text-ink-700">Amount to pay (if passed)</label>
+              <input id="payAmount" type="number" step="0.01" min="0" class="field mt-1 num" placeholder="e.g. 3500.00" value="${app.payment_amount ?? ''}">
+            </div>
+            <div class="flex gap-2 flex-wrap mt-3">
+              <button class="btn-ok" onclick="actInspectionPassed()">Passed → For payment</button>
+              <button class="btn-danger" onclick="actInspectionFailed()">Failed</button>
+            </div>
+            <p class="text-xs text-ink-700/70 mt-2">When passed, one service slot on ${escapeHtml(app.nearest_pole || 'the nearest pole')} is reserved automatically.</p>`);
+
+        case 'For Payment':
+          return actionCard('Record the payment', `
+            <p class="text-sm text-ink-800 mb-3">Amount due: <b class="num">${escapeHtml(fmtPeso(app.payment_amount) || '—')}</b></p>
+            <label class="text-xs font-medium text-ink-700">Official receipt (OR) number</label>
+            <input id="orNumber" type="text" class="field mt-1 num" placeholder="e.g. 0012345" value="${escapeHtml(app.or_number || '')}">
+            <button class="btn-ok mt-3" onclick="actMarkPaid()">Mark as paid</button>`);
+
+        case 'Paid':
+          return actionCard('Schedule the installation', `
+            <label class="text-xs font-medium text-ink-700">Installation date &amp; time</label>
+            <input id="instDate" type="datetime-local" class="field mt-1" value="${toLocalInput(app.installation_schedule)}">
+            <button class="btn-primary mt-3" onclick="actSetInstallation()">Save installation schedule</button>`);
+
+        case 'Installation Scheduled':
+          return actionCard('Energize and give the account number', `
+            <p class="text-sm text-ink-800 mb-3">Installation: <b>${escapeHtml(fmtDate(app.installation_schedule))}</b></p>
+            <label class="text-xs font-medium text-ink-700">Account number</label>
+            <input id="acctNo" type="text" class="field mt-1 num" placeholder="e.g. 01-2345-6789" value="${escapeHtml(app.account_number || '')}">
+            <button class="btn-ok mt-3" onclick="actEnergize()">Mark as energized</button>
+            <p class="text-xs text-ink-700/70 mt-2">The account number is copied to the member's profile, so their app switches from "Applicant account" to their account number and billing can start.</p>`);
+
+        case 'Energized':
+          return actionCard('Completed', `
+            <p class="text-sm text-ok-600 font-semibold">Energized on ${escapeHtml(fmtDate(app.installed_at))}</p>
+            <p class="text-sm text-ink-800 mt-1">Account number: <b class="num">${escapeHtml(app.account_number || '—')}</b></p>`, true);
+
+        case 'Rejected':
+          return actionCard('Rejected', `
+            <p class="text-sm text-danger-600">${escapeHtml(app.remarks || 'No reason given.')}</p>
+            <button class="btn-ghost mt-3" onclick="actResetStatus('Pending', 'Application reopened.')">Reopen application</button>`);
+
+        default:
+          return actionCard('Unknown status', `<p class="text-sm">${escapeHtml(status)}</p>`);
+      }
+    }
+
+    function inspectionForm(app, disabled) {
+      return `
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div><label class="text-xs font-medium text-ink-700">Inspection date &amp; time</label><input id="inspDate" type="datetime-local" class="field mt-1" value="${toLocalInput(app.inspection_schedule)}" ${disabled ? 'disabled' : ''}></div>
+          <div><label class="text-xs font-medium text-ink-700">Engineer</label><input id="inspName" type="text" class="field mt-1" placeholder="e.g. Engr. Juan Dela Cruz" value="${escapeHtml(app.inspector_name || '')}" ${disabled ? 'disabled' : ''}></div>
+        </div>
+        <button class="btn-primary mt-3" onclick="actSetInspection()" ${disabled ? 'disabled' : ''}>Schedule inspection</button>`;
+    }
+
+    function actionCard(title, body, done = false) {
+      return `<section class="bg-white border ${done ? 'border-ok-600/40' : 'border-copper-500/50'} rounded p-5">
+          <p class="text-[11px] font-semibold tracking-wide ${done ? 'text-ok-600' : 'text-copper-500'} mb-1">${done ? 'STATUS' : 'NEXT STEP'}</p>
+          <h3 class="text-base font-semibold text-ink-900 mb-3">${title}</h3>
+          ${body}
+        </section>`;
+    }
+
+    function renderChecklist() {
+      // Per ZAMSURECO II: the applicant may know the requirements anytime,
+      // but papers can only be SUBMITTED after attending the PMES.
+      const locked = !current?.pmes_attended;
+      if (currentReqs.length === 0) {
+        return `<p class="text-xs text-ink-700/70">No checklist for this application (it was submitted before connection types were added).</p>`;
+      }
+      const received = currentReqs.filter(r => r.is_received).length;
+      const pct = Math.round(received / currentReqs.length * 100);
+      return `
+        ${locked ? `<div class="text-xs font-semibold text-copper-500 bg-copper-100 rounded px-3 py-2 mb-3">Locked until the applicant attends the PMES. Papers can only be submitted after the PMES.</div>` : ''}
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-semibold text-ink-800">${received} of ${currentReqs.length} received</span>
+          <span class="text-xs num text-ink-700">${pct}%</span>
+        </div>
+        <div class="h-1.5 bg-paper-100 rounded mb-3"><div class="h-1.5 rounded" style="width:${pct}%;background:${pct === 100 ? '#3F7857' : '#B9722E'}"></div></div>
+        <div class="divide-y divide-line border border-line rounded bg-white ${locked ? 'opacity-60' : ''}">
+          ${currentReqs.map(r => `
+            <label class="flex items-start gap-3 p-3 ${locked ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-paper-50'}">
+              <input type="checkbox" class="mt-0.5 w-4 h-4 accent-green-700" data-req="${r.id}" ${r.is_received ? 'checked' : ''} ${locked ? 'disabled' : ''}>
+              <span class="flex-1">
+                <span class="text-sm ${r.is_received ? 'text-ink-700 line-through decoration-ink-700/40' : 'text-ink-900 font-medium'}">${escapeHtml(r.name)}</span>
+                ${r.details ? `<span class="block text-xs text-ink-700/70">${escapeHtml(r.details)}</span>` : ''}
+                ${r.is_received && r.received_at ? `<span class="block text-[11px] text-ok-600 num">Received ${escapeHtml(fmtDate(r.received_at))}</span>` : ''}
+              </span>
+            </label>`).join('')}
+        </div>`;
+    }
+
+    function renderDrawer(app, reqs, pole) {
+      const status = app.status || 'Pending';
+      const scheduleRows = [
+        ['PMES', app.pmes_schedule ? `${fmtDate(app.pmes_schedule)}${app.pmes_venue ? ' · ' + app.pmes_venue : ''}${app.pmes_attended ? ' · attended' : ''}` : ''],
+        ['Paper submission', fmtDate(app.submission_schedule)],
+        ['Inspection', app.inspection_schedule ? `${fmtDate(app.inspection_schedule)}${app.inspector_name ? ' · ' + app.inspector_name : ''}` : ''],
+        ['Payment', app.payment_amount ? `${fmtPeso(app.payment_amount)}${app.or_number ? ' · OR ' + app.or_number : ''}${app.paid_at ? ' · paid ' + fmtDate(app.paid_at) : ''}` : ''],
+        ['Installation', fmtDate(app.installation_schedule)],
+      ].filter(r => r[1]);
+
+      document.getElementById('drawerContent').innerHTML = `
+        <div class="sticky top-0 bg-paper-50 border-b border-line px-6 py-4 flex items-start justify-between gap-4 z-10">
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h2 class="text-lg font-semibold text-ink-900">${escapeHtml(app.consumer_name || 'N/A')}</h2>
+              ${statusBadge(status)}
+              ${app.is_flagged ? `<span class="badge" style="background:#F2E1DF;color:#A33B34">FLAGGED · possible duplicate</span>` : ''}
+            </div>
+            <p class="text-xs text-ink-700 mt-1 num">${escapeHtml(app.contact_number || '—')} · Applied ${escapeHtml(fmtDate(app.created_at))}</p>
+          </div>
+          <button onclick="closeDrawer()" class="text-ink-700 hover:text-ink-900 text-2xl leading-none px-2" aria-label="Close">&times;</button>
+        </div>
+
+        <div class="p-6 space-y-5">
+          ${renderStepper(status)}
+
+          ${renderNextAction(app)}
+
+          <!-- Applicant info + map -->
+          <section class="bg-white border border-line rounded">
+            <div class="grid grid-cols-2 gap-x-4 gap-y-3 p-5 text-sm">
+              <div><p class="text-xs text-ink-700">Connection type</p><p class="font-semibold">${escapeHtml(app.connection_type || '—')}</p></div>
+              <div><p class="text-xs text-ink-700">Ownership</p><p class="font-semibold">${escapeHtml(app.ownership_status || '—')}${app.via_representative ? ' · via representative' : ''}</p></div>
+              <div class="col-span-2"><p class="text-xs text-ink-700">Address</p><p class="font-medium">${escapeHtml(app.address || '—')}</p></div>
+              <div><p class="text-xs text-ink-700">Eligibility</p><p class="font-semibold">${escapeHtml(app.eligibility_status || '—')}</p></div>
+              <div><p class="text-xs text-ink-700">Nearest pole</p><p class="font-semibold num">${escapeHtml(app.nearest_pole || '—')}${app.distance ? ` · ${Number(app.distance).toFixed(1)} m` : ''}${pole ? ` · ${pole.available_slots} slot(s) left` : ''}${app.slot_reserved ? ' · slot reserved' : ''}</p></div>
+            </div>
+            ${app.latitude && app.longitude ? `<div id="appMap" class="border-t border-line"></div>` : ''}
+          </section>
+
+          <!-- Requirements checklist -->
+          <section class="bg-white border border-line rounded p-5">
+            <h3 class="text-sm font-semibold text-ink-900 mb-1">Papers received at the office</h3>
+            <p class="text-xs text-ink-700/70 mb-3">Tick each paper when the applicant hands it in. The applicant sees what is still missing in the app.</p>
+            ${renderChecklist()}
+          </section>
+
+          ${scheduleRows.length ? `
+          <section class="bg-white border border-line rounded p-5">
+            <h3 class="text-sm font-semibold text-ink-900 mb-3">Schedule history</h3>
+            <dl class="text-sm space-y-2">
+              ${scheduleRows.map(r => `<div class="flex gap-3"><dt class="w-36 text-ink-700 text-xs pt-0.5">${r[0]}</dt><dd class="flex-1 num text-xs text-ink-900">${escapeHtml(r[1])}</dd></div>`).join('')}
+            </dl>
+          </section>` : ''}
+
+          <!-- Note to applicant -->
+          <section class="bg-white border border-line rounded p-5">
+            <h3 class="text-sm font-semibold text-ink-900 mb-1">Note to applicant</h3>
+            <p class="text-xs text-ink-700/70 mb-2">Shown in the applicant's Track tab (e.g. "Bring the original land title").</p>
+            <textarea id="remarksInput" rows="2" class="field">${escapeHtml(status === 'Rejected' ? '' : (app.remarks || ''))}</textarea>
+            <button class="btn-ghost mt-2" onclick="actSaveRemarks()">Save note</button>
+          </section>
+
+          ${!['Energized', 'Rejected'].includes(status) ? `
+          <section class="border border-danger-600/30 rounded p-5 bg-danger-100/40">
+            <h3 class="text-sm font-semibold text-danger-600 mb-1">Reject application</h3>
+            <p class="text-xs text-ink-700 mb-2">The reason is shown to the applicant. ${app.slot_reserved ? 'The reserved pole slot will be returned.' : ''}</p>
+            <textarea id="rejectReason" rows="2" class="field" placeholder="Reason for rejection"></textarea>
+            <button class="btn-danger mt-2" onclick="actReject()">Reject</button>
+          </section>` : ''}
+        </div>`;
+
+      // Checklist toggles
+      document.querySelectorAll('[data-req]').forEach(cb => {
+        cb.addEventListener('change', () => toggleRequirement(cb.dataset.req, cb.checked));
       });
+
+      // Map: applicant pin, nearest pole, and the line between them
+      if (appMap) { appMap.remove(); appMap = null; }
+      if (app.latitude && app.longitude) {
+        const home = [Number(app.latitude), Number(app.longitude)];
+        appMap = L.map('appMap', { scrollWheelZoom: false });
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19, attribution: '&copy; OpenStreetMap contributors',
+        }).addTo(appMap);
+        L.marker(home).addTo(appMap).bindTooltip('Applicant', { permanent: true, direction: 'top' });
+
+        if (pole) {
+          const p = [Number(pole.latitude), Number(pole.longitude)];
+          L.circleMarker(p, { radius: 8, color: '#fff', weight: 2, fillColor: pole.is_energized ? '#3F7857' : '#9CA3AF', fillOpacity: 1 })
+            .addTo(appMap).bindTooltip(pole.pole_code, { permanent: true, direction: 'right' });
+          L.polyline([home, p], { color: '#B9722E', weight: 3, dashArray: '6 6' })
+            .addTo(appMap).bindTooltip(`${Number(app.distance || 0).toFixed(1)} m`, { permanent: true, direction: 'center' });
+          appMap.fitBounds([home, p], { padding: [40, 40], maxZoom: 18 });
+        } else {
+          appMap.setView(home, 17);
+        }
+        setTimeout(() => appMap && appMap.invalidateSize(), 250);
+      }
+    }
+
+    // ------------------------------------------------------------------
+    // ACTIONS
+    // ------------------------------------------------------------------
+    async function updateApp(fields, message) {
+      if (!current) return;
+      const { error } = await _supabase.from('service_applications').update(fields).eq('id', current.id);
+      if (error) { toast('Error: ' + error.message, false); return false; }
+      toast(message);
+      await loadCurrent(current.id);
+      fetchApplications();
+      return true;
+    }
+
+    async function toggleRequirement(reqId, checked) {
+      const { error } = await _supabase
+        .from('application_requirements')
+        .update({ is_received: checked, received_at: checked ? new Date().toISOString() : null })
+        .eq('id', reqId);
+      if (error) { toast('Error: ' + error.message, false); return; }
+      const r = currentReqs.find(x => String(x.id) === String(reqId));
+      if (r) { r.is_received = checked; r.received_at = checked ? new Date().toISOString() : null; }
+      await loadCurrent(current.id);
+    }
+
+    function actSetPmes() {
+      const date = val('pmesDate');
+      if (!date) { toast('Please set the PMES date and time.', false); return; }
+      updateApp({
+        pmes_schedule: fromLocalInput(date),
+        pmes_venue: val('pmesVenue') || null,
+        status: 'PMES Scheduled',
+      }, 'PMES schedule saved. The applicant can now see it in the app.');
+    }
+
+    function actPmesAttended() {
+      updateApp({ pmes_attended: true, status: 'PMES Completed' }, 'PMES attendance recorded.');
+    }
+
+    function actSetSubmission() {
+      const date = val('subDate');
+      if (!date) { toast('Please set the submission date and time.', false); return; }
+      updateApp({ submission_schedule: fromLocalInput(date), status: 'Submission Scheduled' },
+        'Submission schedule saved.');
+    }
+
+    function actSetInspection() {
+      if (!allPapersReceived()) { toast('All papers must be received first.', false); return; }
+      const date = val('inspDate');
+      const name = val('inspName');
+      if (!date || !name) { toast('Please set the inspection date and the engineer.', false); return; }
+      updateApp({
+        inspection_schedule: fromLocalInput(date),
+        inspector_name: name,
+        inspection_remarks: null,
+        status: 'For Inspection',
+      }, 'Inspection scheduled.');
+    }
+
+    function actInspectionPassed() {
+      const amount = val('payAmount');
+      if (!amount || isNaN(Number(amount))) { toast('Please enter the amount to pay.', false); return; }
+      updateApp({
+        inspection_remarks: val('inspRemarks') || null,
+        payment_amount: Number(amount),
+        status: 'For Payment',
+      }, 'Inspection passed. A pole slot was reserved and the applicant was asked to pay.');
+    }
+
+    function actInspectionFailed() {
+      const remarks = val('inspRemarks');
+      if (!remarks) { toast("Please write the engineer's findings.", false); return; }
+      updateApp({ inspection_remarks: remarks, status: 'Inspection Failed' }, 'Inspection marked as failed.');
+    }
+
+    function actMarkPaid() {
+      const or = val('orNumber');
+      if (!or) { toast('Please enter the OR number.', false); return; }
+      updateApp({ or_number: or, status: 'Paid' }, 'Payment recorded.');
+    }
+
+    function actSetInstallation() {
+      const date = val('instDate');
+      if (!date) { toast('Please set the installation date and time.', false); return; }
+      updateApp({ installation_schedule: fromLocalInput(date), status: 'Installation Scheduled' },
+        'Installation scheduled.');
+    }
+
+    function actEnergize() {
+      const acct = val('acctNo');
+      if (!acct) { toast('Please enter the account number.', false); return; }
+      if (!confirm(`Mark as energized and give account number ${acct}?`)) return;
+      updateApp({ account_number: acct, status: 'Energized' },
+        'Energized! The account number was sent to the member\'s profile.');
+    }
+
+    function actSaveRemarks() {
+      updateApp({ remarks: val('remarksInput') || null }, 'Note saved.');
+    }
+
+    function actReject() {
+      const reason = val('rejectReason');
+      if (!reason) { toast('Please write the reason for rejection.', false); return; }
+      if (!confirm('Reject this application? The applicant will see the reason.')) return;
+      updateApp({ remarks: reason, status: 'Rejected' }, 'Application rejected.');
+    }
+
+    function actResetStatus(status, message) {
+      updateApp({ status }, message);
     }
   </script>
 
