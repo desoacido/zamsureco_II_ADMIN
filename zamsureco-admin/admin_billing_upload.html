@@ -31,6 +31,8 @@
   .ticket-id{font-family:'IBM Plex Mono',monospace;}
   .drop-zone{border:2px dashed #CBD5E1; transition: all .15s ease;}
   .drop-zone.drag-over{border-color:#F2A93B; background:#FFFBEB;}
+  .toast-in{animation: toastIn .2s ease;}
+  @keyframes toastIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
 </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-body overflow-x-hidden">
@@ -46,12 +48,11 @@
         </button>
         <div>
           <h1 class="text-lg font-display font-bold text-gray-900 leading-tight">Billing Statements</h1>
-          
         </div>
       </div>
     </nav>
 
-    <main class="flex-1 overflow-y-auto p-8 bg-slate-50">
+    <main id="mainScroll" class="flex-1 overflow-y-auto p-8 bg-slate-50">
       <div class="max-w-4xl mx-auto space-y-6">
 
         <div id="diagBanner" class="hidden bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl p-4"></div>
@@ -84,7 +85,6 @@
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
           <h3 class="text-sm font-display font-bold text-navy-900 mb-4">2. Upload CSV File</h3>
           <div id="dropZone" class="drop-zone rounded-xl p-10 text-center cursor-pointer">
-            
             <label class="inline-block bg-navy-800 hover:bg-navy-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition cursor-pointer">
               Choose File
               <input type="file" id="fileInput" accept=".csv" class="hidden">
@@ -125,6 +125,9 @@
     </main>
   </div>
 
+  <!-- Toast notification (bottom right, always visible) -->
+  <div id="toast" class="hidden fixed bottom-6 right-6 max-w-sm px-4 py-3 rounded-xl text-sm font-semibold shadow-lg z-[400]"></div>
+
   <script>
     const SUPABASE_URL = 'https://zrnvivattocqvxlxzsld.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_PUfegf_zyb5B_gVas_SLyw_mto9NFGF';
@@ -152,11 +155,27 @@
       return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
     }
 
+    // Toast in the bottom-right corner, so the result is seen wherever the admin is on the page
+    function toast(msg, ok = true) {
+      const t = document.getElementById('toast');
+      t.className = 'toast-in fixed bottom-6 right-6 max-w-sm px-4 py-3 rounded-xl text-sm font-semibold shadow-lg z-[400] ' +
+        (ok ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200');
+      t.textContent = msg;
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => t.classList.add('hidden'), 5000);
+    }
+
+    function scrollToTop() {
+      document.getElementById('mainScroll').scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
     function showError(msg) {
       const b = document.getElementById('diagBanner');
       b.textContent = msg;
       b.classList.remove('hidden');
       document.getElementById('successBanner').classList.add('hidden');
+      toast(msg, false);
+      scrollToTop();
     }
 
     function showSuccess(msg) {
@@ -164,6 +183,8 @@
       b.textContent = msg;
       b.classList.remove('hidden');
       document.getElementById('diagBanner').classList.add('hidden');
+      toast(msg, true);
+      scrollToTop();
     }
 
     // --- Drag & drop wiring ---
@@ -195,8 +216,7 @@
       document.getElementById('successBanner').classList.add('hidden');
 
       // PapaParse ang gumaganap ng buong CSV parsing — kayang-kaya nito
-      // ang mga comma sa loob ng naka-quote na fields (hal. "TAYRUS, REBECCA I"),
-      // kaya hindi na tayo mag-aalala sa mga hindi standard na pangalan.
+      // ang mga comma sa loob ng naka-quote na fields (hal. "TAYRUS, REBECCA I").
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
@@ -268,6 +288,21 @@
       return val.trim();
     }
 
+    // How many of the uploaded account numbers belong to members in the app
+    async function countMatchedAccounts(acctNos) {
+      try {
+        const unique = [...new Set(acctNos)];
+        const { data, error } = await _supabase
+          .from('profiles')
+          .select('account_number')
+          .in('account_number', unique);
+        if (error) return null;
+        return new Set((data || []).map(p => p.account_number)).size;
+      } catch (_) {
+        return null;
+      }
+    }
+
     async function confirmUpload() {
       const batchName = document.getElementById('batchNameInput').value.trim();
       const billingMonth = document.getElementById('billingMonthInput').value.trim();
@@ -324,10 +359,6 @@
           kwh_used: toNumberOrNull(row.kwh_used),
           total_billed: toNumberOrNull(row.total_billed),
           status: 'Unpaid',
-          // route_seq, multiplier, at ang mga JSONB breakdown fields
-          // (charges_breakdown, other_charges, universal_charges, vat_breakdown)
-          // ay hindi pa kasama sa basic CSV na ito — mananatiling null/default
-          // hanggang malaman natin ang tunay na format ng ZAMSURECO source file.
         }));
 
         // I-check kung may kulang na required field (acct_no)
@@ -343,16 +374,26 @@
 
         if (insertError) throw insertError;
 
-        showSuccess(`Successfully na-upload ang ${statementsToInsert.length} billing statements!`);
+        // 4. How many bills will show up in members' apps
+        const matched = await countMatchedAccounts(statementsToInsert.map(s => s.acct_no));
+        const matchText = matched === null
+          ? ''
+          : ` ${matched} account(s) ang tugma sa members sa app at makikita na nila ang bill.`;
+
+        showSuccess(`✓ Successfully na-upload ang ${statementsToInsert.length} billing statement(s) para sa "${batchName}".${matchText}`);
+
+        btn.textContent = 'Uploaded ✓';
+        setTimeout(() => { btn.textContent = 'Confirm & Upload to Database'; }, 2500);
+
         resetUpload();
         document.getElementById('batchNameInput').value = '';
         document.getElementById('billingMonthInput').value = '';
         document.getElementById('zoneCodeInput').value = '';
       } catch (err) {
         showError('Error: ' + (err.message || JSON.stringify(err)));
+        btn.textContent = 'Confirm & Upload to Database';
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Confirm & Upload to Database';
       }
     }
   </script>
