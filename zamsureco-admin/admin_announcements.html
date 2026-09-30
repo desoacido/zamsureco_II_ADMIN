@@ -6,6 +6,9 @@
 <title>ZAMSURECO II — Announcements</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- ADDED: Leaflet for the affected-poles picker map -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script>
@@ -45,6 +48,10 @@
   /* Chevron rotates when list is expanded */
   #toggleListBtn[aria-expanded="true"] .chev { transform: rotate(180deg); }
   .chev { transition: transform .15s ease; }
+
+  /* ADDED: picker map */
+  #pickerMap { height: 300px; z-index: 0; }
+  .area-tag { background: #FCEACB; color: #8A5A12; padding: 2px 8px; border-radius: 3px; }
 </style>
 </head>
 <body class="bg-paper-50 text-navy-900 font-sans overflow-x-hidden">
@@ -84,7 +91,7 @@
             <p class="text-xs text-navy-700/60 mt-0.5">This will appear immediately on the member-facing app.</p>
           </div>
 
-          <form id="announcementForm" class="space-y-4 max-w-xl">
+          <form id="announcementForm" class="space-y-4 max-w-2xl">
             <div>
               <label class="block text-xs font-medium text-navy-700 mb-1.5">Title</label>
               <input type="text" id="title" placeholder="e.g. Scheduled Power Interruption" required class="w-full px-4 py-2.5 bg-paper-50 border border-line rounded text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 transition">
@@ -97,6 +104,33 @@
               <label class="block text-xs font-medium text-navy-700 mb-1.5">Content</label>
               <textarea id="content" rows="3" placeholder="Details for cooperative members..." required class="w-full px-4 py-2.5 bg-paper-50 border border-line rounded text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 transition"></textarea>
             </div>
+
+            <!-- ADDED: Schedule -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-navy-700 mb-1.5">Start date &amp; time <span class="text-navy-700/50">(optional)</span></label>
+                <input type="datetime-local" id="startTime" class="w-full px-4 py-2.5 bg-paper-50 border border-line rounded text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 transition">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-navy-700 mb-1.5">End date &amp; time <span class="text-navy-700/50">(required if poles are selected)</span></label>
+                <input type="datetime-local" id="endTime" class="w-full px-4 py-2.5 bg-paper-50 border border-line rounded text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 transition">
+              </div>
+            </div>
+
+            <!-- ADDED: Affected poles picker -->
+            <div>
+              <label class="block text-xs font-medium text-navy-700 mb-1.5">Affected poles <span class="text-navy-700/50">(optional)</span></label>
+              <p class="text-xs text-navy-700/60 mb-2">Click poles on the map to mark them as affected. They will be highlighted in orange on the member app. Leave empty for general announcements.</p>
+              <div id="pickerMap" class="border border-line rounded"></div>
+              <div class="flex items-center justify-between mt-2">
+                <span id="selectedCount" class="text-xs font-semibold text-navy-800">0 poles selected</span>
+                <button type="button" id="clearPolesBtn" class="text-xs text-navy-800 underline underline-offset-2">Clear selection</button>
+              </div>
+              <div id="poleChecklist" class="mt-2 grid grid-cols-3 sm:grid-cols-4 gap-1.5 max-h-40 overflow-y-auto border border-line rounded p-3 bg-paper-50">
+                <span class="text-xs text-navy-700/60 col-span-full">Loading poles...</span>
+              </div>
+            </div>
+
             <div>
               <label class="block text-xs font-medium text-navy-700 mb-1.5">Attachment image (optional)</label>
               <input type="file" id="imageFile" accept="image/*" class="w-full text-sm text-navy-700 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-paper-100 file:text-navy-800 hover:file:bg-paper-100/70 cursor-pointer border border-line rounded bg-paper-50">
@@ -130,12 +164,13 @@
                   <th class="p-4">Title</th>
                   <th class="p-4">Category</th>
                   <th class="p-4">Content</th>
+                  <th class="p-4">Schedule &amp; area</th>
                   <th class="p-4">Date posted</th>
                   <th class="p-4 text-center">Action</th>
                 </tr>
               </thead>
               <tbody id="announcementTableBody" class="divide-y divide-line text-sm">
-                <tr><td colspan="6" class="p-8 text-center text-navy-700/60 font-medium">Loading announcements...</td></tr>
+                <tr><td colspan="7" class="p-8 text-center text-navy-700/60 font-medium">Loading announcements...</td></tr>
               </tbody>
             </table>
           </div>
@@ -153,11 +188,18 @@
     let announcementsLoaded = false;
     let announcementsCache = [];
 
+    // ADDED: affected poles picker state
+    let polesCache = [];
+    const selectedPoles = new Set();
+    let pickerMap = null;
+    const poleMarkers = {};
+
     async function checkAuth() {
       const { data: { session } } = await _supabase.auth.getSession();
       if (!session) { window.location.href = 'admin_login.html'; return; }
       // Kunin lang agad yung count, hindi pa yung buong listahan
       preloadCount();
+      loadPolesForPicker();
     }
 
     document.addEventListener('click', async (e) => {
@@ -173,6 +215,114 @@
       if (!str) return '';
       return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
     }
+
+    function formatDateTime(value) {
+      if (!value) return '';
+      return new Date(value).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+    }
+
+    // ---------------------------------------------------------
+    // ADDED: Affected poles picker
+    // ---------------------------------------------------------
+    async function loadPolesForPicker() {
+      const box = document.getElementById('poleChecklist');
+      const { data, error } = await _supabase
+        .from('poles')
+        .select('pole_code, latitude, longitude, is_energized, pole_type')
+        .order('pole_code', { ascending: true });
+
+      if (error) {
+        box.innerHTML = `<span class="text-xs text-danger-600 col-span-full">Could not load poles: ${escapeHtml(error.message)}</span>`;
+        return;
+      }
+
+      polesCache = data || [];
+      initPickerMap();
+      renderChecklist();
+    }
+
+    function markerStyle(code) {
+      const selected = selectedPoles.has(code);
+      return {
+        radius: selected ? 10 : 7,
+        color: selected ? '#C2410C' : '#081D45',
+        fillColor: selected ? '#F97316' : '#FFFFFF',
+        fillOpacity: 0.95,
+        weight: 2,
+      };
+    }
+
+    function initPickerMap() {
+      pickerMap = L.map('pickerMap');
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors',
+      }).addTo(pickerMap);
+
+      const bounds = [];
+      polesCache.forEach(p => {
+        const lat = Number(p.latitude), lng = Number(p.longitude);
+        const marker = L.circleMarker([lat, lng], markerStyle(p.pole_code))
+          .addTo(pickerMap)
+          .bindTooltip(`${p.pole_code} · ${p.pole_type || ''}`, { direction: 'top' });
+        marker.on('click', () => togglePole(p.pole_code));
+        poleMarkers[p.pole_code] = marker;
+        bounds.push([lat, lng]);
+      });
+
+      if (bounds.length) pickerMap.fitBounds(bounds, { padding: [30, 30] });
+      else pickerMap.setView([7.8018, 122.6155], 15);
+    }
+
+    function renderChecklist() {
+      const box = document.getElementById('poleChecklist');
+      if (polesCache.length === 0) {
+        box.innerHTML = `<span class="text-xs text-navy-700/60 col-span-full">No poles yet. Add poles in the Grid &amp; Poles page.</span>`;
+        return;
+      }
+      box.innerHTML = polesCache.map(p => `
+        <label class="flex items-center gap-1.5 text-xs num cursor-pointer">
+          <input type="checkbox" class="pole-cb accent-orange-600" value="${escapeHtml(p.pole_code)}">
+          ${escapeHtml(p.pole_code)}
+        </label>`).join('');
+
+      box.querySelectorAll('.pole-cb').forEach(cb => {
+        cb.addEventListener('change', () => {
+          if (cb.checked) selectedPoles.add(cb.value);
+          else selectedPoles.delete(cb.value);
+          refreshSelection();
+        });
+      });
+      refreshSelection();
+    }
+
+    function togglePole(code) {
+      if (selectedPoles.has(code)) selectedPoles.delete(code);
+      else selectedPoles.add(code);
+      refreshSelection();
+    }
+
+    function refreshSelection() {
+      Object.entries(poleMarkers).forEach(([code, marker]) => {
+        const style = markerStyle(code);
+        marker.setStyle(style);
+        marker.setRadius(style.radius);
+      });
+      document.querySelectorAll('.pole-cb').forEach(cb => {
+        cb.checked = selectedPoles.has(cb.value);
+      });
+      const n = selectedPoles.size;
+      document.getElementById('selectedCount').textContent = `${n} pole${n === 1 ? '' : 's'} selected`;
+    }
+
+    document.getElementById('clearPolesBtn').addEventListener('click', () => {
+      selectedPoles.clear();
+      refreshSelection();
+    });
+
+    // ---------------------------------------------------------
+    // Announcements list
+    // ---------------------------------------------------------
 
     // Mabilisang count lang para sa header, hindi pa binubuksan yung table
     async function preloadCount() {
@@ -204,13 +354,13 @@
 
     async function fetchAnnouncements() {
       const tbody = document.getElementById('announcementTableBody');
-      tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-navy-700/60 font-medium">Loading announcements...</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-navy-700/60 font-medium">Loading announcements...</td></tr>`;
 
       const { data, error } = await _supabase.from('announcements').select('*').order('created_at', { ascending: false });
       announcementsLoaded = true;
 
       if (error) {
-        tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-danger-600 font-medium">Error: ${escapeHtml(error.message)}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-danger-600 font-medium">Error: ${escapeHtml(error.message)}</td></tr>`;
         return;
       }
 
@@ -218,22 +368,41 @@
       document.getElementById('announcementCount').textContent = announcementsCache.length;
 
       if (announcementsCache.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-navy-700/60 font-medium">No announcements found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-navy-700/60 font-medium">No announcements found.</td></tr>`;
         return;
       }
 
+      const now = new Date();
       tbody.innerHTML = '';
       announcementsCache.forEach(item => {
         const imageHtml = item.image_url
           ? `<img src="${escapeHtml(item.image_url)}" alt="Announcement Image" class="w-12 h-12 object-cover rounded border border-line">`
           : `<span class="text-xs text-navy-700/50 italic">No image</span>`;
 
+        // ADDED: schedule and affected area column
+        const poles = Array.isArray(item.affected_pole_codes) ? item.affected_pole_codes : [];
+        let scheduleHtml = `<span class="text-xs text-navy-700/50 italic">General</span>`;
+        if (poles.length || item.start_time || item.end_time) {
+          const ended = item.end_time && new Date(item.end_time) < now;
+          const status = ended
+            ? `<span class="text-xs text-navy-700/50">Ended</span>`
+            : `<span class="text-xs font-semibold text-ok-600">Active on map</span>`;
+          scheduleHtml = `
+            <div class="space-y-1">
+              ${item.start_time ? `<div class="text-xs num">${escapeHtml(formatDateTime(item.start_time))}</div>` : ''}
+              ${item.end_time ? `<div class="text-xs num text-navy-700/70">to ${escapeHtml(formatDateTime(item.end_time))}</div>` : ''}
+              ${poles.length ? `<span class="area-tag text-xs font-medium inline-block" title="${escapeHtml(poles.join(', '))}">${poles.length} pole${poles.length === 1 ? '' : 's'}</span>` : ''}
+              <div>${status}</div>
+            </div>`;
+        }
+
         tbody.innerHTML += `<tr class="hover:bg-paper-100/60 transition">
           <td class="p-4">${imageHtml}</td>
           <td class="p-4 font-semibold text-navy-900">${escapeHtml(item.title)}</td>
           <td class="p-4"><span class="cat-tag text-xs font-medium text-navy-800 inline-block">${escapeHtml(item.category)}</span></td>
           <td class="p-4 text-navy-700 max-w-xs truncate">${escapeHtml(item.content)}</td>
-          <td class="p-4 text-xs text-navy-700/70 num">${new Date(item.created_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}</td>
+          <td class="p-4">${scheduleHtml}</td>
+          <td class="p-4 text-xs text-navy-700/70 num">${escapeHtml(formatDateTime(item.created_at))}</td>
           <td class="p-4 text-center">
             <button onclick="deleteAnnouncement('${item.id}')" class="text-xs text-danger-600 hover:text-danger-600/80 underline underline-offset-2 font-medium">Delete</button>
           </td>
@@ -252,14 +421,32 @@
       fetchAnnouncements();
     }
 
+    function showMsg(text, ok) {
+      const msg = document.getElementById('msg');
+      msg.className = 'mt-3 font-semibold text-xs ' + (ok ? 'text-ok-600' : 'text-danger-600');
+      msg.textContent = text;
+    }
+
     document.getElementById('announcementForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const title = document.getElementById('title').value;
       const category = document.getElementById('category').value;
       const content = document.getElementById('content').value;
+      const startVal = document.getElementById('startTime').value;
+      const endVal = document.getElementById('endTime').value;
       const imageFileInput = document.getElementById('imageFile');
       const submitBtn = document.getElementById('submitBtn');
       const msg = document.getElementById('msg');
+
+      // ADDED: schedule validation
+      if (selectedPoles.size > 0 && !endVal) {
+        showMsg('Please set an end date & time so the affected area disappears from the map when it is over.', false);
+        return;
+      }
+      if (startVal && endVal && new Date(endVal) <= new Date(startVal)) {
+        showMsg('End date & time must be after the start.', false);
+        return;
+      }
 
       submitBtn.disabled = true;
       submitBtn.textContent = 'Publishing...';
@@ -272,13 +459,12 @@
         const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
         const filePath = `${fileName}`;
 
-        const { data: uploadData, error: uploadError } = await _supabase.storage
+        const { error: uploadError } = await _supabase.storage
           .from('announcements-images')
           .upload(filePath, file);
 
         if (uploadError) {
-          msg.className = 'mt-3 font-semibold text-xs text-danger-600';
-          msg.textContent = 'Image Upload Error: ' + uploadError.message;
+          showMsg('Image Upload Error: ' + uploadError.message, false);
           submitBtn.disabled = false;
           submitBtn.textContent = 'Publish announcement';
           return;
@@ -295,17 +481,21 @@
         title,
         category,
         content,
-        image_url: imageUrl
+        image_url: imageUrl,
+        // ADDED
+        start_time: startVal ? new Date(startVal).toISOString() : null,
+        end_time: endVal ? new Date(endVal).toISOString() : null,
+        affected_pole_codes: selectedPoles.size ? Array.from(selectedPoles) : null,
       }]);
 
       if (error) {
-        msg.className = 'mt-3 font-semibold text-xs text-danger-600';
-        msg.textContent = 'Error: ' + error.message;
+        showMsg('Error: ' + error.message, false);
       } else {
-        msg.className = 'mt-3 font-semibold text-xs text-ok-600';
-        msg.textContent = 'Announcement published successfully!';
+        showMsg('Announcement published successfully!', true);
         document.getElementById('announcementForm').reset();
         document.getElementById('category').value = 'DISTRIBUTION LINE UPDATE';
+        selectedPoles.clear();
+        refreshSelection();
         preloadCount();
         if (announcementsLoaded) fetchAnnouncements();
         setTimeout(() => { msg.textContent = ''; }, 3000);
