@@ -63,6 +63,9 @@
   /* Stepper */
   .step-dot { width: 22px; height: 22px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
   .step-line { flex: 1; height: 2px; min-width: 8px; }
+
+  /* Folded panels */
+  summary::-webkit-details-marker { display: none; }
 </style>
 </head>
 <body class="bg-paper-50 text-ink-900 font-sans overflow-x-hidden">
@@ -221,6 +224,7 @@
     let current = null;        // application open in the drawer
     let currentReqs = [];
     let appMap = null;
+    const openPanels = new Set();   // folded panels the admin opened in this application
 
     async function checkAuth() {
       const { data: { session } } = await _supabase.auth.getSession();
@@ -409,6 +413,7 @@
     // DRAWER
     // ------------------------------------------------------------------
     async function openDrawer(id) {
+      openPanels.clear();
       document.getElementById('drawerBackdrop').classList.remove('hidden');
       document.getElementById('drawer').classList.add('open');
       document.getElementById('drawerContent').innerHTML =
@@ -478,6 +483,19 @@
       return currentReqs.length === 0 || currentReqs.every(r => r.is_received);
     }
 
+    // Short "what to do next" text for the drawer header
+    function nextStepText(app) {
+      const status = app.status || 'Pending';
+      if (status === 'PMES Completed' && currentReqs.length > 0 && allPapersReceived()) {
+        return 'Schedule inspection';
+      }
+      if (status === 'Submission Scheduled' && !allPapersReceived()) {
+        const missing = currentReqs.filter(r => !r.is_received).length;
+        return `Receive papers (${missing} missing)`;
+      }
+      return NEXT_STEP[status] || '—';
+    }
+
     // The card that shows the ONE thing the admin should do next
     function renderNextAction(app) {
       const status = app.status || 'Pending';
@@ -503,11 +521,19 @@
             <p class="text-xs text-ink-700/70 mt-2">Marking attendance also checks off the PMES requirement automatically.</p>`);
 
         case 'PMES Completed':
+          // Papers may be handed in before a submission date is set.
+          // If they are already complete, go straight to the inspection.
+          if (currentReqs.length > 0 && allPapersReceived()) {
+            return actionCard('All papers received: schedule the inspection', `
+              <p class="text-xs text-ok-600 font-semibold mb-3">The applicant already handed in all papers, so no submission schedule is needed.</p>
+              ${inspectionForm(app, false)}`);
+          }
           return actionCard('Schedule the submission of papers', `
             <p class="text-xs text-ink-700 mb-3">The applicant will bring the papers to the office on this date. Nothing is uploaded.</p>
             <label class="text-xs font-medium text-ink-700">Date &amp; time</label>
             <input id="subDate" type="datetime-local" class="field mt-1" min="${nowLocalInput()}" value="${toLocalInput(app.submission_schedule)}">
-            <button class="btn-primary mt-3" onclick="actSetSubmission()">Save submission schedule</button>`);
+            <button class="btn-primary mt-3" onclick="actSetSubmission()">Save submission schedule</button>
+            <p class="text-xs text-ink-700/70 mt-3">If the applicant already brought the papers, just tick them in the checklist below. Once all are ticked, you can schedule the inspection right away.</p>`);
 
         case 'Submission Scheduled': {
           const ready = allPapersReceived();
@@ -587,7 +613,7 @@
     }
 
     function actionCard(title, body, done = false) {
-      return `<section class="bg-white border ${done ? 'border-ok-600/40' : 'border-copper-500/50'} rounded p-5">
+      return `<section id="nextStepCard" class="bg-white border ${done ? 'border-ok-600/40' : 'border-copper-500/50'} rounded p-5 scroll-mt-28">
           <p class="text-[11px] font-semibold tracking-wide ${done ? 'text-ok-600' : 'text-copper-500'} mb-1">${done ? 'STATUS' : 'NEXT STEP'}</p>
           <h3 class="text-base font-semibold text-ink-900 mb-3">${title}</h3>
           ${body}
@@ -642,6 +668,11 @@
               ${app.is_flagged ? `<span class="badge" style="background:#F2E1DF;color:#A33B34">FLAGGED · possible duplicate</span>` : ''}
             </div>
             <p class="text-xs text-ink-700 mt-1 num">${escapeHtml(app.contact_number || '—')} · Applied ${escapeHtml(fmtDate(app.created_at))}</p>
+            ${!['Energized', 'Rejected'].includes(status) ? `
+            <button onclick="document.getElementById('nextStepCard')?.scrollIntoView({behavior:'smooth', block:'start'})"
+              class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-copper-500 bg-copper-100 px-2.5 py-1 rounded hover:opacity-80">
+              Next: ${escapeHtml(nextStepText(app))} ↑
+            </button>` : ''}
           </div>
           <button onclick="closeDrawer()" class="text-ink-700 hover:text-ink-900 text-2xl leading-none px-2" aria-label="Close">&times;</button>
         </div>
@@ -651,48 +682,36 @@
 
           ${renderNextAction(app)}
 
-          <!-- Applicant info + map -->
-          <section class="bg-white border border-line rounded">
-            <div class="grid grid-cols-2 gap-x-4 gap-y-3 p-5 text-sm">
-              <div><p class="text-xs text-ink-700">Connection type</p><p class="font-semibold">${escapeHtml(app.connection_type || '—')}</p></div>
-              <div><p class="text-xs text-ink-700">Ownership</p><p class="font-semibold">${escapeHtml(app.ownership_status || '—')}${app.via_representative ? ' · via representative' : ''}</p></div>
-              <div class="col-span-2"><p class="text-xs text-ink-700">Address</p><p class="font-medium">${escapeHtml(app.address || '—')}</p></div>
-              <div><p class="text-xs text-ink-700">Eligibility</p><p class="font-semibold">${escapeHtml(app.eligibility_status || '—')}</p></div>
-              <div><p class="text-xs text-ink-700">Nearest pole</p><p class="font-semibold num">${escapeHtml(app.nearest_pole || '—')}${app.distance ? ` · ${Number(app.distance).toFixed(1)} m` : ''}${pole ? ` · ${pole.available_slots} slot(s) left` : ''}${app.slot_reserved ? ' · slot reserved' : ''}</p></div>
-            </div>
-            ${app.latitude && app.longitude ? `<div id="appMap" class="border-t border-line"></div>` : ''}
-          </section>
+          <!-- Papers: open only while papers are being received -->
+          ${renderPapersSection(app)}
 
-          <!-- Requirements checklist -->
-          <section class="bg-white border border-line rounded p-5">
-            <h3 class="text-sm font-semibold text-ink-900 mb-1">Papers received at the office</h3>
-            <p class="text-xs text-ink-700/70 mb-3">Tick each paper when the applicant hands it in. The applicant sees what is still missing in the app.</p>
-            ${renderChecklist()}
-          </section>
+          <!-- Everything else is folded away until needed -->
+          <div class="space-y-3">
+            ${foldPanel('panelDetails', 'Applicant details &amp; map', `
+              <div class="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                <div><p class="text-xs text-ink-700">Connection type</p><p class="font-semibold">${escapeHtml(app.connection_type || '—')}</p></div>
+                <div><p class="text-xs text-ink-700">Ownership</p><p class="font-semibold">${escapeHtml(app.ownership_status || '—')}${app.via_representative ? ' · via representative' : ''}</p></div>
+                <div class="col-span-2"><p class="text-xs text-ink-700">Address</p><p class="font-medium">${escapeHtml(app.address || '—')}</p></div>
+                <div><p class="text-xs text-ink-700">Eligibility</p><p class="font-semibold">${escapeHtml(app.eligibility_status || '—')}</p></div>
+                <div><p class="text-xs text-ink-700">Nearest pole</p><p class="font-semibold num">${escapeHtml(app.nearest_pole || '—')}${app.distance ? ` · ${Number(app.distance).toFixed(1)} m` : ''}${pole ? ` · ${pole.available_slots} slot(s) left` : ''}${app.slot_reserved ? ' · slot reserved' : ''}</p></div>
+              </div>
+              ${app.latitude && app.longitude ? `<div id="appMap" class="border border-line rounded mt-4"></div>` : ''}`)}
 
-          ${scheduleRows.length ? `
-          <section class="bg-white border border-line rounded p-5">
-            <h3 class="text-sm font-semibold text-ink-900 mb-3">Schedule history</h3>
-            <dl class="text-sm space-y-2">
-              ${scheduleRows.map(r => `<div class="flex gap-3"><dt class="w-36 text-ink-700 text-xs pt-0.5">${r[0]}</dt><dd class="flex-1 num text-xs text-ink-900">${escapeHtml(r[1])}</dd></div>`).join('')}
-            </dl>
-          </section>` : ''}
+            ${scheduleRows.length ? foldPanel('panelHistory', `Schedule history <span class="text-ink-700/60 font-normal">(${scheduleRows.length})</span>`, `
+              <dl class="text-sm space-y-2">
+                ${scheduleRows.map(r => `<div class="flex gap-3"><dt class="w-36 text-ink-700 text-xs pt-0.5">${r[0]}</dt><dd class="flex-1 num text-xs text-ink-900">${escapeHtml(r[1])}</dd></div>`).join('')}
+              </dl>`) : ''}
 
-          <!-- Note to applicant -->
-          <section class="bg-white border border-line rounded p-5">
-            <h3 class="text-sm font-semibold text-ink-900 mb-1">Note to applicant</h3>
-            <p class="text-xs text-ink-700/70 mb-2">Shown in the applicant's Track tab (e.g. "Bring the original land title").</p>
-            <textarea id="remarksInput" rows="2" class="field">${escapeHtml(status === 'Rejected' ? '' : (app.remarks || ''))}</textarea>
-            <button class="btn-ghost mt-2" onclick="actSaveRemarks()">Save note</button>
-          </section>
+            ${foldPanel('panelNote', `Note to applicant${app.remarks && status !== 'Rejected' ? ' <span class="text-ok-600 font-normal">· 1 note</span>' : ''}`, `
+              <p class="text-xs text-ink-700/70 mb-2">Shown in the applicant's Track tab (e.g. "Bring the original land title").</p>
+              <textarea id="remarksInput" rows="2" class="field">${escapeHtml(status === 'Rejected' ? '' : (app.remarks || ''))}</textarea>
+              <button class="btn-ghost mt-2" onclick="actSaveRemarks()">Save note</button>`)}
 
-          ${!['Energized', 'Rejected'].includes(status) ? `
-          <section class="border border-danger-600/30 rounded p-5 bg-danger-100/40">
-            <h3 class="text-sm font-semibold text-danger-600 mb-1">Reject application</h3>
-            <p class="text-xs text-ink-700 mb-2">The reason is shown to the applicant. ${app.slot_reserved ? 'The reserved pole slot will be returned.' : ''}</p>
-            <textarea id="rejectReason" rows="2" class="field" placeholder="Reason for rejection"></textarea>
-            <button class="btn-danger mt-2" onclick="actReject()">Reject</button>
-          </section>` : ''}
+            ${!['Energized', 'Rejected'].includes(status) ? foldPanel('panelReject', '<span class="text-danger-600">Reject application</span>', `
+              <p class="text-xs text-ink-700 mb-2">The reason is shown to the applicant. ${app.slot_reserved ? 'The reserved pole slot will be returned.' : ''}</p>
+              <textarea id="rejectReason" rows="2" class="field" placeholder="Reason for rejection"></textarea>
+              <button class="btn-danger mt-2" onclick="actReject()">Reject</button>`) : ''}
+          </div>
         </div>`;
 
       // Checklist toggles
@@ -700,28 +719,70 @@
         cb.addEventListener('change', () => toggleRequirement(cb.dataset.req, cb.checked));
       });
 
-      // Map: applicant pin, nearest pole, and the line between them
+      // Remember which folded panels are open, and draw the map when its panel opens
       if (appMap) { appMap.remove(); appMap = null; }
-      if (app.latitude && app.longitude) {
-        const home = [Number(app.latitude), Number(app.longitude)];
-        appMap = L.map('appMap', { scrollWheelZoom: false });
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19, attribution: '&copy; OpenStreetMap contributors',
-        }).addTo(appMap);
-        L.marker(home).addTo(appMap).bindTooltip('Applicant', { permanent: true, direction: 'top' });
+      document.querySelectorAll('details[data-panel]').forEach(d => {
+        d.addEventListener('toggle', () => {
+          if (d.open) openPanels.add(d.dataset.panel); else openPanels.delete(d.dataset.panel);
+          if (d.dataset.panel === 'panelDetails' && d.open) drawAppMap(app, pole);
+        });
+      });
+      if (openPanels.has('panelDetails')) drawAppMap(app, pole);
+    }
 
-        if (pole) {
-          const p = [Number(pole.latitude), Number(pole.longitude)];
-          L.circleMarker(p, { radius: 8, color: '#fff', weight: 2, fillColor: pole.is_energized ? '#3F7857' : '#9CA3AF', fillOpacity: 1 })
-            .addTo(appMap).bindTooltip(pole.pole_code, { permanent: true, direction: 'right' });
-          L.polyline([home, p], { color: '#B9722E', weight: 3, dashArray: '6 6' })
-            .addTo(appMap).bindTooltip(`${Number(app.distance || 0).toFixed(1)} m`, { permanent: true, direction: 'center' });
-          appMap.fitBounds([home, p], { padding: [40, 40], maxZoom: 18 });
-        } else {
-          appMap.setView(home, 17);
-        }
-        setTimeout(() => appMap && appMap.invalidateSize(), 250);
+    // Folded section (closed unless the admin opened it before)
+    function foldPanel(id, title, body) {
+      return `<details data-panel="${id}" class="group bg-white border border-line rounded" ${openPanels.has(id) ? 'open' : ''}>
+          <summary class="flex items-center justify-between cursor-pointer select-none px-5 py-3 text-sm font-semibold text-ink-900 list-none">
+            <span>${title}</span>
+            <svg class="w-4 h-4 text-ink-700 transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+          </summary>
+          <div class="px-5 pb-5 pt-1 border-t border-line">${body}</div>
+        </details>`;
+    }
+
+    // Papers checklist: hidden before PMES, open while receiving papers, folded afterwards
+    function renderPapersSection(app) {
+      const status = app.status || 'Pending';
+      if (!app.pmes_attended || currentReqs.length === 0) return '';
+
+      const received = currentReqs.filter(r => r.is_received).length;
+      const receivingNow = ['PMES Completed', 'Submission Scheduled'].includes(status);
+
+      if (receivingNow) {
+        return `<section class="bg-white border border-line rounded p-5">
+            <h3 class="text-sm font-semibold text-ink-900 mb-1">Papers received at the office</h3>
+            <p class="text-xs text-ink-700/70 mb-3">Tick each paper when the applicant hands it in. The applicant sees what is still missing in the app.</p>
+            ${renderChecklist()}
+          </section>`;
       }
+
+      return foldPanel('panelPapers',
+        `Papers received <span class="${received === currentReqs.length ? 'text-ok-600' : 'text-copper-500'} font-normal">(${received} of ${currentReqs.length})</span>`,
+        renderChecklist());
+    }
+
+    // Map: applicant pin, nearest pole, and the line between them
+    function drawAppMap(app, pole) {
+      if (appMap || !app.latitude || !app.longitude || !document.getElementById('appMap')) return;
+      const home = [Number(app.latitude), Number(app.longitude)];
+      appMap = L.map('appMap', { scrollWheelZoom: false });
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19, attribution: '&copy; OpenStreetMap contributors',
+      }).addTo(appMap);
+      L.marker(home).addTo(appMap).bindTooltip('Applicant', { permanent: true, direction: 'top' });
+
+      if (pole) {
+        const p = [Number(pole.latitude), Number(pole.longitude)];
+        L.circleMarker(p, { radius: 8, color: '#fff', weight: 2, fillColor: pole.is_energized ? '#3F7857' : '#9CA3AF', fillOpacity: 1 })
+          .addTo(appMap).bindTooltip(pole.pole_code, { permanent: true, direction: 'right' });
+        L.polyline([home, p], { color: '#B9722E', weight: 3, dashArray: '6 6' })
+          .addTo(appMap).bindTooltip(`${Number(app.distance || 0).toFixed(1)} m`, { permanent: true, direction: 'center' });
+        appMap.fitBounds([home, p], { padding: [40, 40], maxZoom: 18 });
+      } else {
+        appMap.setView(home, 17);
+      }
+      setTimeout(() => appMap && appMap.invalidateSize(), 150);
     }
 
     // ------------------------------------------------------------------
