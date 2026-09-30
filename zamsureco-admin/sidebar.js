@@ -16,6 +16,12 @@
       label: "Dashboard",
       icon: '<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
     },
+
+         {
+      href: "admin_poles.html",
+      label: "Grid & Poles",
+      icon: '<path d="M12 2v20"/><path d="M5 6h14"/><path d="M7 10h10"/><circle cx="5" cy="6" r="1.5"/><circle cx="19" cy="6" r="1.5"/>',
+    },
     {
       href: "admin_announcements.html",
       label: "Announcements",
