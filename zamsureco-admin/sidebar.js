@@ -373,6 +373,38 @@
       line-height: 1.4;
     }
 
+    /* Quick action buttons (same as on the Dashboard) */
+    .qa-bar { display: flex; flex-wrap: wrap; gap: 10px; }
+    .qa-btn {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+      background: #fff;
+      color: #111F78;
+      border: 1px solid #DFE3EE;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .qa-btn:hover { background: #F3F5FD; border-color: #94A2EA; }
+    .qa-btn.primary { background: #1A2B9E; color: #fff; border-color: #1A2B9E; }
+    .qa-btn.primary:hover { background: #111F78; }
+    /* The button of the page you are on */
+    .qa-btn.current { border-color: #EBCB00; box-shadow: inset 0 -3px 0 #EBCB00; }
+    .qa-btn.primary.current { box-shadow: inset 0 -3px 0 #F7E21A; }
+
+    /* Wrapper for the overview tabs */
+    .top-shared {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    }
+    .top-shared.with-gap { margin-bottom: 24px; }
+
+
     /* Overview tabs (Announcements / Applications / Incidents) */
     .ov-tabs {
       display: grid;
@@ -381,8 +413,6 @@
       border: 1px solid #DFE3EE;
       border-radius: 8px;
       overflow: hidden;
-      margin-bottom: 24px;
-      font-family: 'IBM Plex Sans', system-ui, sans-serif;
     }
     .ov-tab {
       display: flex;
@@ -487,7 +517,7 @@
     }
 
     // 5. Overview tabs on the Announcements, Applications and Incidents pages
-    renderOverviewTabs();
+    renderTopShared();
 
     // 6. Sentralisadong Logout Handler
     const logoutBtn = document.getElementById("logoutBtn");
@@ -547,15 +577,9 @@
     },
   ];
 
-  function renderOverviewTabs() {
-    const isTabPage = OV_TABS.some(t => t.page === currentPage);
-    if (!isTabPage) return;   // only on the three pages (the Dashboard has its own cards)
 
-    const main = document.querySelector("main");
-    if (!main) return;
-    const container = main.firstElementChild || main;
-
-    const html = `
+  function overviewTabsHtml() {
+    return `
       <nav class="ov-tabs" aria-label="Overview">
         ${OV_TABS.map(t => `
           <a href="${t.href}" class="ov-tab${t.page === currentPage ? " active" : ""}${t.alert ? " alert" : ""}"
@@ -569,9 +593,55 @@
             </span>
           </a>`).join("")}
       </nav>`;
+  }
+
+
+  /* ------------------------------------------------------------
+     QUICK ACTIONS
+     The Dashboard's four buttons. They also appear on the four pages
+     they open, so the admin can keep moving between those pages
+     without going back to the Dashboard.
+     ------------------------------------------------------------ */
+  const QUICK_ACTIONS = [
+    { page: "admin_announcements.html", href: "admin_announcements.html", label: "New announcement", primary: true },
+    { page: "admin_application.html", href: "admin_application.html?filter=active", label: "Review applications" },
+    { page: "admin_incidents.html", href: "admin_incidents.html", label: "View incident reports" },
+    { page: "manage_linemen.html", href: "manage_linemen.html", label: "Manage linemen" },
+  ];
+
+  function quickActionsHtml() {
+    return `
+      <div class="qa-bar" role="navigation" aria-label="Quick actions">
+        ${QUICK_ACTIONS.map(a => {
+          const current = a.page === currentPage;
+          return `<a href="${a.href}" class="qa-btn${a.primary ? " primary" : ""}${current ? " current" : ""}"${current ? ' aria-current="page"' : ""}>${a.label}</a>`;
+        }).join("")}
+      </div>`;
+  }
+
+  function renderTopShared() {
+    // The Dashboard has its own cards and buttons, so nothing is added there
+    if (currentPage === "admin_dashboard.html") return;
+
+    const isTabPage = OV_TABS.some(t => t.page === currentPage);
+    const isActionPage = QUICK_ACTIONS.some(a => a.page === currentPage);
+    if (!isTabPage && !isActionPage) return;
+
+    const main = document.querySelector("main");
+    if (!main) return;
+    const container = main.firstElementChild || main;
+
+    // Pages whose content already spaces its children (Tailwind space-y-*) need no extra gap
+    const parentSpaces = /\bspace-y-/.test(container.className || "");
+
+    const html = `
+      <div class="top-shared${parentSpaces ? "" : " with-gap"}">
+        ${isTabPage ? overviewTabsHtml() : ""}
+        ${isActionPage ? quickActionsHtml() : ""}
+      </div>`;
     container.insertAdjacentHTML("afterbegin", html);
 
-    loadOverviewCounts();
+    if (isTabPage) loadOverviewCounts();
   }
 
   async function loadOverviewCounts() {
