@@ -251,7 +251,11 @@
       const { data: { session } } = await _supabase.auth.getSession();
       if (!session) { window.location.href = 'admin_login.html'; return; }
       loadPmesHints();
-      fetchApplications();
+      await fetchApplications();
+
+      // From the Dashboard schedule: open that application's Manage panel right away
+      const openId = new URLSearchParams(window.location.search).get('open');
+      if (openId) openDrawer(openId);
     }
 
     document.addEventListener('click', async (e) => {
