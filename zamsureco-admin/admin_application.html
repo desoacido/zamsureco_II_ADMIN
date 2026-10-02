@@ -133,6 +133,7 @@
                 <option value="flagged">Flagged (needs review)</option>
                 <option value="Energized">Energized</option>
                 <option value="Rejected">Rejected</option>
+                <option value="reconnection">Reconnection requests</option>
               </select>
               <input id="searchInput" type="search" placeholder="Search name or contact..." class="field" style="width:220px">
             </div>
@@ -212,6 +213,24 @@
       { status: 'Energized',              label: 'Energized' },
     ];
 
+    // Reconnection requests have their own, shorter steps
+    const RECON_STEPS = [
+      { status: 'Pending',                label: 'Requested' },
+      { status: 'Payment Verified',       label: 'Payment verified' },
+      { status: 'Reconnection Scheduled', label: 'Scheduled' },
+      { status: 'Reconnected',            label: 'Reconnected' },
+    ];
+    const RECON_NEXT = {
+      'Pending':                'Verify payment',
+      'Payment Verified':       'Schedule reconnection',
+      'Reconnection Scheduled': 'Mark as reconnected',
+      'Reconnected':            'Completed',
+      'Rejected':               '—',
+    };
+    const isRecon = (a) => (a && a.application_type) === 'Reconnection';
+    const nextLabel = (a) => (isRecon(a) ? RECON_NEXT : NEXT_STEP)[a.status || 'Pending'] || '—';
+    const FINISHED = ['Energized', 'Reconnected', 'Rejected'];
+
     const NEXT_STEP = {
       'Pending':                'Set PMES schedule',
       'PMES Scheduled':         'Mark PMES attendance',
@@ -238,12 +257,16 @@
       'Installation Scheduled': 'background:#E1EBE3;color:#3F7857',
       'Energized':              'background:#3F7857;color:#fff',
       'Rejected':               'background:#A33B34;color:#fff',
+      'Payment Verified':       'background:#E1EBE3;color:#3F7857',
+      'Reconnection Scheduled': 'background:#DEE7EF;color:#2F5D8A',
+      'Reconnected':            'background:#3F7857;color:#fff',
     };
 
     let applications = [];
     let pmesHints = {};        // connection_type -> PMES schedule text
     let current = null;        // application open in the drawer
     let currentReqs = [];
+    let currentRecon = null;   // for reconnection: unpaid bills, fee, account status
     let appMap = null;
     const openPanels = new Set();   // folded panels the admin opened in this application
 
@@ -332,7 +355,7 @@
     }
 
     function isActive(a) {
-      return !['Energized', 'Rejected'].includes(a.status || 'Pending');
+      return !FINISHED.includes(a.status || 'Pending');
     }
 
     // Styled confirmation box. Resolves true when OK is pressed.
@@ -417,6 +440,7 @@
       const rows = applications.filter(a => {
         // Each filter counts exactly what its summary number counts
         if (filter === 'active' && !isActive(a)) return false;
+        if (filter === 'reconnection' && !isRecon(a)) return false;
         if (filter === 'flagged' && !(a.is_flagged && isActive(a))) return false;
         if (['For Inspection', 'Energized', 'Rejected'].includes(filter) && a.status !== filter) return false;
         if (q) {
@@ -453,13 +477,16 @@
             <div class="font-semibold text-ink-900">${escapeHtml(a.consumer_name || 'N/A')}${flagged}</div>
             <div class="text-xs text-ink-700 num">${escapeHtml(a.contact_number || '—')}</div>
           </td>
-          <td class="p-4 text-ink-700">${escapeHtml(a.connection_type || '—')}</td>
+          <td class="p-4 text-ink-700">${isRecon(a)
+            ? '<span class="badge" style="background:#E2E6FA;color:#1A2B9E">Reconnection</span>'
+            : escapeHtml(a.connection_type || '—')}</td>
           <td class="p-4">
-            <div class="text-xs font-semibold ${eligColor}">${escapeHtml(elig)}</div>
-            ${poleInfo}
+            ${isRecon(a)
+              ? `<div class="text-xs text-ink-700">Account</div><div class="text-xs font-semibold num">${escapeHtml(a.account_number || '—')}</div>`
+              : `<div class="text-xs font-semibold ${eligColor}">${escapeHtml(elig)}</div>${poleInfo}`}
           </td>
           <td class="p-4">${statusBadge(a.status)}</td>
-          <td class="p-4 text-xs text-ink-700">${escapeHtml(NEXT_STEP[a.status || 'Pending'] || '—')}</td>
+          <td class="p-4 text-xs text-ink-700">${escapeHtml(nextLabel(a))}</td>
           <td class="p-4 text-xs text-ink-700 num">${a.created_at ? escapeHtml(fmtDate(a.created_at)) : 'N/A'}</td>
           <td class="p-4 text-center">
             <button class="btn-primary" data-manage="${a.id}">Manage</button>
@@ -552,6 +579,7 @@
 
       current = app;
       currentReqs = reqs || [];
+      currentRecon = isRecon(app) ? await loadReconDetails(app) : null;
 
       let pole = null;
       if (app.nearest_pole) {
@@ -566,24 +594,44 @@
       renderDrawer(app, currentReqs, pole);
     }
 
-    function renderStepper(status) {
+    // For a reconnection request: the account's unpaid bills, its status, and the fee
+    async function loadReconDetails(app) {
+      const acct = app.account_number;
+      const [bills, status, fee] = await Promise.all([
+        acct ? _supabase.from('billing_statements').select('billing_year_month, total_billed, due_date, status').eq('acct_no', acct) : { data: [] },
+        acct ? _supabase.from('account_status').select('*').eq('acct_no', acct).maybeSingle() : { data: null },
+        _supabase.from('system_settings').select('value').eq('key', 'reconnection_fee').maybeSingle(),
+      ]);
+      const unpaid = (bills.data || []).filter(b => String(b.status || '').toLowerCase() !== 'paid');
+      return {
+        unpaid,
+        unpaidTotal: unpaid.reduce((t, b) => t + Number(b.total_billed || 0), 0),
+        accountStatus: (status.data && status.data.status) || 'Active',
+        fee: fee.data ? Number(fee.data.value) || 0 : 150,
+      };
+    }
+
+    function renderStepper(app) {
+      const status = app.status || 'Pending';
       if (status === 'Rejected') return '';
-      let idx = STEPS.findIndex(s => s.status === status);
+      const steps = isRecon(app) ? RECON_STEPS : STEPS;
+      const finalStatus = isRecon(app) ? 'Reconnected' : 'Energized';
+      let idx = steps.findIndex(s => s.status === status);
       const failed = status === 'Inspection Failed';
-      if (failed) idx = STEPS.findIndex(s => s.status === 'For Inspection');
+      if (failed) idx = steps.findIndex(s => s.status === 'For Inspection');
       if (idx < 0) idx = 0;
 
-      return `<div class="flex items-center gap-1 overflow-x-auto pb-1">` + STEPS.map((s, i) => {
-        const done = i < idx || status === 'Energized';
-        const now = i === idx && status !== 'Energized';
+      return `<div class="flex items-center gap-1 overflow-x-auto pb-1">` + steps.map((s, i) => {
+        const done = i < idx || status === finalStatus;
+        const now = i === idx && status !== finalStatus;
         const color = done ? '#3F7857' : (now ? (failed ? '#A33B34' : '#B9722E') : '#DBD8CF');
         const textColor = done || now ? '#fff' : '#2A4166';
         const dot = `<div class="flex flex-col items-center gap-1" style="min-width:58px">
             <div class="step-dot" style="background:${color};color:${textColor}">${done ? '✓' : i + 1}</div>
             <div class="text-[10px] text-center leading-tight ${now ? 'font-semibold text-ink-900' : 'text-ink-700/70'}">${s.label}</div>
           </div>`;
-        const line = i < STEPS.length - 1
-          ? `<div class="step-line" style="background:${i < idx || status === 'Energized' ? '#3F7857' : '#DBD8CF'};margin-bottom:16px"></div>`
+        const line = i < steps.length - 1
+          ? `<div class="step-line" style="background:${i < idx || status === finalStatus ? '#3F7857' : '#DBD8CF'};margin-bottom:16px"></div>`
           : '';
         return dot + line;
       }).join('') + `</div>`;
@@ -596,6 +644,7 @@
     // Short "what to do next" text for the drawer header
     function nextStepText(app) {
       const status = app.status || 'Pending';
+      if (isRecon(app)) return nextLabel(app);
       if (status === 'PMES Completed' && currentReqs.length > 0 && allPapersReceived()) {
         return 'Schedule inspection';
       }
@@ -603,12 +652,13 @@
         const missing = currentReqs.filter(r => !r.is_received).length;
         return `Receive papers (${missing} missing)`;
       }
-      return NEXT_STEP[status] || '—';
+      return nextLabel(app);
     }
 
     // The card that shows the ONE thing the admin should do next
     function renderNextAction(app) {
       const status = app.status || 'Pending';
+      if (isRecon(app)) return renderReconAction(app);
       const hint = pmesHints[app.connection_type];
 
       switch (status) {
@@ -713,6 +763,59 @@
       }
     }
 
+    // Reconnection: verify payment → schedule → reconnected
+    function renderReconAction(app) {
+      const status = app.status || 'Pending';
+      const r = currentRecon || { unpaid: [], unpaidTotal: 0, accountStatus: 'Active', fee: 150 };
+
+      switch (status) {
+        case 'Pending': {
+          const hasUnpaid = r.unpaid.length > 0;
+          return actionCard('Verify payment', `
+            <div class="grid grid-cols-2 gap-3 mb-4">
+              <div class="bg-paper-50 rounded p-3">
+                <div class="text-xs text-ink-700">Account status</div>
+                <div class="text-sm font-semibold ${r.accountStatus === 'Disconnected' ? 'text-danger-600' : 'text-ok-600'}">${escapeHtml(r.accountStatus)}</div>
+              </div>
+              <div class="bg-paper-50 rounded p-3">
+                <div class="text-xs text-ink-700">Unpaid bills</div>
+                <div class="text-sm font-semibold ${hasUnpaid ? 'text-danger-600' : 'text-ok-600'} num">${hasUnpaid ? `${r.unpaid.length} · ${escapeHtml(fmtPeso(r.unpaidTotal))}` : 'None'}</div>
+              </div>
+            </div>
+            ${hasUnpaid
+              ? `<p class="text-sm text-danger-600 mb-3">The member must settle all unpaid bills first. Record those payments in <a href="admin_billing_upload.html?filter=unpaid" class="underline font-semibold">Billing Statements</a>, then come back here.</p>`
+              : `<p class="text-xs text-ok-600 font-semibold mb-3">All bills are paid. Record the reconnection fee to continue.</p>`}
+            <label class="text-xs font-medium text-ink-700">OR number for the reconnection fee (${escapeHtml(fmtPeso(r.fee))})</label>
+            <input id="reconOr" type="text" class="field mt-1 num" placeholder="e.g. 0012345" ${hasUnpaid ? 'disabled' : ''}>
+            <button class="btn-ok mt-3" onclick="actReconVerify()" ${hasUnpaid ? 'disabled style="opacity:.5;cursor:not-allowed"' : ''}>Payment verified</button>`);
+        }
+        case 'Payment Verified':
+          return actionCard('Schedule the reconnection', `
+            <p class="text-sm text-ink-800 mb-3">Fee paid: <b class="num">${escapeHtml(fmtPeso(app.payment_amount))}</b>${app.or_number ? ` · OR <span class="num">${escapeHtml(app.or_number)}</span>` : ''}</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div><label class="text-xs font-medium text-ink-700">Date &amp; time</label><input id="reconDate" type="datetime-local" class="field mt-1" min="${nowLocalInput()}" value="${toLocalInput(app.reconnection_schedule)}"></div>
+              <div><label class="text-xs font-medium text-ink-700">Assigned crew / lineman</label><input id="reconCrew" type="text" class="field mt-1" placeholder="e.g. Maintenance Team 1" value="${escapeHtml(app.assigned_crew || '')}"></div>
+            </div>
+            <button class="btn-primary mt-3" onclick="actReconSchedule()">Save schedule</button>`);
+        case 'Reconnection Scheduled':
+          return actionCard('Mark as reconnected', `
+            <p class="text-sm text-ink-800 mb-3">Scheduled: <b>${escapeHtml(fmtDate(app.reconnection_schedule))}</b>${app.assigned_crew ? ` · ${escapeHtml(app.assigned_crew)}` : ''}</p>
+            <button class="btn-ok" onclick="actReconDone()">Mark as reconnected</button>
+            <button class="btn-ghost ml-2" onclick="actResetStatus('Payment Verified', 'Moved back so you can set a new schedule.')">Reschedule</button>
+            <p class="text-xs text-ink-700/70 mt-2">The account becomes Active again, and the member's app switches back to Energized.</p>`);
+        case 'Reconnected':
+          return actionCard('Completed', `
+            <p class="text-sm text-ok-600 font-semibold">Reconnected on ${escapeHtml(fmtDate(app.reconnected_at || app.status_updated_at))}</p>
+            <p class="text-sm text-ink-800 mt-1">Account number: <b class="num">${escapeHtml(app.account_number || '—')}</b></p>`, true);
+        case 'Rejected':
+          return actionCard('Rejected', `
+            <p class="text-sm text-danger-600">${escapeHtml(app.remarks || 'No reason given.')}</p>
+            <button class="btn-ghost mt-3" onclick="actResetStatus('Pending', 'Request reopened.')">Reopen request</button>`);
+        default:
+          return actionCard('Unknown status', `<p class="text-sm">${escapeHtml(status)}</p>`);
+      }
+    }
+
     function inspectionForm(app, disabled) {
       return `
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -767,6 +870,7 @@
         ['Inspection', app.inspection_schedule ? `${fmtDate(app.inspection_schedule)}${app.inspector_name ? ' · ' + app.inspector_name : ''}` : ''],
         ['Payment', app.payment_amount ? `${fmtPeso(app.payment_amount)}${app.or_number ? ' · OR ' + app.or_number : ''}${app.paid_at ? ' · paid ' + fmtDate(app.paid_at) : ''}` : ''],
         ['Installation', fmtDate(app.installation_schedule)],
+        ['Reconnection', app.reconnection_schedule ? `${fmtDate(app.reconnection_schedule)}${app.assigned_crew ? ' · ' + app.assigned_crew : ''}` : ''],
       ].filter(r => r[1]);
 
       document.getElementById('drawerContent').innerHTML = `
@@ -778,7 +882,7 @@
               ${app.is_flagged ? `<span class="badge" style="background:#F2E1DF;color:#A33B34">FLAGGED · possible duplicate</span>` : ''}
             </div>
             <p class="text-xs text-ink-700 mt-1 num">${escapeHtml(app.contact_number || '—')} · Applied ${escapeHtml(fmtDate(app.created_at))}</p>
-            ${!['Energized', 'Rejected'].includes(status) ? `
+            ${!FINISHED.includes(status) ? `
             <button onclick="document.getElementById('nextStepCard')?.scrollIntoView({behavior:'smooth', block:'start'})"
               class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-copper-500 bg-copper-100 px-2.5 py-1 rounded hover:opacity-80">
               Next: ${escapeHtml(nextStepText(app))} ↑
@@ -788,7 +892,7 @@
         </div>
 
         <div class="p-6 space-y-5">
-          ${renderStepper(status)}
+          ${renderStepper(app)}
 
           ${renderNextAction(app)}
 
@@ -797,7 +901,13 @@
 
           <!-- Everything else is folded away until needed -->
           <div class="space-y-3">
-            ${foldPanel('panelDetails', 'Applicant details &amp; map', `
+            ${isRecon(app) ? foldPanel('panelDetails', 'Account details', `
+              <div class="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                <div><p class="text-xs text-ink-700">Account number</p><p class="font-semibold num">${escapeHtml(app.account_number || '—')}</p></div>
+                <div><p class="text-xs text-ink-700">Account status</p><p class="font-semibold">${escapeHtml((currentRecon || {}).accountStatus || '—')}</p></div>
+                <div class="col-span-2"><p class="text-xs text-ink-700">Address</p><p class="font-medium">${escapeHtml(app.address || '—')}</p></div>
+                ${app.remarks ? `<div class="col-span-2"><p class="text-xs text-ink-700">Member's note</p><p class="font-medium">${escapeHtml(app.remarks)}</p></div>` : ''}
+              </div>`) : foldPanel('panelDetails', 'Applicant details &amp; map', `
               <div class="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                 <div><p class="text-xs text-ink-700">Connection type</p><p class="font-semibold">${escapeHtml(app.connection_type || '—')}</p></div>
                 <div><p class="text-xs text-ink-700">Ownership</p><p class="font-semibold">${escapeHtml(app.ownership_status || '—')}${app.via_representative ? ' · via representative' : ''}</p></div>
@@ -1020,6 +1130,37 @@
 
     function actResetStatus(status, message) {
       updateApp({ status }, message);
+    }
+
+    // ---------------- Reconnection actions ----------------
+    function actReconVerify() {
+      const r = currentRecon || {};
+      if (r.unpaid && r.unpaid.length) { toast('The member still has unpaid bills.', false); return; }
+      const or = val('reconOr');
+      if (!or) { toast('Please enter the OR number of the reconnection fee.', false); return; }
+      updateApp({ payment_amount: r.fee, or_number: or, status: 'Payment Verified' },
+        'Payment verified. You can now schedule the reconnection.');
+    }
+
+    function actReconSchedule() {
+      const date = val('reconDate');
+      const crew = val('reconCrew');
+      if (!date) { toast('Please set the reconnection date and time.', false); return; }
+      if (isPast(date)) { toast('The schedule cannot be in the past.', false); return; }
+      if (!crew) { toast('Please enter the assigned crew or lineman.', false); return; }
+      updateApp({ reconnection_schedule: fromLocalInput(date), assigned_crew: crew, status: 'Reconnection Scheduled' },
+        'Reconnection scheduled. The member can now see it in the app.');
+    }
+
+    async function actReconDone() {
+      const ok = await confirmDialog({
+        title: 'Mark as reconnected?',
+        message: `Account ${current.account_number || ''} will be set back to Active.`,
+        okText: 'Yes, reconnected',
+      });
+      if (!ok) return;
+      updateApp({ status: 'Reconnected', reconnected_at: new Date().toISOString() },
+        'Service reconnected. The account is Active again.');
     }
   </script>
 
