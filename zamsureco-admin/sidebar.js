@@ -373,6 +373,58 @@
       line-height: 1.4;
     }
 
+    /* Overview tabs (Announcements / Applications / Incidents) */
+    .ov-tabs {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      background: #fff;
+      border: 1px solid #DFE3EE;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 24px;
+      font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    }
+    .ov-tab {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      text-decoration: none;
+      color: #353D5C;
+      position: relative;
+      transition: background 0.15s;
+    }
+    .ov-tab + .ov-tab { border-left: 1px solid #DFE3EE; }
+    .ov-tab:hover { background: #F3F5FD; }
+    .ov-tab.active { background: #F3F5FD; }
+    .ov-tab.active::after {
+      content: "";
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      height: 3px;
+      background: #EBCB00;          /* logo yellow */
+    }
+    .ov-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      background: #E2E6FA; color: #1A2B9E; flex-shrink: 0;
+    }
+    .ov-icon svg { width: 16px; height: 16px; }
+    .ov-tab.alert .ov-icon { background: #FFF6BF; color: #7A6400; }
+    .ov-text { min-width: 0; }
+    .ov-label { font-size: 12px; color: #4A5372; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ov-count {
+      font-family: 'IBM Plex Mono', ui-monospace, monospace;
+      font-size: 20px; font-weight: 600; color: #141B3D; line-height: 1.2;
+    }
+    .ov-tab.active .ov-label { color: #1A2B9E; font-weight: 600; }
+    @media (max-width: 640px) {
+      .ov-tab { padding: 10px; gap: 8px; }
+      .ov-icon { display: none; }
+      .ov-label { font-size: 11px; }
+      .ov-count { font-size: 17px; }
+    }
+
     /* Mobile */
     .sidebar-backdrop { display: none; }
     @media (max-width: 768px) {
@@ -434,7 +486,10 @@
       });
     }
 
-    // 5. Sentralisadong Logout Handler
+    // 5. Overview tabs on the Announcements, Applications and Incidents pages
+    renderOverviewTabs();
+
+    // 6. Sentralisadong Logout Handler
     const logoutBtn = document.getElementById("logoutBtn");
     if (logoutBtn) {
       logoutBtn.addEventListener("click", async (e) => {
@@ -455,4 +510,91 @@
       });
     }
   });
+
+  /* ------------------------------------------------------------
+     OVERVIEW TABS
+     The same three numbers as the Dashboard, kept at the top of
+     the Announcements, Applications and Incident Reports pages so
+     the admin can switch between them without going back.
+     Each tab opens its page with the same filter as the Dashboard,
+     so the number on the tab matches the list it opens.
+     ------------------------------------------------------------ */
+  const OV_TABS = [
+    {
+      page: "admin_announcements.html",
+      href: "admin_announcements.html?view=list",
+      label: "Announcements published",
+      table: "announcements",
+      exclude: null,
+      icon: '<path d="M3 11l18-5v12L3 13v-2z"/><path d="M11 13v6a2 2 0 002 2h1"/>',
+    },
+    {
+      page: "admin_application.html",
+      href: "admin_application.html?filter=active",
+      label: "Applications needing action",
+      table: "service_applications",
+      exclude: ["Energized", "Rejected"],
+      icon: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+    },
+    {
+      page: "admin_incidents.html",
+      href: "admin_incidents.html?filter=open",
+      label: "Open incident reports",
+      table: "incident_reports",
+      exclude: ["Resolved", "Rejected", "Closed"],
+      icon: '<path d="M13 2L3 14h7l-1 8 11-14h-7l1-6z"/>',
+      alert: true,
+    },
+  ];
+
+  function renderOverviewTabs() {
+    const isTabPage = OV_TABS.some(t => t.page === currentPage);
+    if (!isTabPage) return;   // only on the three pages (the Dashboard has its own cards)
+
+    const main = document.querySelector("main");
+    if (!main) return;
+    const container = main.firstElementChild || main;
+
+    const html = `
+      <nav class="ov-tabs" aria-label="Overview">
+        ${OV_TABS.map(t => `
+          <a href="${t.href}" class="ov-tab${t.page === currentPage ? " active" : ""}${t.alert ? " alert" : ""}"
+             ${t.page === currentPage ? 'aria-current="page"' : ""}>
+            <span class="ov-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${t.icon}</svg>
+            </span>
+            <span class="ov-text">
+              <span class="ov-label" style="display:block">${t.label}</span>
+              <span class="ov-count" data-ov-table="${t.table}" style="display:block">–</span>
+            </span>
+          </a>`).join("")}
+      </nav>`;
+    container.insertAdjacentHTML("afterbegin", html);
+
+    loadOverviewCounts();
+  }
+
+  async function loadOverviewCounts() {
+    let client = window.supabaseClient || window._supabase || null;
+    try { if (!client && typeof _supabase !== "undefined") client = _supabase; } catch (e) {}
+    if (!client) return;
+
+    await Promise.all(OV_TABS.map(async (t) => {
+      const el = document.querySelector(`[data-ov-table="${t.table}"]`);
+      if (!el) return;
+      try {
+        let q = client.from(t.table).select("*", { count: "exact", head: true });
+        if (t.exclude) {
+          q = q.not("status", "in", `(${t.exclude.map(s => `"${s}"`).join(",")})`);
+        }
+        const { count, error } = await q;
+        el.textContent = error ? "N/A" : (count ?? 0).toLocaleString();
+      } catch (e) {
+        el.textContent = "N/A";
+      }
+    }));
+  }
+
+  // Pages can call this after they change data (e.g. after posting an announcement)
+  window.refreshOverviewTabs = loadOverviewCounts;
 })();
