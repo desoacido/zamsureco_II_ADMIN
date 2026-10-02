@@ -200,6 +200,12 @@
       // Kunin lang agad yung count, hindi pa yung buong listahan
       preloadCount();
       loadPolesForPicker();
+
+      // From the dashboard's "View all": open the list right away
+      if (new URLSearchParams(window.location.search).get('view') === 'list') {
+        await toggleAnnouncementList();
+        document.getElementById('announcementListWrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }
 
     document.addEventListener('click', async (e) => {
@@ -330,6 +336,7 @@
         .from('announcements')
         .select('*', { count: 'exact', head: true });
       if (!error) document.getElementById('announcementCount').textContent = count ?? 0;
+      if (window.refreshOverviewTabs) window.refreshOverviewTabs();
     }
 
     // Toggle: ipapakita/itatago yung listahan. Kukuha lang ng data sa unang
