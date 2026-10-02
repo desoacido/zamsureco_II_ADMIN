@@ -300,7 +300,8 @@
       'Papers':       'bg-paper-100 text-ink-800',
       'Inspection':   'bg-gold-100 text-gold-700',
       'Installation': 'bg-ok-100 text-ok-600',
-      'Reconnection': 'bg-danger-100 text-danger-600',
+      'Reconnection': 'bg-brand-100 text-brand-800',
+      'Disconnection': 'bg-danger-100 text-danger-600',
     };
 
     async function loadSchedule() {
@@ -323,8 +324,24 @@
       const events = (data || []).map(a => {
         const step = STEP_EVENTS[a.status];
         const when = a[step.field] ? new Date(a[step.field]) : null;
-        return when ? { app: a, step, when } : null;
-      }).filter(Boolean).sort((x, y) => x.when - y.when);
+        return when ? { app: a, step, when, href: `admin_application.html?open=${encodeURIComponent(a.id)}` } : null;
+      }).filter(Boolean);
+
+      // Disconnection orders (from Billing Statements)
+      const { data: orders } = await _supabase
+        .from('account_status')
+        .select('acct_no, disconnection_schedule, assigned_crew')
+        .eq('status', 'Disconnection Scheduled');
+      (orders || []).forEach(o => {
+        if (!o.disconnection_schedule) return;
+        events.push({
+          app: { consumer_name: 'Acct ' + o.acct_no, assigned_crew: o.assigned_crew },
+          step: { label: 'Disconnection', extra: a => a.assigned_crew || null },
+          when: new Date(o.disconnection_schedule),
+          href: 'admin_billing_upload.html?filter=disconnection',
+        });
+      });
+      events.sort((x, y) => x.when - y.when);
 
       const groups = [
         { title: 'Needs update', note: 'Date has passed but the step was not updated', color: 'text-danger-600',
@@ -355,12 +372,12 @@
             const extra = e.step.extra(e.app);
             const isToday = g.title === 'Today';
             return `
-              <a href="admin_application.html?open=${encodeURIComponent(e.app.id)}" class="sched-row flex items-center gap-4 px-5 py-2.5">
+              <a href="${e.href}" class="sched-row flex items-center gap-4 px-5 py-2.5">
                 <div class="w-24 flex-shrink-0">
                   <div class="text-sm font-semibold num text-ink-900">${fmtTime(e.when)}</div>
                   ${isToday ? '' : `<div class="text-xs text-ink-700">${fmtDay(e.when)}</div>`}
                 </div>
-                <span class="text-xs font-medium px-2 py-0.5 rounded ${EVENT_STYLE[e.step.label]} w-24 text-center flex-shrink-0">${e.step.label}</span>
+                <span class="text-xs font-medium px-2 py-0.5 rounded ${EVENT_STYLE[e.step.label]} w-28 text-center flex-shrink-0">${e.step.label}</span>
                 <div class="min-w-0 flex-1">
                   <div class="text-sm font-medium text-ink-900 truncate">${esc(e.app.consumer_name || '—')}</div>
                   ${extra ? `<div class="text-xs text-ink-700 truncate">${esc(extra)}</div>` : ''}
