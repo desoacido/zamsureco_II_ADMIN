@@ -100,22 +100,23 @@
 
         <!-- Summary -->
         <section class="grid grid-cols-2 md:grid-cols-4 bg-white border border-line rounded divide-x divide-line">
-          <div class="p-5">
+          <!-- Each number is a shortcut to the same filter below -->
+          <button type="button" data-filter="active" class="stat-tile p-5 text-left hover:bg-paper-50 transition">
             <p class="text-xs text-ink-700">Needs action</p>
             <p id="statActive" class="text-3xl font-semibold num mt-1">–</p>
-          </div>
-          <div class="p-5">
+          </button>
+          <button type="button" data-filter="For Inspection" class="stat-tile p-5 text-left hover:bg-paper-50 transition">
             <p class="text-xs text-ink-700">For inspection</p>
             <p id="statInspection" class="text-3xl font-semibold num mt-1 text-info-600">–</p>
-          </div>
-          <div class="p-5">
+          </button>
+          <button type="button" data-filter="Energized" class="stat-tile p-5 text-left hover:bg-paper-50 transition">
             <p class="text-xs text-ink-700">Energized</p>
             <p id="statEnergized" class="text-3xl font-semibold num mt-1 text-ok-600">–</p>
-          </div>
-          <div class="p-5">
+          </button>
+          <button type="button" data-filter="flagged" class="stat-tile p-5 text-left hover:bg-paper-50 transition">
             <p class="text-xs text-ink-700">Flagged</p>
             <p id="statFlagged" class="text-3xl font-semibold num mt-1 text-danger-600">–</p>
-          </div>
+          </button>
         </section>
 
         <section class="bg-white border border-line rounded">
@@ -126,9 +127,10 @@
             </div>
             <div class="flex items-center gap-2 flex-wrap">
               <select id="statusFilter" class="field" style="width:auto">
-                <option value="active">Needs action</option>
                 <option value="all">All applications</option>
-                <option value="flagged">Flagged only</option>
+                <option value="active">Needs action</option>
+                <option value="For Inspection">For inspection</option>
+                <option value="flagged">Flagged (needs review)</option>
                 <option value="Energized">Energized</option>
                 <option value="Rejected">Rejected</option>
               </select>
@@ -394,6 +396,7 @@
       applications = data || [];
       renderStats();
       renderTable();
+      if (window.refreshOverviewTabs) window.refreshOverviewTabs();
     }
 
     function renderStats() {
@@ -408,9 +411,10 @@
       const q = document.getElementById('searchInput').value.trim().toLowerCase();
 
       const rows = applications.filter(a => {
+        // Each filter counts exactly what its summary number counts
         if (filter === 'active' && !isActive(a)) return false;
-        if (filter === 'flagged' && !a.is_flagged) return false;
-        if (['Energized', 'Rejected'].includes(filter) && a.status !== filter) return false;
+        if (filter === 'flagged' && !(a.is_flagged && isActive(a))) return false;
+        if (['For Inspection', 'Energized', 'Rejected'].includes(filter) && a.status !== filter) return false;
         if (q) {
           const hay = `${a.consumer_name || ''} ${a.contact_number || ''}`.toLowerCase();
           if (!hay.includes(q)) return false;
@@ -460,7 +464,51 @@
       }).join('');
     }
 
-    document.getElementById('statusFilter').addEventListener('change', renderTable);
+    // Start with the filter from the link (e.g. ?filter=active from the dashboard).
+    // Opening the page from the sidebar shows all applications.
+    (function applyFilterFromUrl() {
+      const wanted = new URLSearchParams(window.location.search).get('filter');
+      const select = document.getElementById('statusFilter');
+      if (wanted && [...select.options].some(o => o.value === wanted)) {
+        select.value = wanted;
+      } else {
+        select.value = 'all';
+      }
+    })();
+
+    // Keep the URL in step with the filter, so refresh or sharing keeps the same view
+    function setFilter(value) {
+      const select = document.getElementById('statusFilter');
+      select.value = value;
+      const url = new URL(window.location.href);
+      if (value === 'all') url.searchParams.delete('filter');
+      else url.searchParams.set('filter', value);
+      history.replaceState(null, '', url);
+      highlightActiveTile();
+      renderTable();
+    }
+
+    // Underline the summary number that matches the current filter
+    function highlightActiveTile() {
+      const current = document.getElementById('statusFilter').value;
+      document.querySelectorAll('.stat-tile').forEach(t => {
+        const on = t.dataset.filter === current;
+        t.style.boxShadow = on ? 'inset 0 -3px 0 #EBCB00' : 'none';
+        t.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+    }
+
+    document.getElementById('statusFilter').addEventListener('change', (e) => setFilter(e.target.value));
+
+    // Clicking a summary number filters the list; clicking it again shows all
+    document.querySelectorAll('.stat-tile').forEach(tile => {
+      tile.addEventListener('click', () => {
+        const current = document.getElementById('statusFilter').value;
+        setFilter(current === tile.dataset.filter ? 'all' : tile.dataset.filter);
+      });
+    });
+
+    highlightActiveTile();
     document.getElementById('searchInput').addEventListener('input', renderTable);
     document.getElementById('applicationTableBody').addEventListener('click', (e) => {
       const btn = e.target.closest('[data-manage]');
