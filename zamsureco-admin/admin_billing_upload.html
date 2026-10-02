@@ -5,128 +5,226 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ZAMSURECO II — Billing Statements</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<!-- Shared colors and fonts (taken from the ZAMSURECO II logo) -->
+<script src="theme.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script>
-  tailwind.config = {
-    theme: {
-      extend: {
-        colors: {
-          navy: { 900:'#081D45', 800:'#0D2E63', 700:'#153a7a' },
-          amber: { DEFAULT:'#F2A93B', deep:'#C97C1B' },
-        },
-        fontFamily: {
-          display: ['Space Grotesk','sans-serif'],
-          body: ['Inter','sans-serif'],
-          mono: ['IBM Plex Mono','monospace'],
-        }
-      }
-    }
-  }
-</script>
 <style>
-  body{font-family:'Inter',sans-serif;}
-  .ticket-id{font-family:'IBM Plex Mono',monospace;}
-  .drop-zone{border:2px dashed #CBD5E1; transition: all .15s ease;}
-  .drop-zone.drag-over{border-color:#F2A93B; background:#FFFBEB;}
-  .toast-in{animation: toastIn .2s ease;}
+  .drop-zone { border: 2px dashed #C8CEDD; transition: all .15s ease; }
+  .drop-zone.drag-over { border-color: #EBCB00; background: #FFFBE6; }
+  .toast-in { animation: toastIn .2s ease; }
   @keyframes toastIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+
+  .page-tab { padding: 10px 4px; margin-right: 24px; font-size: 14px; font-weight: 500; color: #4A5372; border-bottom: 3px solid transparent; }
+  .page-tab:hover { color: #1A2B9E; }
+  .page-tab.active { color: #141B3D; font-weight: 600; border-bottom-color: #EBCB00; }
+
+  .stat { transition: border-color .15s, background .15s; text-align: left; }
+  .stat:hover { border-color: #94A2EA; }
+  .stat.active { border-color: #EBCB00; box-shadow: inset 0 -3px 0 #EBCB00; }
+
+  .field { width: 100%; padding: 8px 12px; background: #F5F6FA; border: 1px solid #DFE3EE; border-radius: 6px; font-size: 14px; }
+  .field:focus { outline: none; box-shadow: 0 0 0 2px #1A2B9E; }
 </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-body overflow-x-hidden">
+<body class="bg-paper-50 text-ink-900 font-sans overflow-x-hidden">
   <div id="sidebar-root"></div>
 
-  <div class="main-content flex-1 flex flex-col h-screen overflow-hidden">
-    <nav class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm flex-shrink-0">
-      <div class="flex items-center space-x-4">
-        <button class="hamburger-btn bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 rounded-xl w-10 h-10 flex flex-col items-center justify-center gap-1 cursor-pointer transition flex-shrink-0" id="sidebarToggle" aria-label="Toggle navigation menu">
-          <span class="block w-4 h-0.5 bg-gray-700 rounded-full"></span>
-          <span class="block w-4 h-0.5 bg-gray-700 rounded-full"></span>
-          <span class="block w-4 h-0.5 bg-gray-700 rounded-full"></span>
+  <div class="main-content !p-0 flex-1 flex flex-col h-screen overflow-hidden">
+    <!-- Header (same on every page) -->
+    <nav class="bg-white border-b border-line px-6 h-16 flex justify-between items-center flex-shrink-0">
+      <div class="flex items-center gap-4">
+        <button class="hamburger-btn" id="sidebarToggle" aria-label="Toggle navigation menu">
+          <span class="bar"></span><span class="bar"></span><span class="bar"></span>
         </button>
         <div>
-          <h1 class="text-lg font-display font-bold text-gray-900 leading-tight">Billing Statements</h1>
+          <h1 class="text-lg font-semibold text-ink-900 leading-tight">Billing Statements</h1>
+          <p class="text-xs text-ink-700">Monthly bills of members, payments, and uploads</p>
         </div>
       </div>
+      <div></div>
     </nav>
 
-    <main id="mainScroll" class="flex-1 overflow-y-auto p-8 bg-slate-50">
-      <div class="max-w-4xl mx-auto space-y-6">
+    <main id="mainScroll" class="flex-1 overflow-y-auto p-6 lg:p-8">
+      <div class="max-w-6xl mx-auto space-y-6">
 
-        <div id="diagBanner" class="hidden bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl p-4"></div>
-        <div id="successBanner" class="hidden bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-xl p-4"></div>
-
-        <!-- Step 1: Batch Info -->
-        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-          <h3 class="text-sm font-display font-bold text-navy-900 mb-4">1. Batch Information</h3>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Batch Name</label>
-              <input type="text" id="batchNameInput" placeholder="hal. July 2026 - Ipil Zone A" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 transition">
-            </div>
-            <div>
-              <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Billing Month</label>
-              <input type="month" id="billingMonthInput" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 transition">
-            </div>
-            <div>
-              <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Zone Code (opsyonal)</label>
-              <input type="text" id="zoneCodeInput" placeholder="hal. IPIL-A" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 transition">
-            </div>
-            <div>
-              <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Uploaded By</label>
-              <input type="text" id="uploadedByInput" placeholder="Pangalan mo" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 transition">
-            </div>
-          </div>
+        <!-- Page tabs -->
+        <div class="border-b border-line flex">
+          <button class="page-tab" data-tab="statements">Statements</button>
+          <button class="page-tab" data-tab="upload">Upload CSV</button>
         </div>
 
-        <!-- Step 2: File Upload -->
-        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-          <h3 class="text-sm font-display font-bold text-navy-900 mb-4">2. Upload CSV File</h3>
-          <div id="dropZone" class="drop-zone rounded-xl p-10 text-center cursor-pointer">
-            <label class="inline-block bg-navy-800 hover:bg-navy-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition cursor-pointer">
-              Choose File
-              <input type="file" id="fileInput" accept=".csv" class="hidden">
-            </label>
-            <p id="fileNameLabel" class="text-xs text-slate-400 mt-3"></p>
-          </div>
-        </div>
+        <!-- =========================================================
+             TAB 1: STATEMENTS
+             ========================================================= -->
+        <section id="tabStatements" class="space-y-6">
 
-        <!-- Step 3: Preview -->
-        <div id="previewSection" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="text-sm font-display font-bold text-navy-900">3. Preview (<span id="rowCount">0</span> records)</h3>
-            <span id="parseWarning" class="hidden text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg"></span>
-          </div>
-          <div class="overflow-x-auto border border-slate-200 rounded-xl">
-            <table class="w-full text-left text-xs">
-              <thead>
-                <tr class="bg-slate-100/70 text-slate-600 uppercase tracking-wider font-semibold border-b border-slate-200">
-                  <th class="p-3">Acct No</th>
-                  <th class="p-3">Name</th>
-                  <th class="p-3">Address</th>
-                  <th class="p-3">kWh Used</th>
-                  <th class="p-3">Total Billed</th>
-                  <th class="p-3">Due Date</th>
-                </tr>
-              </thead>
-              <tbody id="previewTableBody" class="divide-y divide-slate-100 ticket-id"></tbody>
-            </table>
+          <!-- Summary (click to filter) -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <button class="stat bg-white border border-line rounded-lg p-5" data-filter="unpaid">
+              <div class="text-sm text-ink-700">Unpaid</div>
+              <div class="flex items-baseline gap-2 mt-2">
+                <span class="text-3xl font-semibold num" id="sumUnpaid">–</span>
+                <span class="text-sm font-medium text-ink-700" id="sumUnpaidTotal"></span>
+              </div>
+            </button>
+            <button class="stat bg-white border border-line rounded-lg p-5" data-filter="overdue">
+              <div class="text-sm text-danger-600 font-medium">Overdue</div>
+              <div class="flex items-baseline gap-2 mt-2">
+                <span class="text-3xl font-semibold num text-danger-600" id="sumOverdue">–</span>
+                <span class="text-sm font-medium text-ink-700" id="sumOverdueTotal"></span>
+              </div>
+            </button>
+            <button class="stat bg-white border border-line rounded-lg p-5" data-filter="paid">
+              <div class="text-sm text-ok-600 font-medium">Paid</div>
+              <div class="flex items-baseline gap-2 mt-2">
+                <span class="text-3xl font-semibold num text-ok-600" id="sumPaid">–</span>
+                <span class="text-sm font-medium text-ink-700" id="sumPaidTotal"></span>
+              </div>
+            </button>
           </div>
 
-          <div class="mt-6 flex justify-end gap-2.5">
-            <button onclick="resetUpload()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition">Cancel</button>
-            <button id="confirmUploadBtn" onclick="confirmUpload()" class="bg-navy-800 hover:bg-navy-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold tracking-wide shadow-sm transition">Confirm & Upload to Database</button>
+          <!-- List -->
+          <div class="bg-white border border-line rounded-lg overflow-hidden">
+            <header class="px-5 py-4 border-b border-line flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 class="text-sm font-semibold section-head">Statements</h2>
+                <p class="text-xs text-ink-700 mt-0.5" id="listCaption">—</p>
+              </div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <select id="statusFilter" class="field" style="width:auto">
+                  <option value="all">All statements</option>
+                  <option value="unpaid">Unpaid</option>
+                  <option value="overdue">Overdue</option>
+                  <option value="paid">Paid</option>
+                </select>
+                <input id="searchInput" type="search" placeholder="Search account no. or name…" class="field" style="width:240px">
+              </div>
+            </header>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="text-left text-ink-700 bg-paper-50 border-b border-line">
+                    <th class="px-5 py-2.5 font-medium">Account</th>
+                    <th class="px-3 py-2.5 font-medium">Billing month</th>
+                    <th class="px-3 py-2.5 font-medium text-right">kWh</th>
+                    <th class="px-3 py-2.5 font-medium text-right">Amount</th>
+                    <th class="px-3 py-2.5 font-medium">Due date</th>
+                    <th class="px-3 py-2.5 font-medium">Status</th>
+                    <th class="px-5 py-2.5 font-medium text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="statementBody" class="divide-y divide-line">
+                  <tr><td colspan="7" class="px-5 py-8 text-center text-ink-700">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        </section>
+
+        <!-- =========================================================
+             TAB 2: UPLOAD CSV (unchanged process)
+             ========================================================= -->
+        <section id="tabUpload" class="space-y-6 hidden">
+
+          <div id="diagBanner" class="hidden bg-danger-100 border border-danger-600/30 text-danger-600 text-sm rounded-lg p-4"></div>
+          <div id="successBanner" class="hidden bg-ok-100 border border-ok-600/30 text-ok-600 text-sm rounded-lg p-4"></div>
+
+          <!-- Step 1: Batch Info -->
+          <div class="bg-white rounded-lg border border-line p-6">
+            <h3 class="text-sm font-semibold mb-4 section-head">1. Batch Information</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-ink-700 mb-1.5">Batch Name</label>
+                <input type="text" id="batchNameInput" placeholder="hal. July 2026 - Ipil Zone A" class="field">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-ink-700 mb-1.5">Billing Month</label>
+                <input type="month" id="billingMonthInput" class="field">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-ink-700 mb-1.5">Zone Code (opsyonal)</label>
+                <input type="text" id="zoneCodeInput" placeholder="hal. IPIL-A" class="field">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-ink-700 mb-1.5">Uploaded By</label>
+                <input type="text" id="uploadedByInput" placeholder="Pangalan mo" class="field">
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2: File Upload -->
+          <div class="bg-white rounded-lg border border-line p-6">
+            <h3 class="text-sm font-semibold mb-4 section-head">2. Upload CSV File</h3>
+            <div id="dropZone" class="drop-zone rounded-lg p-10 text-center cursor-pointer">
+              <label class="inline-block bg-brand-700 hover:bg-brand-800 text-white px-5 py-2.5 rounded-md text-sm font-semibold transition cursor-pointer">
+                Choose File
+                <input type="file" id="fileInput" accept=".csv" class="hidden">
+              </label>
+              <p class="text-xs text-ink-700 mt-3">or drag and drop the CSV here</p>
+              <p id="fileNameLabel" class="text-xs text-ink-700 mt-1"></p>
+            </div>
+          </div>
+
+          <!-- Step 3: Preview -->
+          <div id="previewSection" class="hidden bg-white rounded-lg border border-line p-6">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-sm font-semibold section-head">3. Preview (<span id="rowCount">0</span> records)</h3>
+              <span id="parseWarning" class="hidden text-xs text-gold-700 bg-gold-100 border border-gold-500/40 px-3 py-1.5 rounded-md"></span>
+            </div>
+            <div class="overflow-x-auto border border-line rounded-md">
+              <table class="w-full text-left text-xs">
+                <thead>
+                  <tr class="bg-paper-50 text-ink-700 font-medium border-b border-line">
+                    <th class="p-3">Acct No</th>
+                    <th class="p-3">Name</th>
+                    <th class="p-3">Address</th>
+                    <th class="p-3">kWh Used</th>
+                    <th class="p-3">Total Billed</th>
+                    <th class="p-3">Due Date</th>
+                  </tr>
+                </thead>
+                <tbody id="previewTableBody" class="divide-y divide-line num"></tbody>
+              </table>
+            </div>
+
+            <div class="mt-6 flex justify-end gap-2.5">
+              <button onclick="resetUpload()" class="bg-paper-100 hover:bg-line text-ink-800 px-4 py-2.5 rounded-md text-sm font-semibold transition">Cancel</button>
+              <button id="confirmUploadBtn" onclick="confirmUpload()" class="bg-brand-700 hover:bg-brand-800 text-white px-5 py-2.5 rounded-md text-sm font-semibold transition">Confirm & Upload to Database</button>
+            </div>
+          </div>
+        </section>
 
       </div>
     </main>
   </div>
 
-  <!-- Toast notification (bottom right, always visible) -->
-  <div id="toast" class="hidden fixed bottom-6 right-6 max-w-sm px-4 py-3 rounded-xl text-sm font-semibold shadow-lg z-[400]"></div>
+  <!-- Mark-as-paid dialog -->
+  <div id="payModal" class="hidden fixed inset-0 z-[500] flex items-center justify-center p-4" style="background:rgba(11,21,85,0.45)">
+    <div class="bg-white rounded-lg border border-line shadow-2xl w-full max-w-md">
+      <div class="px-6 pt-6 pb-4">
+        <h3 class="text-base font-semibold">Record payment</h3>
+        <p class="text-sm text-ink-700 mt-1" id="payInfo"></p>
+        <div class="mt-4 space-y-3">
+          <div>
+            <label class="block text-xs font-medium text-ink-700 mb-1.5">Official receipt (OR) number</label>
+            <input id="payOr" type="text" class="field num" placeholder="e.g. 0012345">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-ink-700 mb-1.5">Date paid</label>
+            <input id="payDate" type="date" class="field">
+          </div>
+        </div>
+      </div>
+      <div class="px-6 py-4 bg-paper-50 border-t border-line flex justify-end gap-2 rounded-b-lg">
+        <button id="payCancel" class="bg-white border border-line hover:bg-paper-100 text-ink-800 px-4 py-2 rounded-md text-sm font-semibold">Cancel</button>
+        <button id="paySave" class="bg-ok-600 hover:opacity-90 text-white px-4 py-2 rounded-md text-sm font-semibold">Mark as paid</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="hidden fixed bottom-6 right-6 max-w-sm px-4 py-3 rounded-lg text-sm font-semibold shadow-lg z-[600]"></div>
 
   <script>
     const SUPABASE_URL = 'https://zrnvivattocqvxlxzsld.supabase.co';
@@ -134,8 +232,243 @@
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     window._supabase = _supabase;
 
-    // Ang mga column na EXPECTED nating makita sa CSV. Kung may column ang
-    // file na hindi dito nakalista, babalewalain lang — hindi ito error.
+    async function checkAuth() {
+      const { data: { session } } = await _supabase.auth.getSession();
+      if (!session) { window.location.href = 'admin_login.html'; return; }
+      loadStatements();
+    }
+    checkAuth();
+
+    // ------------------------------------------------------------------
+    // HELPERS
+    // ------------------------------------------------------------------
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+    const peso = (n) => '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    function fmtDate(v) {
+      if (!v) return '—';
+      const d = new Date(v);
+      return isNaN(d) ? escapeHtml(v) : d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function fmtMonth(ym) {
+      const m = String(ym || '').match(/^(\d{4})-(\d{2})/);
+      if (!m) return escapeHtml(ym || '—');
+      return new Date(Number(m[1]), Number(m[2]) - 1, 1).toLocaleDateString('en-PH', { month: 'long', year: 'numeric' });
+    }
+
+    function toast(msg, ok = true) {
+      const t = document.getElementById('toast');
+      t.className = 'toast-in fixed bottom-6 right-6 max-w-sm px-4 py-3 rounded-lg text-sm font-semibold shadow-lg z-[600] ' +
+        (ok ? 'bg-ok-100 text-ok-600 border border-ok-600/30' : 'bg-danger-100 text-danger-600 border border-danger-600/30');
+      t.textContent = msg;
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => t.classList.add('hidden'), 5000);
+    }
+
+    // ------------------------------------------------------------------
+    // PAGE TABS (Statements / Upload CSV)
+    // ------------------------------------------------------------------
+    function showTab(name) {
+      document.querySelectorAll('.page-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+      document.getElementById('tabStatements').classList.toggle('hidden', name !== 'statements');
+      document.getElementById('tabUpload').classList.toggle('hidden', name !== 'upload');
+      const url = new URL(window.location.href);
+      if (name === 'upload') url.searchParams.set('tab', 'upload'); else url.searchParams.delete('tab');
+      history.replaceState(null, '', url);
+    }
+    document.querySelectorAll('.page-tab').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+
+    // ------------------------------------------------------------------
+    // STATEMENTS
+    // ------------------------------------------------------------------
+    let statements = [];
+
+    const isPaid = (s) => String(s.status || '').toLowerCase() === 'paid';
+    function isOverdue(s) {
+      if (isPaid(s) || !s.due_date) return false;
+      const d = new Date(s.due_date);
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      return !isNaN(d) && d < today;
+    }
+
+    // Start with the filter from the link (e.g. ?filter=unpaid from the Dashboard)
+    (function initFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const f = params.get('filter');
+      const select = document.getElementById('statusFilter');
+      select.value = ['unpaid', 'overdue', 'paid', 'all'].includes(f) ? f : 'all';
+      showTab(params.get('tab') === 'upload' ? 'upload' : 'statements');
+    })();
+
+    async function loadStatements() {
+      const { data, error } = await _supabase
+        .from('billing_statements')
+        .select('*')
+        .order('due_date', { ascending: true });
+
+      const body = document.getElementById('statementBody');
+      if (error) {
+        body.innerHTML = `<tr><td colspan="7" class="px-5 py-8 text-center text-danger-600">Error: ${escapeHtml(error.message)}</td></tr>`;
+        return;
+      }
+      statements = data || [];
+      renderSummary();
+      renderStatements();
+    }
+
+    function renderSummary() {
+      const unpaid = statements.filter(s => !isPaid(s));
+      const overdue = statements.filter(isOverdue);
+      const paid = statements.filter(isPaid);
+      const total = (list) => list.reduce((sum, s) => sum + Number(s.total_billed || 0), 0);
+
+      document.getElementById('sumUnpaid').textContent = unpaid.length;
+      document.getElementById('sumUnpaidTotal').textContent = unpaid.length ? peso(total(unpaid)) : '';
+      document.getElementById('sumOverdue').textContent = overdue.length;
+      document.getElementById('sumOverdueTotal').textContent = overdue.length ? peso(total(overdue)) : '';
+      document.getElementById('sumPaid').textContent = paid.length;
+      document.getElementById('sumPaidTotal').textContent = paid.length ? peso(total(paid)) : '';
+
+      const current = document.getElementById('statusFilter').value;
+      document.querySelectorAll('.stat').forEach(b => b.classList.toggle('active', b.dataset.filter === current));
+    }
+
+    function statusBadge(s) {
+      if (isPaid(s)) return `<span class="inline-block text-xs font-medium px-2 py-0.5 rounded border bg-ok-100 text-ok-600 border-ok-600/30">Paid</span>`;
+      if (isOverdue(s)) return `<span class="inline-block text-xs font-medium px-2 py-0.5 rounded border bg-danger-100 text-danger-600 border-danger-600/30">Overdue</span>`;
+      return `<span class="inline-block text-xs font-medium px-2 py-0.5 rounded border bg-gold-100 text-gold-700 border-gold-500/40">Unpaid</span>`;
+    }
+
+    function renderStatements() {
+      const filter = document.getElementById('statusFilter').value;
+      const q = document.getElementById('searchInput').value.trim().toLowerCase();
+
+      let rows = statements.filter(s => {
+        if (filter === 'unpaid' && isPaid(s)) return false;
+        if (filter === 'overdue' && !isOverdue(s)) return false;
+        if (filter === 'paid' && !isPaid(s)) return false;
+        if (q && !`${s.acct_no || ''} ${s.acct_name || ''}`.toLowerCase().includes(q)) return false;
+        return true;
+      });
+
+      // Unpaid first (oldest due date first), then paid (latest first)
+      rows = rows.sort((a, b) => {
+        if (isPaid(a) !== isPaid(b)) return isPaid(a) ? 1 : -1;
+        const da = new Date(a.due_date || 0), db = new Date(b.due_date || 0);
+        return isPaid(a) ? db - da : da - db;
+      });
+
+      const labels = { all: 'All statements', unpaid: 'Unpaid statements', overdue: 'Overdue statements', paid: 'Paid statements' };
+      document.getElementById('listCaption').textContent =
+        `${labels[filter]} · ${rows.length} record${rows.length === 1 ? '' : 's'}` +
+        (rows.length ? ` · ${peso(rows.reduce((s, r) => s + Number(r.total_billed || 0), 0))}` : '');
+
+      const body = document.getElementById('statementBody');
+      if (!rows.length) {
+        const empty = filter === 'unpaid' || filter === 'overdue'
+          ? 'No unpaid bills. All members are up to date.'
+          : (statements.length ? 'No statements match your search.' : 'No statements yet. Upload a CSV in the Upload CSV tab.');
+        body.innerHTML = `<tr><td colspan="7" class="px-5 py-10 text-center text-ink-700">${empty}</td></tr>`;
+        return;
+      }
+
+      body.innerHTML = rows.map(s => `
+        <tr class="hover:bg-brand-50/50">
+          <td class="px-5 py-3">
+            <div class="font-medium text-ink-900">${escapeHtml(s.acct_name || '—')}</div>
+            <div class="text-xs text-ink-700 num">${escapeHtml(s.acct_no || '')}</div>
+          </td>
+          <td class="px-3 py-3 text-ink-700 whitespace-nowrap">${fmtMonth(s.billing_year_month)}</td>
+          <td class="px-3 py-3 text-ink-700 num text-right">${s.kwh_used ?? '—'}</td>
+          <td class="px-3 py-3 font-semibold num text-right whitespace-nowrap">${peso(s.total_billed)}</td>
+          <td class="px-3 py-3 text-ink-700 num whitespace-nowrap ${isOverdue(s) ? 'text-danger-600 font-medium' : ''}">${fmtDate(s.due_date)}</td>
+          <td class="px-3 py-3">${statusBadge(s)}</td>
+          <td class="px-5 py-3 text-right whitespace-nowrap">
+            ${isPaid(s)
+              ? `<span class="text-xs text-ink-700">${s.or_number ? 'OR ' + escapeHtml(s.or_number) : ''}${s.paid_at ? ' · ' + fmtDate(s.paid_at) : ''}</span>`
+              : `<button class="text-xs font-semibold bg-ok-600 hover:opacity-90 text-white px-3 py-1.5 rounded-md" data-pay="${escapeHtml(s.id)}">Mark as paid</button>`}
+          </td>
+        </tr>`).join('');
+    }
+
+    function setFilter(value) {
+      document.getElementById('statusFilter').value = value;
+      const url = new URL(window.location.href);
+      if (value === 'all') url.searchParams.delete('filter'); else url.searchParams.set('filter', value);
+      history.replaceState(null, '', url);
+      renderSummary();
+      renderStatements();
+    }
+
+    document.getElementById('statusFilter').addEventListener('change', e => setFilter(e.target.value));
+    document.getElementById('searchInput').addEventListener('input', renderStatements);
+    // Click a summary box to filter; click it again to show all
+    document.querySelectorAll('.stat').forEach(b => b.addEventListener('click', () => {
+      setFilter(document.getElementById('statusFilter').value === b.dataset.filter ? 'all' : b.dataset.filter);
+    }));
+
+    // ------------------------------------------------------------------
+    // MARK AS PAID
+    // ------------------------------------------------------------------
+    let payingId = null;
+
+    document.getElementById('statementBody').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-pay]');
+      if (!btn) return;
+      const s = statements.find(x => String(x.id) === btn.dataset.pay);
+      if (!s) return;
+      payingId = s.id;
+      document.getElementById('payInfo').textContent =
+        `${s.acct_name || ''} · Acct ${s.acct_no || ''} · ${fmtMonth(s.billing_year_month)} · ${peso(s.total_billed)}`;
+      document.getElementById('payOr').value = '';
+      document.getElementById('payDate').value = new Date().toISOString().slice(0, 10);
+      document.getElementById('payModal').classList.remove('hidden');
+      document.getElementById('payOr').focus();
+    });
+
+    function closePay() {
+      document.getElementById('payModal').classList.add('hidden');
+      payingId = null;
+    }
+    document.getElementById('payCancel').addEventListener('click', closePay);
+    document.getElementById('payModal').addEventListener('click', (e) => { if (e.target.id === 'payModal') closePay(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePay(); });
+
+    document.getElementById('paySave').addEventListener('click', async () => {
+      const or = document.getElementById('payOr').value.trim();
+      const date = document.getElementById('payDate').value;
+      if (!or) { toast('Please enter the OR number.', false); return; }
+      if (!date) { toast('Please enter the date paid.', false); return; }
+
+      const btn = document.getElementById('paySave');
+      btn.disabled = true;
+      btn.textContent = 'Saving…';
+
+      const { error } = await _supabase
+        .from('billing_statements')
+        .update({ status: 'Paid', or_number: or, paid_at: new Date(date + 'T12:00:00').toISOString() })
+        .eq('id', payingId);
+
+      btn.disabled = false;
+      btn.textContent = 'Mark as paid';
+
+      if (error) {
+        const hint = /or_number|paid_at/.test(error.message) ? ' (Run the SQL that adds or_number and paid_at first.)' : '';
+        toast('Error: ' + error.message + hint, false);
+        return;
+      }
+      closePay();
+      toast('Payment recorded. The member will see this bill as Paid in the app.');
+      loadStatements();
+    });
+
+    // ------------------------------------------------------------------
+    // UPLOAD CSV (same process as before)
+    // ------------------------------------------------------------------
     const REQUIRED_COLUMNS = [
       'acct_no', 'acct_name', 'address', 'meter_brand', 'meter_serial',
       'meter_type', 'billing_year_month', 'period_from', 'period_to',
@@ -143,27 +476,6 @@
     ];
 
     let parsedRows = [];
-
-    async function checkAuth() {
-      const { data: { session } } = await _supabase.auth.getSession();
-      if (!session) { window.location.href = 'admin_login.html'; return; }
-    }
-    checkAuth();
-
-    function escapeHtml(str) {
-      if (str === null || str === undefined) return '';
-      return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-    }
-
-    // Toast in the bottom-right corner, so the result is seen wherever the admin is on the page
-    function toast(msg, ok = true) {
-      const t = document.getElementById('toast');
-      t.className = 'toast-in fixed bottom-6 right-6 max-w-sm px-4 py-3 rounded-xl text-sm font-semibold shadow-lg z-[400] ' +
-        (ok ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200');
-      t.textContent = msg;
-      clearTimeout(t._timer);
-      t._timer = setTimeout(() => t.classList.add('hidden'), 5000);
-    }
 
     function scrollToTop() {
       document.getElementById('mainScroll').scrollTo({ top: 0, behavior: 'smooth' });
@@ -187,14 +499,10 @@
       scrollToTop();
     }
 
-    // --- Drag & drop wiring ---
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
 
-    dropZone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropZone.classList.add('drag-over');
-    });
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
     dropZone.addEventListener('drop', (e) => {
       e.preventDefault();
@@ -210,27 +518,20 @@
         showError('Kailangan .csv file lang ang i-upload.');
         return;
       }
-
       document.getElementById('fileNameLabel').textContent = `Selected: ${file.name}`;
       document.getElementById('diagBanner').classList.add('hidden');
       document.getElementById('successBanner').classList.add('hidden');
 
-      // PapaParse ang gumaganap ng buong CSV parsing — kayang-kaya nito
-      // ang mga comma sa loob ng naka-quote na fields (hal. "TAYRUS, REBECCA I").
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
         transformHeader: (h) => h.trim(),
         complete: (results) => {
-          if (results.errors.length > 0) {
-            console.warn('Parse warnings:', results.errors);
-          }
+          if (results.errors.length > 0) console.warn('Parse warnings:', results.errors);
           parsedRows = results.data;
           renderPreview(results.meta.fields);
         },
-        error: (err) => {
-          showError('Error sa pag-parse ng file: ' + err.message);
-        }
+        error: (err) => showError('Error sa pag-parse ng file: ' + err.message)
       });
     }
 
@@ -245,7 +546,6 @@
       }
 
       document.getElementById('rowCount').textContent = parsedRows.length;
-
       const tbody = document.getElementById('previewTableBody');
       tbody.innerHTML = '';
       parsedRows.slice(0, 10).forEach(row => {
@@ -256,17 +556,14 @@
           <td class="p-3">${escapeHtml(row.address)}</td>
           <td class="p-3">${escapeHtml(row.kwh_used)}</td>
           <td class="p-3">${escapeHtml(row.total_billed)}</td>
-          <td class="p-3">${escapeHtml(row.due_date)}</td>
-        `;
+          <td class="p-3">${escapeHtml(row.due_date)}</td>`;
         tbody.appendChild(tr);
       });
-
       if (parsedRows.length > 10) {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="6" class="p-3 text-center text-slate-400">... at ${parsedRows.length - 10} pang records</td>`;
+        tr.innerHTML = `<td colspan="6" class="p-3 text-center text-ink-700">... at ${parsedRows.length - 10} pang records</td>`;
         tbody.appendChild(tr);
       }
-
       document.getElementById('previewSection').classList.remove('hidden');
     }
 
@@ -288,14 +585,10 @@
       return val.trim();
     }
 
-    // How many of the uploaded account numbers belong to members in the app
     async function countMatchedAccounts(acctNos) {
       try {
         const unique = [...new Set(acctNos)];
-        const { data, error } = await _supabase
-          .from('profiles')
-          .select('account_number')
-          .in('account_number', unique);
+        const { data, error } = await _supabase.from('profiles').select('account_number').in('account_number', unique);
         if (error) return null;
         return new Set((data || []).map(p => p.account_number)).size;
       } catch (_) {
@@ -309,22 +602,14 @@
       const zoneCode = document.getElementById('zoneCodeInput').value.trim();
       const uploadedBy = document.getElementById('uploadedByInput').value.trim();
 
-      if (!batchName || !billingMonth) {
-        showError('Kailangan punan ang Batch Name at Billing Month bago mag-upload.');
-        return;
-      }
-
-      if (parsedRows.length === 0) {
-        showError('Wala pang na-upload na CSV file.');
-        return;
-      }
+      if (!batchName || !billingMonth) { showError('Kailangan punan ang Batch Name at Billing Month bago mag-upload.'); return; }
+      if (parsedRows.length === 0) { showError('Wala pang na-upload na CSV file.'); return; }
 
       const btn = document.getElementById('confirmUploadBtn');
       btn.disabled = true;
       btn.textContent = 'Uploading...';
 
       try {
-        // 1. Gumawa muna ng batch record
         const { data: batchData, error: batchError } = await _supabase
           .from('reading_batches')
           .insert({
@@ -336,14 +621,10 @@
           })
           .select()
           .single();
-
         if (batchError) throw batchError;
 
-        const batchId = batchData.id;
-
-        // 2. I-map ang bawat CSV row papunta sa billing_statements columns
         const statementsToInsert = parsedRows.map(row => ({
-          batch_id: batchId,
+          batch_id: batchData.id,
           acct_no: row.acct_no?.trim(),
           acct_name: row.acct_name?.trim(),
           address: row.address?.trim(),
@@ -361,39 +642,26 @@
           status: 'Unpaid',
         }));
 
-        // I-check kung may kulang na required field (acct_no)
         const invalidRows = statementsToInsert.filter(s => !s.acct_no);
-        if (invalidRows.length > 0) {
-          throw new Error(`${invalidRows.length} row(s) ang walang acct_no. Paki-check ang CSV file.`);
-        }
+        if (invalidRows.length > 0) throw new Error(`${invalidRows.length} row(s) ang walang acct_no. Paki-check ang CSV file.`);
 
-        // 3. I-insert lahat ng statements (batch insert, mas mabilis)
-        const { error: insertError } = await _supabase
-          .from('billing_statements')
-          .insert(statementsToInsert);
-
+        const { error: insertError } = await _supabase.from('billing_statements').insert(statementsToInsert);
         if (insertError) throw insertError;
 
-        // 4. How many bills will show up in members' apps
         const matched = await countMatchedAccounts(statementsToInsert.map(s => s.acct_no));
-        const matchText = matched === null
-          ? ''
-          : ` ${matched} account(s) ang tugma sa members sa app at makikita na nila ang bill.`;
-
+        const matchText = matched === null ? '' : ` ${matched} account(s) ang tugma sa members sa app at makikita na nila ang bill.`;
         showSuccess(`✓ Successfully na-upload ang ${statementsToInsert.length} billing statement(s) para sa "${batchName}".${matchText}`);
-
-        btn.textContent = 'Uploaded ✓';
-        setTimeout(() => { btn.textContent = 'Confirm & Upload to Database'; }, 2500);
 
         resetUpload();
         document.getElementById('batchNameInput').value = '';
         document.getElementById('billingMonthInput').value = '';
         document.getElementById('zoneCodeInput').value = '';
+        loadStatements();   // the new bills appear in the Statements tab
       } catch (err) {
         showError('Error: ' + (err.message || JSON.stringify(err)));
-        btn.textContent = 'Confirm & Upload to Database';
       } finally {
         btn.disabled = false;
+        btn.textContent = 'Confirm & Upload to Database';
       }
     }
   </script>
