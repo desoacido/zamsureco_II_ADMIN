@@ -47,11 +47,16 @@
         {
           href: "admin_application.html",
           label: "Applications",
+          // Badge: applications still waiting for an admin step
+          count: { table: "service_applications", exclude: ["Energized", "Rejected"] },
           icon: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
         },
         {
           href: "admin_incidents.html",
           label: "Incident Reports",
+          // Badge: incidents not yet resolved
+          count: { table: "incident_reports", exclude: ["Resolved", "Rejected", "Closed"] },
+          alert: true,
           icon: '<path d="M13 2L3 14h7l-1 8 11-14h-7l1-6z"/>',
         },
         {
@@ -93,6 +98,7 @@
           <span class="nav-tick"></span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${item.icon}</svg>
           <span class="nav-label">${item.label}</span>
+          ${item.count ? `<span class="nav-count${item.alert ? " alert" : ""}" data-nav-count="${item.count.table}"></span>` : ""}
         </a>`;
     }).join("");
     const heading = group.title ? `<div class="nav-group-title">${group.title}</div>` : "";
@@ -374,43 +380,50 @@
     }
 
 
-    /* Quick actions strip: fixed place under the header on every page */
-    .qa-strip {
-      flex-shrink: 0;
+    /* Standard page header: same look on every page (matches the Dashboard) */
+    .main-content > nav.page-header {
       background: #FFFFFF;
       border-bottom: 1px solid #DFE3EE;
-      padding: 12px 32px;
+      height: 64px;
+      min-height: 64px;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      box-sizing: border-box;
+    }
+    .main-content > nav.page-header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #141B3D;
+      line-height: 1.25;
+      margin: 0;
+    }
+    .main-content > nav.page-header p {
+      font-size: 12px;
+      color: #4A5372;
+      margin: 0;
+    }
+    .page-header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 14px;
+      color: #4A5372;
       font-family: 'IBM Plex Sans', system-ui, sans-serif;
     }
-    .qa-inner {
-      max-width: 72rem;               /* same width as the Dashboard content */
-      margin: 0 auto;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
+    .hdr-email { font-weight: 500; }
+    .hdr-sep { width: 1px; height: 16px; background: #DFE3EE; }
+    .hdr-clock { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 13px; }
+    @media (max-width: 640px) {
+      .page-header-right { display: none; }
     }
-    .qa-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-size: 14px;
-      font-weight: 500;
-      text-decoration: none;
-      background: #fff;
-      color: #111F78;
-      border: 1px solid #DFE3EE;
-      transition: background 0.15s, border-color 0.15s;
-    }
-    .qa-btn:hover { background: #F3F5FD; border-color: #94A2EA; }
-    .qa-btn.primary { background: #1A2B9E; color: #fff; border-color: #1A2B9E; }
-    .qa-btn.primary:hover { background: #111F78; }
-    /* The button of the page you are on */
-    .qa-btn.current { border-color: #EBCB00; box-shadow: inset 0 -3px 0 #EBCB00; }
-    .qa-btn.primary.current { box-shadow: inset 0 -3px 0 #F7E21A; }
-    .qa-count {
+
+    /* Menu badges (Applications, Incident Reports) */
+    .nav-count {
       display: none;
+      margin-left: auto;
       min-width: 20px;
       height: 20px;
       padding: 0 6px;
@@ -418,15 +431,24 @@
       align-items: center;
       justify-content: center;
       font-family: 'IBM Plex Mono', ui-monospace, monospace;
-      font-size: 11.5px;
+      font-size: 11px;
       font-weight: 600;
-      background: #E2E6FA;
-      color: #1A2B9E;
+      background: rgba(255, 255, 255, 0.16);
+      color: #fff;
+      box-sizing: border-box;
     }
-    .qa-count.alert { background: #FFF6BF; color: #7A6400; }
-    @media (max-width: 768px) {
-      .qa-strip { padding: 10px 16px; }
-      .qa-btn { padding: 7px 12px; font-size: 13px; }
+    .nav-count.show { display: inline-flex; }
+    .nav-count.alert { background: #F7E21A; color: #0B1555; }   /* logo yellow */
+    /* Collapsed sidebar: the number becomes a small dot on the icon */
+    html.sidebar-collapsed .nav-count.show {
+      position: absolute;
+      top: 6px;
+      right: 12px;
+      min-width: 8px;
+      width: 8px;
+      height: 8px;
+      padding: 0;
+      font-size: 0;
     }
 
     /* Mobile */
@@ -490,8 +512,11 @@
       });
     }
 
-    // 5. Quick action buttons under the header of the four pages they open
-    renderTopShared();
+    // 5. Same header on every page: white, same height, email + time on the right
+    standardizeHeader();
+
+    // 6. Numbers next to "Applications" and "Incident Reports" in the menu
+    loadNavCounts();
 
     // 6. Sentralisadong Logout Handler
     const logoutBtn = document.getElementById("logoutBtn");
@@ -516,93 +541,80 @@
   });
 
   /* ------------------------------------------------------------
-     QUICK ACTIONS STRIP
-     The Dashboard's four buttons, shown in ONE fixed place (right under
-     the page header) on the pages they open, so the admin can move
-     between them without going back to the Dashboard.
-     - Same position on every page, and it stays visible when scrolling
-     - The counts live inside the buttons (no separate tabs)
-     - The button of the page you are on has a yellow underline
+     MENU BADGES
+     Small numbers next to "Applications" and "Incident Reports" in the
+     sidebar, showing how many still need attention. Same rules as the
+     Dashboard cards, so the numbers always match.
      ------------------------------------------------------------ */
-  const QUICK_ACTIONS = [
-    {
-      page: "admin_announcements.html",
-      href: "admin_announcements.html",
-      label: "New announcement",
-      primary: true,
-    },
-    {
-      page: "admin_application.html",
-      href: "admin_application.html?filter=active",
-      label: "Review applications",
-      count: { table: "service_applications", exclude: ["Energized", "Rejected"] },
-    },
-    {
-      page: "admin_incidents.html",
-      href: "admin_incidents.html",
-      label: "View incident reports",
-      count: { table: "incident_reports", exclude: ["Resolved", "Rejected", "Closed"] },
-      alert: true,
-    },
-    {
-      page: "manage_linemen.html",
-      href: "manage_linemen.html",
-      label: "Manage linemen",
-    },
-  ];
-
-  function renderTopShared() {
-    // Only on the four pages the Dashboard buttons open
-    if (!QUICK_ACTIONS.some(a => a.page === currentPage)) return;
-
-    const wrapper = document.querySelector(".main-content");
-    const main = wrapper && wrapper.querySelector("main");
-    if (!main) return;
-
-    const buttons = QUICK_ACTIONS.map(a => {
-      const current = a.page === currentPage;
-      const badge = a.count
-        ? `<span class="qa-count${a.alert ? " alert" : ""}" data-qa-table="${a.count.table}"></span>`
-        : "";
-      return `<a href="${a.href}" class="qa-btn${a.primary ? " primary" : ""}${current ? " current" : ""}"${current ? ' aria-current="page"' : ""}>${a.label}${badge}</a>`;
-    }).join("");
-
-    // Placed between the header and the scrolling content, so it never moves
-    main.insertAdjacentHTML("beforebegin", `
-      <div class="qa-strip" role="navigation" aria-label="Quick actions">
-        <div class="qa-inner">${buttons}</div>
-      </div>`);
-
-    loadQuickCounts();
-  }
-
-  async function loadQuickCounts() {
+  async function loadNavCounts() {
     let client = window.supabaseClient || window._supabase || null;
     try { if (!client && typeof _supabase !== "undefined") client = _supabase; } catch (e) {}
     if (!client) return;
 
-    await Promise.all(QUICK_ACTIONS.filter(a => a.count).map(async (a) => {
-      const el = document.querySelector(`[data-qa-table="${a.count.table}"]`);
+    const items = NAV_GROUPS.flatMap(g => g.items).filter(i => i.count);
+    await Promise.all(items.map(async (item) => {
+      const el = document.querySelector(`[data-nav-count="${item.count.table}"]`);
       if (!el) return;
       try {
-        let q = client.from(a.count.table).select("*", { count: "exact", head: true });
-        if (a.count.exclude) {
-          q = q.not("status", "in", `(${a.count.exclude.map(x => `"${x}"`).join(",")})`);
+        let q = client.from(item.count.table).select("*", { count: "exact", head: true });
+        if (item.count.exclude) {
+          q = q.not("status", "in", `(${item.count.exclude.map(x => `"${x}"`).join(",")})`);
         }
         const { count, error } = await q;
-        // Show the number only when something needs attention
         if (!error && count > 0) {
-          el.textContent = count.toLocaleString();
-          el.style.display = "inline-flex";
+          el.textContent = count > 99 ? "99+" : String(count);
+          el.classList.add("show");
         } else {
-          el.style.display = "none";
+          el.classList.remove("show");
         }
       } catch (e) {
-        el.style.display = "none";
+        el.classList.remove("show");
       }
     }));
   }
 
   // Pages call this after they change data (e.g. after updating an application)
-  window.refreshOverviewTabs = loadQuickCounts;
+  window.refreshNavCounts = loadNavCounts;
+  window.refreshOverviewTabs = loadNavCounts;   // older name used by some pages
+
+  /* ------------------------------------------------------------
+     STANDARD HEADER
+     Every page has its own header markup. This makes the right side
+     the same everywhere (signed-in email + current time), like the
+     Dashboard. The size and colors are set in the CSS above.
+     ------------------------------------------------------------ */
+  function standardizeHeader() {
+    const header = document.querySelector(".main-content > nav");
+    if (!header) return;
+    header.classList.add("page-header");
+
+    // The Dashboard already has the email and clock
+    if (document.getElementById("clockText")) return;
+
+    const parts = header.children;
+    if (parts.length < 2) return;
+    const right = parts[parts.length - 1];
+    right.className = "page-header-right";
+    right.innerHTML = `
+      <span class="hdr-email" id="hdrEmail"></span>
+      <span class="hdr-sep"></span>
+      <span class="hdr-clock" id="hdrClock">—</span>`;
+
+    const tick = () => {
+      const el = document.getElementById("hdrClock");
+      if (el) el.textContent = new Date().toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" });
+    };
+    tick();
+    setInterval(tick, 30000);
+
+    let client = window.supabaseClient || window._supabase || null;
+    try { if (!client && typeof _supabase !== "undefined") client = _supabase; } catch (e) {}
+    if (client && client.auth) {
+      client.auth.getSession().then(({ data }) => {
+        const email = data && data.session && data.session.user && data.session.user.email;
+        const el = document.getElementById("hdrEmail");
+        if (el && email) el.textContent = email;
+      }).catch(() => {});
+    }
+  }
 })();
