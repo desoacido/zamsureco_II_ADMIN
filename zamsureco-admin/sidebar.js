@@ -190,7 +190,7 @@
       flex: 1;
       margin-left: var(--sidebar-width-expanded);
       min-width: 0;
-      padding: 32px;
+      padding: 0;                    /* every page pads its own content, like the Dashboard */
       transition: margin-left var(--transition-speed);
       background: var(--page-bg);
       min-height: 100vh;
@@ -373,11 +373,26 @@
       line-height: 1.4;
     }
 
-    /* Quick action buttons (same as on the Dashboard) */
-    .qa-bar { display: flex; flex-wrap: wrap; gap: 10px; }
+
+    /* Quick actions strip: fixed place under the header on every page */
+    .qa-strip {
+      flex-shrink: 0;
+      background: #FFFFFF;
+      border-bottom: 1px solid #DFE3EE;
+      padding: 12px 32px;
+      font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    }
+    .qa-inner {
+      max-width: 72rem;               /* same width as the Dashboard content */
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
     .qa-btn {
       display: inline-flex;
       align-items: center;
+      gap: 8px;
       padding: 8px 16px;
       border-radius: 6px;
       font-size: 14px;
@@ -394,65 +409,24 @@
     /* The button of the page you are on */
     .qa-btn.current { border-color: #EBCB00; box-shadow: inset 0 -3px 0 #EBCB00; }
     .qa-btn.primary.current { box-shadow: inset 0 -3px 0 #F7E21A; }
-
-    /* Wrapper for the overview tabs */
-    .top-shared {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      font-family: 'IBM Plex Sans', system-ui, sans-serif;
-    }
-    .top-shared.with-gap { margin-bottom: 24px; }
-
-
-    /* Overview tabs (Announcements / Applications / Incidents) */
-    .ov-tabs {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      background: #fff;
-      border: 1px solid #DFE3EE;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    .ov-tab {
-      display: flex;
+    .qa-count {
+      display: none;
+      min-width: 20px;
+      height: 20px;
+      padding: 0 6px;
+      border-radius: 10px;
       align-items: center;
-      gap: 12px;
-      padding: 12px 16px;
-      text-decoration: none;
-      color: #353D5C;
-      position: relative;
-      transition: background 0.15s;
-    }
-    .ov-tab + .ov-tab { border-left: 1px solid #DFE3EE; }
-    .ov-tab:hover { background: #F3F5FD; }
-    .ov-tab.active { background: #F3F5FD; }
-    .ov-tab.active::after {
-      content: "";
-      position: absolute;
-      left: 0; right: 0; bottom: 0;
-      height: 3px;
-      background: #EBCB00;          /* logo yellow */
-    }
-    .ov-icon {
-      width: 32px; height: 32px; border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-      background: #E2E6FA; color: #1A2B9E; flex-shrink: 0;
-    }
-    .ov-icon svg { width: 16px; height: 16px; }
-    .ov-tab.alert .ov-icon { background: #FFF6BF; color: #7A6400; }
-    .ov-text { min-width: 0; }
-    .ov-label { font-size: 12px; color: #4A5372; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .ov-count {
+      justify-content: center;
       font-family: 'IBM Plex Mono', ui-monospace, monospace;
-      font-size: 20px; font-weight: 600; color: #141B3D; line-height: 1.2;
+      font-size: 11.5px;
+      font-weight: 600;
+      background: #E2E6FA;
+      color: #1A2B9E;
     }
-    .ov-tab.active .ov-label { color: #1A2B9E; font-weight: 600; }
-    @media (max-width: 640px) {
-      .ov-tab { padding: 10px; gap: 8px; }
-      .ov-icon { display: none; }
-      .ov-label { font-size: 11px; }
-      .ov-count { font-size: 17px; }
+    .qa-count.alert { background: #FFF6BF; color: #7A6400; }
+    @media (max-width: 768px) {
+      .qa-strip { padding: 10px 16px; }
+      .qa-btn { padding: 7px 12px; font-size: 13px; }
     }
 
     /* Mobile */
@@ -473,7 +447,7 @@
       }
       .main-content {
         margin-left: 0 !important;
-        padding: 16px;
+        padding: 0;
       }
     }
   `;
@@ -516,7 +490,7 @@
       });
     }
 
-    // 5. Overview tabs on the Announcements, Applications and Incidents pages
+    // 5. Quick action buttons under the header of the four pages they open
     renderTopShared();
 
     // 6. Sentralisadong Logout Handler
@@ -542,129 +516,93 @@
   });
 
   /* ------------------------------------------------------------
-     OVERVIEW TABS
-     The same three numbers as the Dashboard, kept at the top of
-     the Announcements, Applications and Incident Reports pages so
-     the admin can switch between them without going back.
-     Each tab opens its page with the same filter as the Dashboard,
-     so the number on the tab matches the list it opens.
+     QUICK ACTIONS STRIP
+     The Dashboard's four buttons, shown in ONE fixed place (right under
+     the page header) on the pages they open, so the admin can move
+     between them without going back to the Dashboard.
+     - Same position on every page, and it stays visible when scrolling
+     - The counts live inside the buttons (no separate tabs)
+     - The button of the page you are on has a yellow underline
      ------------------------------------------------------------ */
-  const OV_TABS = [
+  const QUICK_ACTIONS = [
     {
       page: "admin_announcements.html",
-      href: "admin_announcements.html?view=list",
-      label: "Announcements published",
-      table: "announcements",
-      exclude: null,
-      icon: '<path d="M3 11l18-5v12L3 13v-2z"/><path d="M11 13v6a2 2 0 002 2h1"/>',
+      href: "admin_announcements.html",
+      label: "New announcement",
+      primary: true,
     },
     {
       page: "admin_application.html",
       href: "admin_application.html?filter=active",
-      label: "Applications needing action",
-      table: "service_applications",
-      exclude: ["Energized", "Rejected"],
-      icon: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+      label: "Review applications",
+      count: { table: "service_applications", exclude: ["Energized", "Rejected"] },
     },
     {
       page: "admin_incidents.html",
-      href: "admin_incidents.html?filter=open",
-      label: "Open incident reports",
-      table: "incident_reports",
-      exclude: ["Resolved", "Rejected", "Closed"],
-      icon: '<path d="M13 2L3 14h7l-1 8 11-14h-7l1-6z"/>',
+      href: "admin_incidents.html",
+      label: "View incident reports",
+      count: { table: "incident_reports", exclude: ["Resolved", "Rejected", "Closed"] },
       alert: true,
+    },
+    {
+      page: "manage_linemen.html",
+      href: "manage_linemen.html",
+      label: "Manage linemen",
     },
   ];
 
-
-  function overviewTabsHtml() {
-    return `
-      <nav class="ov-tabs" aria-label="Overview">
-        ${OV_TABS.map(t => `
-          <a href="${t.href}" class="ov-tab${t.page === currentPage ? " active" : ""}${t.alert ? " alert" : ""}"
-             ${t.page === currentPage ? 'aria-current="page"' : ""}>
-            <span class="ov-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${t.icon}</svg>
-            </span>
-            <span class="ov-text">
-              <span class="ov-label" style="display:block">${t.label}</span>
-              <span class="ov-count" data-ov-table="${t.table}" style="display:block">–</span>
-            </span>
-          </a>`).join("")}
-      </nav>`;
-  }
-
-
-  /* ------------------------------------------------------------
-     QUICK ACTIONS
-     The Dashboard's four buttons. They also appear on the four pages
-     they open, so the admin can keep moving between those pages
-     without going back to the Dashboard.
-     ------------------------------------------------------------ */
-  const QUICK_ACTIONS = [
-    { page: "admin_announcements.html", href: "admin_announcements.html", label: "New announcement", primary: true },
-    { page: "admin_application.html", href: "admin_application.html?filter=active", label: "Review applications" },
-    { page: "admin_incidents.html", href: "admin_incidents.html", label: "View incident reports" },
-    { page: "manage_linemen.html", href: "manage_linemen.html", label: "Manage linemen" },
-  ];
-
-  function quickActionsHtml() {
-    return `
-      <div class="qa-bar" role="navigation" aria-label="Quick actions">
-        ${QUICK_ACTIONS.map(a => {
-          const current = a.page === currentPage;
-          return `<a href="${a.href}" class="qa-btn${a.primary ? " primary" : ""}${current ? " current" : ""}"${current ? ' aria-current="page"' : ""}>${a.label}</a>`;
-        }).join("")}
-      </div>`;
-  }
-
   function renderTopShared() {
-    // The Dashboard has its own cards and buttons, so nothing is added there
-    if (currentPage === "admin_dashboard.html") return;
+    // Only on the four pages the Dashboard buttons open
+    if (!QUICK_ACTIONS.some(a => a.page === currentPage)) return;
 
-    const isTabPage = OV_TABS.some(t => t.page === currentPage);
-    const isActionPage = QUICK_ACTIONS.some(a => a.page === currentPage);
-    if (!isTabPage && !isActionPage) return;
-
-    const main = document.querySelector("main");
+    const wrapper = document.querySelector(".main-content");
+    const main = wrapper && wrapper.querySelector("main");
     if (!main) return;
-    const container = main.firstElementChild || main;
 
-    // Pages whose content already spaces its children (Tailwind space-y-*) need no extra gap
-    const parentSpaces = /\bspace-y-/.test(container.className || "");
+    const buttons = QUICK_ACTIONS.map(a => {
+      const current = a.page === currentPage;
+      const badge = a.count
+        ? `<span class="qa-count${a.alert ? " alert" : ""}" data-qa-table="${a.count.table}"></span>`
+        : "";
+      return `<a href="${a.href}" class="qa-btn${a.primary ? " primary" : ""}${current ? " current" : ""}"${current ? ' aria-current="page"' : ""}>${a.label}${badge}</a>`;
+    }).join("");
 
-    const html = `
-      <div class="top-shared${parentSpaces ? "" : " with-gap"}">
-        ${isTabPage ? overviewTabsHtml() : ""}
-        ${isActionPage ? quickActionsHtml() : ""}
-      </div>`;
-    container.insertAdjacentHTML("afterbegin", html);
+    // Placed between the header and the scrolling content, so it never moves
+    main.insertAdjacentHTML("beforebegin", `
+      <div class="qa-strip" role="navigation" aria-label="Quick actions">
+        <div class="qa-inner">${buttons}</div>
+      </div>`);
 
-    if (isTabPage) loadOverviewCounts();
+    loadQuickCounts();
   }
 
-  async function loadOverviewCounts() {
+  async function loadQuickCounts() {
     let client = window.supabaseClient || window._supabase || null;
     try { if (!client && typeof _supabase !== "undefined") client = _supabase; } catch (e) {}
     if (!client) return;
 
-    await Promise.all(OV_TABS.map(async (t) => {
-      const el = document.querySelector(`[data-ov-table="${t.table}"]`);
+    await Promise.all(QUICK_ACTIONS.filter(a => a.count).map(async (a) => {
+      const el = document.querySelector(`[data-qa-table="${a.count.table}"]`);
       if (!el) return;
       try {
-        let q = client.from(t.table).select("*", { count: "exact", head: true });
-        if (t.exclude) {
-          q = q.not("status", "in", `(${t.exclude.map(s => `"${s}"`).join(",")})`);
+        let q = client.from(a.count.table).select("*", { count: "exact", head: true });
+        if (a.count.exclude) {
+          q = q.not("status", "in", `(${a.count.exclude.map(x => `"${x}"`).join(",")})`);
         }
         const { count, error } = await q;
-        el.textContent = error ? "N/A" : (count ?? 0).toLocaleString();
+        // Show the number only when something needs attention
+        if (!error && count > 0) {
+          el.textContent = count.toLocaleString();
+          el.style.display = "inline-flex";
+        } else {
+          el.style.display = "none";
+        }
       } catch (e) {
-        el.textContent = "N/A";
+        el.style.display = "none";
       }
     }));
   }
 
-  // Pages can call this after they change data (e.g. after posting an announcement)
-  window.refreshOverviewTabs = loadOverviewCounts;
+  // Pages call this after they change data (e.g. after updating an application)
+  window.refreshOverviewTabs = loadQuickCounts;
 })();
