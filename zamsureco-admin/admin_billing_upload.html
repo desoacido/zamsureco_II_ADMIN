@@ -269,19 +269,29 @@
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="#B3261E" stroke-width="2"><path d="M18.36 6.64a9 9 0 11-12.73 0"/><path d="M12 2v10"/></svg>
           </div>
           <div class="flex-1">
-            <h3 class="text-base font-semibold">Mark account as disconnected?</h3>
+            <h3 class="text-base font-semibold" id="discTitle">Schedule disconnection</h3>
             <p class="text-sm text-ink-700 mt-1" id="discInfo"></p>
-            <p class="text-xs text-ink-700 mt-2">Do this only after the lineman has actually disconnected the service. The member will see "Disconnected" in the app and can request reconnection after paying.</p>
+            <p class="text-xs text-ink-700 mt-2" id="discHelp"></p>
           </div>
         </div>
-        <div class="mt-4">
+        <div id="discScheduleFields" class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-ink-700 mb-1.5">Date &amp; time</label>
+            <input id="discDate" type="datetime-local" class="field">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-ink-700 mb-1.5">Assigned lineman / crew</label>
+            <input id="discCrew" type="text" class="field" placeholder="e.g. Line Crew Team 2">
+          </div>
+        </div>
+        <div class="mt-3" id="discRemarksWrap">
           <label class="block text-xs font-medium text-ink-700 mb-1.5">Remarks (optional)</label>
-          <input id="discRemarks" type="text" class="field" placeholder="e.g. Disconnected by Line Crew Team 2">
+          <input id="discRemarks" type="text" class="field" placeholder="e.g. Final notice given">
         </div>
       </div>
       <div class="px-6 py-4 bg-paper-50 border-t border-line flex justify-end gap-2 rounded-b-lg">
-        <button id="discCancel" class="bg-white border border-line hover:bg-paper-100 text-ink-800 px-4 py-2 rounded-md text-sm font-semibold">Cancel</button>
-        <button id="discSave" class="bg-danger-600 hover:opacity-90 text-white px-4 py-2 rounded-md text-sm font-semibold">Mark as disconnected</button>
+        <button id="discCancel" class="bg-white border border-line hover:bg-paper-100 text-ink-800 px-4 py-2 rounded-md text-sm font-semibold">Close</button>
+        <button id="discSave" class="bg-danger-600 hover:opacity-90 text-white px-4 py-2 rounded-md text-sm font-semibold">Save schedule</button>
       </div>
     </div>
   </div>
@@ -367,9 +377,22 @@
       const today = new Date(); today.setHours(0, 0, 0, 0);
       return isNaN(d) ? 0 : Math.max(0, Math.floor((today - d) / 864e5));
     }
-    const isDisconnected = (acct) => (accountStatus[acct] || {}).status === 'Disconnected';
+    const acctRow = (acct) => accountStatus[acct] || {};
+    const isDisconnected = (acct) => acctRow(acct).status === 'Disconnected';
+    const isDiscScheduled = (acct) => acctRow(acct).status === 'Disconnection Scheduled';
     // Rule: unpaid for at least the set number of days, and not yet disconnected
+    // (accounts with a scheduled order stay in the list until the lineman is done)
     const isForDisconnection = (s) => daysOverdue(s) >= settings.days && !isDisconnected(s.acct_no);
+
+    function fmtDateTime(v) {
+      if (!v) return '—';
+      const d = new Date(v);
+      return isNaN(d) ? '—' : d.toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+    }
+    function nowLocalInput() {
+      const d = new Date(); d.setSeconds(0, 0);
+      return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    }
 
     // Start with the filter from the link (e.g. ?filter=unpaid from the Dashboard)
     (function initFromUrl() {
@@ -478,18 +501,35 @@
           <td class="px-5 py-3">
             <div class="font-medium text-ink-900">${escapeHtml(s.acct_name || '—')}${isDisconnected(s.acct_no) ? ' <span class="ml-1 text-[10px] font-semibold uppercase tracking-wide text-white bg-danger-600 px-1.5 py-0.5 rounded">Disconnected</span>' : ''}</div>
             <div class="text-xs text-ink-700 num">${escapeHtml(s.acct_no || '')}</div>
+            ${isDiscScheduled(s.acct_no) ? `<div class="mt-1 inline-block text-[11px] leading-snug font-medium bg-gold-100 text-gold-700 px-1.5 py-1 rounded">
+              <div class="whitespace-nowrap">Disconnection · ${escapeHtml(fmtDateTime(acctRow(s.acct_no).disconnection_schedule))}</div>
+              ${acctRow(s.acct_no).assigned_crew ? `<div class="whitespace-nowrap">${escapeHtml(acctRow(s.acct_no).assigned_crew)}</div>` : ''}
+            </div>` : ''}
           </td>
           <td class="px-3 py-3 text-ink-700 whitespace-nowrap">${fmtMonth(s.billing_year_month)}</td>
           <td class="px-3 py-3 text-ink-700 num text-right">${s.kwh_used ?? '—'}</td>
           <td class="px-3 py-3 font-semibold num text-right whitespace-nowrap">${peso(s.total_billed)}</td>
           <td class="px-3 py-3 text-ink-700 num whitespace-nowrap ${isOverdue(s) ? 'text-danger-600 font-medium' : ''}">${fmtDate(s.due_date)}</td>
           <td class="px-3 py-3">${statusBadge(s)}</td>
-          <td class="px-5 py-3 text-right whitespace-nowrap">
+          <td class="px-5 py-3"><div class="flex flex-wrap justify-end gap-1.5">
             ${isPaid(s)
               ? `<span class="text-xs text-ink-700">${s.or_number ? 'OR ' + escapeHtml(s.or_number) : ''}${s.paid_at ? ' · ' + fmtDate(s.paid_at) : ''}</span>`
-              : `${isForDisconnection(s) ? `<button class="text-xs font-semibold border border-danger-600 text-danger-600 hover:bg-danger-100 px-3 py-1.5 rounded-md mr-1.5" data-disc="${escapeHtml(s.acct_no)}">Disconnect</button>` : ''}<button class="text-xs font-semibold bg-ok-600 hover:opacity-90 text-white px-3 py-1.5 rounded-md" data-pay="${escapeHtml(s.id)}">Mark as paid</button>`}
-          </td>
+              : `${discButtons(s)}<button class="text-xs font-semibold bg-ok-600 hover:opacity-90 text-white px-3 py-1.5 rounded-md whitespace-nowrap" data-pay="${escapeHtml(s.id)}">Mark as paid</button>`}
+          </div></td>
         </tr>`).join('');
+    }
+
+    // Disconnection buttons for one row:
+    //   not scheduled yet → "Schedule disconnection"
+    //   scheduled         → "Mark as disconnected" (after the lineman reports) + "Cancel order"
+    function discButtons(s) {
+      if (!isForDisconnection(s)) return '';
+      const a = escapeHtml(s.acct_no);
+      if (isDiscScheduled(s.acct_no)) {
+        return `<button class="text-xs font-semibold bg-danger-600 hover:opacity-90 text-white px-3 py-1.5 rounded-md whitespace-nowrap" data-disc-mode="done" data-disc="${a}">Mark as disconnected</button>`
+             + `<button class="text-xs font-semibold border border-line text-ink-800 hover:bg-paper-100 px-3 py-1.5 rounded-md whitespace-nowrap" data-disc-mode="cancel" data-disc="${a}">Cancel order</button>`;
+      }
+      return `<button class="text-xs font-semibold border border-danger-600 text-danger-600 hover:bg-danger-100 px-3 py-1.5 rounded-md whitespace-nowrap" data-disc-mode="schedule" data-disc="${a}">Schedule disconnection</button>`;
     }
 
     function setFilter(value) {
@@ -563,8 +603,20 @@
         toast('Error: ' + error.message + hint, false);
         return;
       }
+      // If this account had a disconnection order and this was its last unpaid bill, cancel the order
+      const paid = statements.find(x => x.id === payingId);
+      const acct = paid && paid.acct_no;
+      let cancelled = false;
+      if (acct && isDiscScheduled(acct) && !statements.some(x => x.acct_no === acct && x.id !== payingId && !isPaid(x))) {
+        const { error: e2 } = await _supabase.from('account_status').update({
+          status: 'Active', disconnection_schedule: null, assigned_crew: null, updated_at: new Date().toISOString(),
+        }).eq('acct_no', acct);
+        cancelled = !e2;
+      }
       closePay();
-      toast('Payment recorded. The member will see this bill as Paid in the app.');
+      toast(cancelled
+        ? 'Payment recorded. All bills are paid, so the disconnection order was cancelled.'
+        : 'Payment recorded. The member will see this bill as Paid in the app.');
       loadStatements();
     });
 
@@ -572,17 +624,54 @@
     // MARK AS DISCONNECTED (account level)
     // ------------------------------------------------------------------
     let discAcct = null;
+    let discMode = 'schedule';   // schedule | done | cancel
+
+    const DISC_MODES = {
+      schedule: {
+        title: 'Schedule disconnection',
+        help: 'The member will see the date in the app as a final warning. If they pay before then, cancel the order (it is cancelled automatically when the last bill is marked as paid).',
+        button: 'Save schedule', fields: true,
+      },
+      done: {
+        title: 'Mark as disconnected?',
+        help: 'Do this only after the lineman reports that the service was actually disconnected. The member will see "Disconnected" in the app and can request reconnection after paying.',
+        button: 'Mark as disconnected', fields: false,
+      },
+      cancel: {
+        title: 'Cancel disconnection order?',
+        help: 'Use this if the member paid or made an arrangement. The account stays active.',
+        button: 'Cancel order', fields: false,
+      },
+    };
 
     document.getElementById('statementBody').addEventListener('click', (e) => {
       const btn = e.target.closest('[data-disc]');
       if (!btn) return;
       discAcct = btn.dataset.disc;
+      discMode = btn.dataset.discMode || 'schedule';
+      const m = DISC_MODES[discMode];
+      const row = acctRow(discAcct);
       const unpaid = statements.filter(s => s.acct_no === discAcct && !isPaid(s));
       const name = (unpaid[0] || {}).acct_name || '';
-      const oldest = Math.max(...unpaid.map(daysOverdue));
+      const oldest = Math.max(0, ...unpaid.map(daysOverdue));
+
+      document.getElementById('discTitle').textContent = m.title;
+      document.getElementById('discHelp').textContent = m.help;
       document.getElementById('discInfo').textContent =
-        `${name} · Acct ${discAcct} · ${unpaid.length} unpaid bill${unpaid.length === 1 ? '' : 's'} (${peso(unpaid.reduce((t, s) => t + Number(s.total_billed || 0), 0))}), oldest ${oldest} days overdue.`;
+        `${name} · Acct ${discAcct} · ${unpaid.length} unpaid bill${unpaid.length === 1 ? '' : 's'} (${peso(unpaid.reduce((t, s) => t + Number(s.total_billed || 0), 0))}), oldest ${oldest} days overdue.`
+        + (discMode !== 'schedule' && row.disconnection_schedule ? ` Scheduled ${fmtDateTime(row.disconnection_schedule)}${row.assigned_crew ? ' · ' + row.assigned_crew : ''}.` : '');
+      document.getElementById('discScheduleFields').classList.toggle('hidden', !m.fields);
+      document.getElementById('discRemarksWrap').classList.toggle('hidden', discMode === 'cancel');
+      const date = document.getElementById('discDate');
+      date.min = nowLocalInput();
+      date.value = '';
+      document.getElementById('discCrew').value = '';
       document.getElementById('discRemarks').value = '';
+      const save = document.getElementById('discSave');
+      save.textContent = m.button;
+      save.className = (discMode === 'cancel'
+        ? 'bg-brand-700 hover:bg-brand-800'
+        : 'bg-danger-600 hover:opacity-90') + ' text-white px-4 py-2 rounded-md text-sm font-semibold';
       document.getElementById('discModal').classList.remove('hidden');
     });
 
@@ -592,23 +681,39 @@
 
     document.getElementById('discSave').addEventListener('click', async () => {
       if (!discAcct) return;
+      const now = new Date().toISOString();
+      const remarks = document.getElementById('discRemarks').value.trim() || null;
+      let fields, message;
+
+      if (discMode === 'schedule') {
+        const date = document.getElementById('discDate').value;
+        const crew = document.getElementById('discCrew').value.trim();
+        if (!date) { toast('Please set the date and time of the disconnection.', false); return; }
+        if (new Date(date) < new Date()) { toast('The schedule cannot be in the past.', false); return; }
+        if (!crew) { toast('Please enter the assigned lineman or crew.', false); return; }
+        fields = { status: 'Disconnection Scheduled', disconnection_schedule: new Date(date).toISOString(), assigned_crew: crew, remarks };
+        message = `Disconnection scheduled for account ${discAcct}. The member will see the date in the app.`;
+      } else if (discMode === 'done') {
+        fields = { status: 'Disconnected', disconnected_at: now, remarks: remarks || acctRow(discAcct).remarks || null };
+        message = `Account ${discAcct} marked as disconnected. The member can now request reconnection in the app.`;
+      } else {
+        fields = { status: 'Active', disconnection_schedule: null, assigned_crew: null };
+        message = `Disconnection order for account ${discAcct} was cancelled.`;
+      }
+
       const btn = document.getElementById('discSave');
+      const label = btn.textContent;
       btn.disabled = true; btn.textContent = 'Saving…';
-      const { error } = await _supabase.from('account_status').upsert({
-        acct_no: discAcct,
-        status: 'Disconnected',
-        disconnected_at: new Date().toISOString(),
-        remarks: document.getElementById('discRemarks').value.trim() || null,
-        updated_at: new Date().toISOString(),
-      });
-      btn.disabled = false; btn.textContent = 'Mark as disconnected';
+      const { error } = await _supabase.from('account_status').upsert({ acct_no: discAcct, ...fields, updated_at: now });
+      btn.disabled = false; btn.textContent = label;
       if (error) {
-        toast('Error: ' + error.message + (/account_status/.test(error.message) ? ' (Run reconnection_setup.sql first.)' : ''), false);
+        const hint = /disconnection_schedule|assigned_crew|check constraint|account_status/.test(error.message)
+          ? ' (Run disconnection_schedule.sql first.)' : '';
+        toast('Error: ' + error.message + hint, false);
         return;
       }
-      const acct = discAcct;
       closeDisc();
-      toast(`Account ${acct} marked as disconnected. The member can now request reconnection in the app.`);
+      toast(message);
       loadStatements();
     });
 
