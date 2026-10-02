@@ -209,7 +209,7 @@
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // Same rules as the sidebar badges, so the numbers always match
-    const APP_DONE = ['Energized', 'Rejected'];
+    const APP_DONE = ['Energized', 'Reconnected', 'Rejected'];
     const INCIDENT_DONE = ['Resolved', 'Rejected', 'Closed'];
 
     // ---------- Helpers ----------
@@ -293,19 +293,21 @@
       'Submission Scheduled':   { field: 'submission_schedule',   label: 'Papers',       extra: () => 'Bring requirements to the office' },
       'For Inspection':         { field: 'inspection_schedule',   label: 'Inspection',   extra: a => a.inspector_name ? `Engr. ${a.inspector_name.replace(/^engr\.?\s*/i, '')}` : null },
       'Installation Scheduled': { field: 'installation_schedule', label: 'Installation', extra: a => a.nearest_pole ? `Pole ${a.nearest_pole}` : null },
+      'Reconnection Scheduled': { field: 'reconnection_schedule', label: 'Reconnection', extra: a => a.assigned_crew || null },
     };
     const EVENT_STYLE = {
       'PMES':         'bg-brand-50 text-brand-700',
       'Papers':       'bg-paper-100 text-ink-800',
       'Inspection':   'bg-gold-100 text-gold-700',
       'Installation': 'bg-ok-100 text-ok-600',
+      'Reconnection': 'bg-danger-100 text-danger-600',
     };
 
     async function loadSchedule() {
       const body = document.getElementById('scheduleBody');
       const { data, error } = await _supabase
         .from('service_applications')
-        .select('id, consumer_name, status, pmes_schedule, pmes_venue, submission_schedule, inspection_schedule, inspector_name, installation_schedule, nearest_pole')
+        .select('id, consumer_name, status, pmes_schedule, pmes_venue, submission_schedule, inspection_schedule, inspector_name, installation_schedule, nearest_pole, reconnection_schedule, assigned_crew')
         .in('status', Object.keys(STEP_EVENTS));
 
       if (error) {
