@@ -850,7 +850,7 @@
             <label class="flex items-start gap-3 p-3 ${locked ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-paper-50'}">
               <input type="checkbox" class="mt-0.5 w-4 h-4 accent-green-700" data-req="${r.id}" ${r.is_received ? 'checked' : ''} ${locked ? 'disabled' : ''}>
               <span class="flex-1">
-                <span class="text-sm ${r.is_received ? 'text-ink-700 line-through decoration-ink-700/40' : 'text-ink-900 font-medium'}">${escapeHtml(r.name)}</span>
+                <span class="text-sm ${r.is_received ? 'text-ink-900 font-medium' : 'text-ink-900 font-medium'}">${escapeHtml(r.name)}</span>
                 ${r.details ? `<span class="block text-xs text-ink-700/70">${escapeHtml(r.details)}</span>` : ''}
                 ${r.is_received && r.received_at ? `<span class="block text-[11px] text-ok-600 num">Received ${escapeHtml(fmtDate(r.received_at))}</span>` : ''}
               </span>
