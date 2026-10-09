@@ -84,8 +84,8 @@
           <span class="block w-4 h-0.5 bg-ink-700 rounded-full"></span>
         </button>
         <div>
-          <h1 class="text-lg font-semibold text-ink-900 leading-tight">New Connection Applications</h1>
-          <p class="text-xs text-ink-700 mt-0.5">Schedule, track, and process requests for new service connections</p>
+          <h1 class="text-lg font-semibold text-ink-900 leading-tight">Service Applications</h1>
+          <p class="text-xs text-ink-700 mt-0.5">Schedule, track, and process new connection and reconnection requests</p>
         </div>
       </div>
       <div class="flex items-center space-x-2">
@@ -238,7 +238,7 @@
       'Submission Scheduled':   'Check received papers',
       'For Inspection':         'Record inspection result',
       'Inspection Failed':      'Re-inspect or reject',
-      'For Payment':            'Record payment',
+      'For Payment':            'Record OR number',
       'Paid':                   'Schedule installation',
       'Installation Scheduled': 'Energize & give account no.',
       'Energized':              'Completed',
@@ -717,10 +717,6 @@
             <p class="text-sm text-ink-800 mb-3">Inspection: <b>${escapeHtml(fmtDate(app.inspection_schedule))}</b> · Engineer: <b>${escapeHtml(app.inspector_name || '—')}</b></p>
             <label class="text-xs font-medium text-ink-700">Engineer's remarks / findings</label>
             <textarea id="inspRemarks" rows="2" class="field mt-1" placeholder="Required if failed">${escapeHtml(app.inspection_remarks || '')}</textarea>
-            <div class="mt-3">
-              <label class="text-xs font-medium text-ink-700">Amount to pay (if passed)</label>
-              <input id="payAmount" type="number" step="0.01" min="0" class="field mt-1 num" placeholder="e.g. 3500.00" value="${app.payment_amount ?? ''}">
-            </div>
             <div class="flex gap-2 flex-wrap mt-3">
               <button class="btn-ok" onclick="actInspectionPassed()">Passed → For payment</button>
               <button class="btn-danger" onclick="actInspectionFailed()">Failed</button>
@@ -728,11 +724,11 @@
             <p class="text-xs text-ink-700/70 mt-2">When passed, one service slot on ${escapeHtml(app.nearest_pole || 'the nearest pole')} is reserved automatically.</p>`);
 
         case 'For Payment':
-          return actionCard('Record the payment', `
-            <p class="text-sm text-ink-800 mb-3">Amount due: <b class="num">${escapeHtml(fmtPeso(app.payment_amount) || '—')}</b></p>
+          return actionCard('Record the official receipt (OR)', `
+            <p class="text-sm text-ink-800 mb-3">The applicant pays the connection fees at the ZAMSURECO II cashier. When they show the official receipt, enter its OR number here.</p>
             <label class="text-xs font-medium text-ink-700">Official receipt (OR) number</label>
             <input id="orNumber" type="text" class="field mt-1 num" placeholder="e.g. 0012345" value="${escapeHtml(app.or_number || '')}">
-            <button class="btn-ok mt-3" onclick="actMarkPaid()">Mark as paid</button>`);
+            <button class="btn-ok mt-3" onclick="actMarkPaid()">Save OR number</button>`);
 
         case 'Paid':
           return actionCard('Schedule the installation', `
@@ -785,13 +781,13 @@
             ${hasUnpaid
               ? `<p class="text-sm text-danger-600 mb-3">The member must settle all unpaid bills first. Record those payments in <a href="admin_billing_upload.html?filter=unpaid" class="underline font-semibold">Billing Statements</a>, then come back here.</p>`
               : `<p class="text-xs text-ok-600 font-semibold mb-3">All bills are paid. Record the reconnection fee to continue.</p>`}
-            <label class="text-xs font-medium text-ink-700">OR number for the reconnection fee (${escapeHtml(fmtPeso(r.fee))})</label>
+            <label class="text-xs font-medium text-ink-700">OR number of the reconnection fee (paid at the cashier)</label>
             <input id="reconOr" type="text" class="field mt-1 num" placeholder="e.g. 0012345" ${hasUnpaid ? 'disabled' : ''}>
-            <button class="btn-ok mt-3" onclick="actReconVerify()" ${hasUnpaid ? 'disabled style="opacity:.5;cursor:not-allowed"' : ''}>Payment verified</button>`);
+            <button class="btn-ok mt-3" onclick="actReconVerify()" ${hasUnpaid ? 'disabled style="opacity:.5;cursor:not-allowed"' : ''}>Save OR number</button>`);
         }
         case 'Payment Verified':
           return actionCard('Schedule the reconnection', `
-            <p class="text-sm text-ink-800 mb-3">Fee paid: <b class="num">${escapeHtml(fmtPeso(app.payment_amount))}</b>${app.or_number ? ` · OR <span class="num">${escapeHtml(app.or_number)}</span>` : ''}</p>
+            <p class="text-sm text-ink-800 mb-3">Reconnection fee paid · OR <b class="num">${escapeHtml(app.or_number || '—')}</b></p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><label class="text-xs font-medium text-ink-700">Date &amp; time</label><input id="reconDate" type="datetime-local" class="field mt-1" min="${nowLocalInput()}" value="${toLocalInput(app.reconnection_schedule)}"></div>
               <div><label class="text-xs font-medium text-ink-700">Assigned crew / lineman</label><input id="reconCrew" type="text" class="field mt-1" placeholder="e.g. Maintenance Team 1" value="${escapeHtml(app.assigned_crew || '')}"></div>
@@ -868,7 +864,7 @@
         ['PMES', app.pmes_schedule ? `${fmtDate(app.pmes_schedule)}${app.pmes_venue ? ' · ' + app.pmes_venue : ''}${app.pmes_attended ? ' · attended' : ''}` : ''],
         ['Paper submission', fmtDate(app.submission_schedule)],
         ['Inspection', app.inspection_schedule ? `${fmtDate(app.inspection_schedule)}${app.inspector_name ? ' · ' + app.inspector_name : ''}` : ''],
-        ['Payment', app.payment_amount ? `${fmtPeso(app.payment_amount)}${app.or_number ? ' · OR ' + app.or_number : ''}${app.paid_at ? ' · paid ' + fmtDate(app.paid_at) : ''}` : ''],
+        ['Official receipt', app.or_number ? `OR ${app.or_number}${app.paid_at ? ' · ' + fmtDate(app.paid_at) : ''}` : ''],
         ['Installation', fmtDate(app.installation_schedule)],
         ['Reconnection', app.reconnection_schedule ? `${fmtDate(app.reconnection_schedule)}${app.assigned_crew ? ' · ' + app.assigned_crew : ''}` : ''],
       ].filter(r => r[1]);
@@ -906,7 +902,7 @@
                 <div><p class="text-xs text-ink-700">Account number</p><p class="font-semibold num">${escapeHtml(app.account_number || '—')}</p></div>
                 <div><p class="text-xs text-ink-700">Account status</p><p class="font-semibold">${escapeHtml((currentRecon || {}).accountStatus || '—')}</p></div>
                 <div class="col-span-2"><p class="text-xs text-ink-700">Address</p><p class="font-medium">${escapeHtml(app.address || '—')}</p></div>
-                ${app.remarks ? `<div class="col-span-2"><p class="text-xs text-ink-700">Member's note</p><p class="font-medium">${escapeHtml(app.remarks)}</p></div>` : ''}
+                ${app.request_note ? `<div class="col-span-2"><p class="text-xs text-ink-700">Member's note</p><p class="font-medium">${escapeHtml(app.request_note)}</p></div>` : ''}
               </div>`) : foldPanel('panelDetails', 'Applicant details &amp; map', `
               <div class="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                 <div><p class="text-xs text-ink-700">Connection type</p><p class="font-semibold">${escapeHtml(app.connection_type || '—')}</p></div>
@@ -1067,13 +1063,10 @@
     }
 
     function actInspectionPassed() {
-      const amount = val('payAmount');
-      if (!amount || isNaN(Number(amount))) { toast('Please enter the amount to pay.', false); return; }
       updateApp({
         inspection_remarks: val('inspRemarks') || null,
-        payment_amount: Number(amount),
         status: 'For Payment',
-      }, 'Inspection passed. A pole slot was reserved and the applicant was asked to pay.');
+      }, 'Inspection passed. A pole slot was reserved and the applicant was told to pay at the cashier.');
     }
 
     function actInspectionFailed() {
@@ -1085,7 +1078,7 @@
     function actMarkPaid() {
       const or = val('orNumber');
       if (!or) { toast('Please enter the OR number.', false); return; }
-      updateApp({ or_number: or, status: 'Paid' }, 'Payment recorded.');
+      updateApp({ or_number: or, status: 'Paid' }, 'OR number saved. You can now schedule the installation.');
     }
 
     function actSetInstallation() {
@@ -1138,7 +1131,7 @@
       if (r.unpaid && r.unpaid.length) { toast('The member still has unpaid bills.', false); return; }
       const or = val('reconOr');
       if (!or) { toast('Please enter the OR number of the reconnection fee.', false); return; }
-      updateApp({ payment_amount: r.fee, or_number: or, status: 'Payment Verified' },
+      updateApp({ or_number: or, status: 'Payment Verified' },
         'Payment verified. You can now schedule the reconnection.');
     }
 
