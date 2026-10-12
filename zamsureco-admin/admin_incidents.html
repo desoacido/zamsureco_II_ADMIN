@@ -3,140 +3,122 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZAMSURECO II — Incident Reports Management</title>
+<title>ZAMSURECO II — Incident Reports</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="theme.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<!-- Leaflet CSS for Map -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-<!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
-<script>
-  tailwind.config = {
-    theme: {
-      extend: {
-        colors: {
-          ink:    { 900:'#12203A', 800:'#1B2E4F', 700:'#2A4166' },
-          paper:  { 50:'#F5F3EE', 100:'#EFEDE6' },
-          line:   '#DBD8CF',
-          copper: { 500:'#B9722E', 100:'#F3E4D2' },
-          ok:     { 600:'#3F7857', 100:'#E1EBE3' },
-          danger: { 600:'#A33B34', 100:'#F2E1DF' },
-          info:   { 600:'#2F5D8A', 100:'#DEE7EF' },
-        },
-        fontFamily: {
-          sans: ['"IBM Plex Sans"','system-ui','sans-serif'],
-          mono: ['"IBM Plex Mono"','ui-monospace','monospace'],
-        },
-        borderRadius: { DEFAULT: '3px' }
-      }
-    }
-  }
-</script>
+<script src="map-layers.js"></script>
 <style>
-  body { font-family: 'IBM Plex Sans', system-ui, sans-serif; }
-  .num { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
-  .ticket-id { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+  .toast-in { animation: toastIn .2s ease; }
+  @keyframes toastIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
 
-  .status-rail{display:flex;align-items:center;margin:4px 0 22px;}
-  .status-node{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;position:relative;}
-  .status-node .node-dot{width:14px;height:14px;border-radius:50%;background:#DBD8CF;border:3px solid #DBD8CF;z-index:1;transition:all .2s ease;}
-  .status-node .node-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;}
-  .status-node.done .node-dot{background:#3F7857;border-color:#3F7857;}
-  .status-node.done .node-label{color:#3F7857;}
-  .status-node.active .node-dot{background:#B9722E;border-color:#B9722E;box-shadow:0 0 0 4px rgba(185,114,46,0.18);}
-  .status-node.active .node-label{color:#B9722E;}
-  .status-line{flex:1;height:2px;background:#DBD8CF;margin-bottom:19px;}
-  .status-line.done{background:#3F7857;}
+  .field { width: 100%; padding: 9px 12px; background: #F5F6FA; border: 1px solid #DFE3EE; border-radius: 6px; font-size: 14px; }
+  .field:focus { outline: none; box-shadow: 0 0 0 2px #1A2B9E; background: #fff; }
+  .field:disabled { color: #6B7490; cursor: not-allowed; }
 
-  #modalMap { height: 200px; width: 100%; border-radius: 3px; z-index: 10; border: 1px solid #DBD8CF; }
+  .tab { padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 500; color: #4A5372; border: 1px solid #DFE3EE; background: #fff; }
+  .tab:hover { border-color: #94A2EA; color: #1A2B9E; }
+  .tab.active { background: #111F78; border-color: #111F78; color: #fff; }
+  .tab .n { margin-left: 6px; font-size: 11px; opacity: .7; }
+
+  .steps { display: flex; align-items: flex-start; }
+  .step { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; position: relative; text-align: center; }
+  .step::before { content: ''; position: absolute; top: 13px; left: -50%; width: 100%; height: 2px; background: #DFE3EE; z-index: 0; }
+  .step:first-child::before { display: none; }
+  .step .dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; background: #fff; border: 2px solid #DFE3EE; color: #98A1B8; position: relative; z-index: 1; }
+  .step .lbl { font-size: 12px; font-weight: 600; color: #98A1B8; }
+  .step .sub { font-size: 11px; color: #6B7490; }
+  .step.done::before, .step.current::before { background: #2E7D4F; }
+  .step.done .dot { background: #2E7D4F; border-color: #2E7D4F; color: #fff; }
+  .step.done .lbl { color: #2E7D4F; }
+  .step.current .dot { background: #1A2B9E; border-color: #1A2B9E; color: #fff; box-shadow: 0 0 0 4px #E2E6FA; }
+  .step.current .lbl { color: #1A2B9E; }
+
+  #overviewMap { height: 340px; }
+  #modalMap { height: 260px; }
+  #overviewMap, #modalMap { position: relative; z-index: 0; isolation: isolate; }
+  .pin { width: 16px; height: 16px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.45); }
+  .leaflet-control-layers { font-size: 12px; }
 </style>
 </head>
 <body class="bg-paper-50 text-ink-900 font-sans overflow-x-hidden">
-  <!-- Dito i-i-inject ng sidebar.js ang shared sidebar at hamburger menu -->
   <div id="sidebar-root"></div>
 
-  <!-- Main Content Wrapper -->
   <div class="main-content !p-0 flex-1 flex flex-col h-screen overflow-hidden">
-    <!-- Navbar -->
-    <nav class="bg-paper-50 border-b border-line px-6 h-16 flex justify-between items-center flex-shrink-0">
+    <nav class="bg-white border-b border-line px-6 h-16 flex justify-between items-center flex-shrink-0">
       <div class="flex items-center gap-4">
-        <button class="hamburger-btn bg-white hover:bg-paper-100 border border-line rounded w-9 h-9 flex flex-col items-center justify-center gap-1 cursor-pointer transition flex-shrink-0" id="sidebarToggle" aria-label="Toggle navigation menu">
-          <span class="block w-4 h-0.5 bg-ink-700"></span>
-          <span class="block w-4 h-0.5 bg-ink-700"></span>
-          <span class="block w-4 h-0.5 bg-ink-700"></span>
+        <button class="hamburger-btn" id="sidebarToggle" aria-label="Toggle navigation menu">
+          <span class="bar"></span><span class="bar"></span><span class="bar"></span>
         </button>
         <div>
-          <h1 class="text-lg font-semibold text-ink-900 leading-tight">Incident Reports Management</h1>
-          <p class="text-xs text-ink-700/70">Monitor power disruption &amp; line fault reports</p>
+          <h1 class="text-lg font-semibold text-ink-900 leading-tight">Incident Reports</h1>
+          <p class="text-xs text-ink-700">Review reports from members and dispatch line crews</p>
         </div>
       </div>
-      <div class="hidden sm:flex items-center gap-3 text-sm text-ink-700">
-        <span class="h-2.5 w-2.5 rounded-full bg-ok-600"></span>
-        <span class="text-xs bg-paper-100 text-ink-700 px-3 py-1.5 rounded border border-line font-medium">Ipil Grid Connected</span>
-      </div>
+      <button id="refreshBtn" class="bg-white border border-line hover:bg-paper-100 text-ink-800 px-4 py-2 rounded-md text-sm font-semibold">Refresh</button>
     </nav>
 
-    <!-- Main Scrollable Area -->
-    <main class="flex-1 overflow-y-auto p-6 lg:p-8 bg-paper-50">
-      <div class="max-w-6xl mx-auto space-y-6">
+    <main class="flex-1 overflow-y-auto p-6 lg:p-8">
+      <div class="max-w-6xl mx-auto space-y-5">
 
-        <div class="flex justify-between items-center flex-wrap gap-4">
-          <div>
-            <h2 class="text-2xl font-semibold text-ink-900">Incoming Incidents</h2>
-            <p class="text-sm text-ink-700/70 mt-0.5">Monitor and dispatch power disruption or line fault reports across Pangi, Poblacion, and Ipil Heights.</p>
-          </div>
-          <button onclick="fetchIncidents()" class="bg-ink-900 hover:bg-ink-800 text-white px-4 py-2 rounded text-sm font-medium transition">
-            Refresh list
-          </button>
-        </div>
+        <div id="diagBanner" class="hidden bg-danger-100 border border-danger-600/30 text-danger-600 text-sm rounded-lg p-4"></div>
 
-        <!-- Stat strip: connected readout, matches dashboard's meter style -->
-        <div class="bg-white border border-line rounded flex flex-col sm:flex-row">
-          <div class="px-5 py-4 flex-1 border-b sm:border-b-0 sm:border-r border-line">
-            <div class="text-[11px] uppercase tracking-wide text-ink-700/70 font-semibold">Total</div>
-            <div id="statTotal" class="text-2xl font-semibold num text-ink-900 mt-1">0</div>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div class="bg-white border border-line rounded-lg px-5 py-4">
+            <div class="text-xs font-semibold uppercase tracking-wide text-gold-700">Waiting for review</div>
+            <div id="statPending" class="text-2xl font-semibold num mt-1">0</div>
           </div>
-          <div class="px-5 py-4 flex-1 border-b sm:border-b-0 sm:border-r border-line bg-copper-100/40">
-            <div class="text-[11px] uppercase tracking-wide text-copper-500 font-semibold">Pending</div>
-            <div id="statPending" class="text-2xl font-semibold num text-ink-900 mt-1">0</div>
+          <div class="bg-white border border-line rounded-lg px-5 py-4">
+            <div class="text-xs font-semibold uppercase tracking-wide text-brand-700">Crew dispatched</div>
+            <div id="statProgress" class="text-2xl font-semibold num mt-1">0</div>
           </div>
-          <div class="px-5 py-4 flex-1 border-b sm:border-b-0 sm:border-r border-line">
-            <div class="text-[11px] uppercase tracking-wide text-info-600 font-semibold">In progress</div>
-            <div id="statProgress" class="text-2xl font-semibold num text-ink-900 mt-1">0</div>
+          <div class="bg-white border border-line rounded-lg px-5 py-4">
+            <div class="text-xs font-semibold uppercase tracking-wide text-ok-600">Resolved</div>
+            <div id="statResolved" class="text-2xl font-semibold num mt-1">0</div>
           </div>
-          <div class="px-5 py-4 flex-1 border-b sm:border-b-0 sm:border-r border-line">
-            <div class="text-[11px] uppercase tracking-wide text-ok-600 font-semibold">Resolved</div>
-            <div id="statResolved" class="text-2xl font-semibold num text-ink-900 mt-1">0</div>
-          </div>
-          <div class="px-5 py-4 flex-1">
-            <div class="text-[11px] uppercase tracking-wide text-danger-600 font-semibold">Rejected</div>
-            <div id="statRejected" class="text-2xl font-semibold num text-ink-900 mt-1">0</div>
+          <div class="bg-white border border-line rounded-lg px-5 py-4">
+            <div class="text-xs font-semibold uppercase tracking-wide text-danger-600">Rejected</div>
+            <div id="statRejected" class="text-2xl font-semibold num mt-1">0</div>
           </div>
         </div>
 
-        <div id="diagBanner" class="hidden bg-danger-100 border border-danger-600/30 text-danger-600 text-sm rounded p-4"></div>
+        <section class="bg-white border border-line rounded-lg overflow-hidden">
+          <div class="px-5 py-3 border-b border-line flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 class="text-sm font-semibold">Open incidents map</h2>
+              <p class="text-xs text-ink-700">Reports waiting for review or with a crew on the way. Click a pin to review.</p>
+            </div>
+            <div class="flex items-center gap-4 text-xs text-ink-700">
+              <span class="flex items-center gap-1.5"><span class="pin" style="background:#C9A800"></span>Waiting for review</span>
+              <span class="flex items-center gap-1.5"><span class="pin" style="background:#1A2B9E"></span>Crew dispatched</span>
+            </div>
+          </div>
+          <div id="overviewMap"></div>
+        </section>
 
-        <!-- Table Card -->
-        <section class="bg-white border border-line rounded">
+        <div class="flex flex-wrap items-center gap-3">
+          <div id="statusTabs" class="flex flex-wrap gap-2"></div>
+          <input id="searchInput" type="text" class="field sm:w-64 ml-auto" placeholder="Search ticket, category, location…">
+        </div>
+
+        <section class="bg-white border border-line rounded-lg overflow-hidden">
           <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse text-sm">
+            <table class="w-full text-left text-sm">
               <thead>
-                <tr class="bg-paper-100 text-ink-700 text-xs uppercase tracking-wide font-semibold border-b border-line">
-                  <th class="p-4">Ticket</th>
-                  <th class="p-3">Category</th>
-                  <th class="p-3">Location</th>
-                  <th class="p-3">Details</th>
-                  <th class="p-3">Status</th>
-                  <th class="p-3">Assigned crew</th>
-                  <th class="p-3">Date reported</th>
-                  <th class="p-4 text-center">Action</th>
+                <tr class="bg-paper-50 border-b border-line text-xs font-semibold text-ink-700 uppercase tracking-wide">
+                  <th class="px-5 py-3">Ticket</th>
+                  <th class="px-3 py-3">Incident</th>
+                  <th class="px-3 py-3">Location</th>
+                  <th class="px-3 py-3">Status</th>
+                  <th class="px-3 py-3">Crew</th>
+                  <th class="px-3 py-3">Reported</th>
+                  <th class="px-5 py-3 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody id="incident-table-body" class="divide-y divide-line">
-                <tr><td colspan="8" class="p-8 text-center text-ink-700/60">Loading reports...</td></tr>
+              <tbody id="incidentRows" class="divide-y divide-line">
+                <tr><td colspan="7" class="px-5 py-10 text-center text-ink-700">Loading reports…</td></tr>
               </tbody>
             </table>
           </div>
@@ -145,92 +127,513 @@
     </main>
   </div>
 
-  <!-- Modal -->
-  <div id="detail-modal" class="fixed inset-0 bg-ink-900/50 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
-    <div class="bg-white rounded max-w-xl w-full shadow-xl border border-line overflow-hidden max-h-[90vh] overflow-y-auto">
-      <div class="bg-ink-900 text-white px-6 py-4 flex justify-between items-center sticky top-0 z-20">
+  <div id="reviewModal" class="hidden fixed inset-0 z-[500] items-center justify-center p-4" style="background:rgba(11,21,85,0.45)">
+    <div class="bg-white rounded-lg border border-line shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col">
+      <div class="px-6 py-4 border-b border-line flex items-start justify-between gap-4">
         <div>
-          <p id="modal-ticket" class="text-[11px] text-white/60 ticket-id">TICKET</p>
-          <h3 class="text-base font-semibold mt-0.5">Incident review</h3>
+          <p id="mTicket" class="text-xs num text-ink-700"></p>
+          <h3 id="mTitle" class="text-base font-semibold mt-0.5"></h3>
         </div>
-        <button onclick="closeModal()" class="text-white/70 hover:text-white bg-white/10 hover:bg-white/20 p-1.5 rounded-full transition">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+        <button id="mClose" class="icon-close text-ink-700 hover:text-ink-900 p-1" aria-label="Close">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
 
-      <div class="p-6">
-        <div id="status-rail-wrap">
-          <div class="status-rail">
-            <div class="status-node" id="node-pending"><div class="node-dot"></div><div class="node-label">Pending</div></div>
-            <div class="status-line" id="line-1"></div>
-            <div class="status-node" id="node-progress"><div class="node-dot"></div><div class="node-label">In progress</div></div>
-            <div class="status-line" id="line-2"></div>
-            <div class="status-node" id="node-resolved"><div class="node-dot"></div><div class="node-label">Resolved</div></div>
+      <div class="overflow-y-auto px-6 py-5 space-y-5">
+        <div id="mSteps"></div>
+        <div id="mRejected" class="hidden bg-danger-100 border border-danger-600/30 rounded-md p-4">
+          <p class="text-xs font-semibold uppercase tracking-wide text-danger-600">Report rejected</p>
+          <p id="mRejectedText" class="text-sm text-danger-600 mt-1"></p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div class="space-y-4">
+            <div id="mDetails" class="space-y-3 text-sm"></div>
+            <div id="mPhoto"></div>
+          </div>
+          <div class="space-y-3">
+            <div id="modalMap" class="rounded-md border border-line overflow-hidden"></div>
+            <div id="mNearest" class="text-sm"></div>
+            <a id="mRoute" target="_blank" rel="noopener" class="inline-flex items-center gap-2 text-sm font-semibold text-brand-700 hover:underline">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+              Open route for the crew (Google Maps)
+            </a>
           </div>
         </div>
 
-        <div id="rejected-banner" class="hidden mb-4 bg-danger-100 border border-danger-600/30 rounded p-4">
-          <p class="text-xs font-semibold uppercase tracking-wide text-danger-600 mb-1">Report rejected</p>
-          <p id="rejected-reason-text" class="text-sm text-danger-600"></p>
-        </div>
-
-        <div id="modal-content" class="space-y-3 text-sm text-ink-700"></div>
-
-        <!-- Map Container Exclusive to Ipil -->
-        <div class="mt-4">
-          <label class="block text-xs font-semibold uppercase tracking-wide text-ink-700 mb-1.5">Map location (Ipil Grid):</label>
-          <div id="modalMap"></div>
-        </div>
-
-        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-line">
-          <div>
-            <label class="block text-xs font-semibold uppercase tracking-wide text-ink-700 mb-1.5">Assigned crew / lineman:</label>
-            <input type="text" id="crewInput" placeholder="e.g., Line Crew Alpha (Team 3)" class="w-full px-3 py-2 bg-paper-50 border border-line rounded text-sm focus:outline-none focus:ring-1 focus:ring-ink-700 transition">
+        <div id="mDispatch" class="border-t border-line pt-5">
+          <h4 class="text-sm font-semibold mb-3">Dispatch</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-ink-700 mb-1.5">Assigned crew / lineman</label>
+              <input id="crewInput" list="crewList" type="text" class="field" placeholder="e.g. Line Crew Team 1">
+              <datalist id="crewList"></datalist>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-ink-700 mb-1.5">Estimated restoration (ETR)</label>
+              <input id="etrInput" type="datetime-local" class="field">
+            </div>
           </div>
-          <div>
-            <label class="block text-xs font-semibold uppercase tracking-wide text-ink-700 mb-1.5">Estimated restoration (ETR):</label>
-            <input type="datetime-local" id="etrInput" class="w-full px-3 py-2 bg-paper-50 border border-line rounded text-sm focus:outline-none focus:ring-1 focus:ring-ink-700 transition">
+          <div id="rejectBox" class="hidden mt-3">
+            <label class="block text-xs font-medium text-ink-700 mb-1.5">Reason for rejection (shown to the member)</label>
+            <textarea id="rejectInput" rows="2" class="field" placeholder="e.g. Duplicate of an existing report, or the photo does not show a power problem"></textarea>
           </div>
-        </div>
-
-        <div class="mt-4">
-          <label class="block text-xs font-semibold uppercase tracking-wide text-ink-700 mb-1.5">Reason for rejection (kailangan lang kapag rire-reject):</label>
-          <textarea id="rejectReasonInput" rows="2" placeholder="hal. Hindi malinaw ang larawan, hindi kaugnay sa insidente..." class="w-full px-3 py-2 bg-paper-50 border border-line rounded text-sm focus:outline-none focus:ring-1 focus:ring-danger-600 transition"></textarea>
-        </div>
-
-        <div id="modal-error" class="hidden mt-3 text-xs text-danger-600 bg-danger-100 border border-danger-600/30 rounded p-3"></div>
-
-        <div class="mt-6 flex flex-wrap justify-end gap-2">
-          <button id="btn-progress" onclick="updateStatus('In Progress')" class="bg-info-600 hover:opacity-90 text-white px-4 py-2 rounded text-xs font-semibold tracking-wide transition">Assign / In progress</button>
-          <button id="btn-resolve" onclick="updateStatus('Resolved')" class="bg-ok-600 hover:opacity-90 text-white px-4 py-2 rounded text-xs font-semibold tracking-wide transition">Mark as resolved</button>
-          <button id="btn-reject" onclick="rejectReport()" class="bg-danger-600 hover:opacity-90 text-white px-4 py-2 rounded text-xs font-semibold tracking-wide transition">Reject report</button>
-          <button onclick="closeModal()" class="bg-paper-100 hover:bg-line text-ink-700 px-4 py-2 rounded text-xs font-semibold tracking-wide transition">Close</button>
+          <div id="mError" class="hidden mt-3 text-xs text-danger-600 bg-danger-100 border border-danger-600/30 rounded-md p-3"></div>
         </div>
       </div>
+
+      <div id="mActions" class="px-6 py-4 bg-paper-50 border-t border-line flex flex-wrap justify-end gap-2 rounded-b-lg"></div>
     </div>
   </div>
+
+  <div id="toast" class="hidden fixed bottom-6 right-6 max-w-sm px-4 py-3 rounded-lg text-sm font-semibold shadow-lg z-[600]"></div>
 
   <script>
     const SUPABASE_URL = 'https://zrnvivattocqvxlxzsld.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_PUfegf_zyb5B_gVas_SLyw_mto9NFGF';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    let selectedReportId = null;
-    let reportsCache = [];
-    let modalMap = null;
-    let modalMarker = null;
+    const DEFAULT_CENTER = [7.8018, 122.6155];
+    const STATUS = {
+      'Pending':     { label: 'Waiting for review', badge: 'bg-gold-100 text-gold-700 border-gold-600/30', pin: '#C9A800' },
+      'In Progress': { label: 'Crew dispatched',    badge: 'bg-brand-100 text-brand-800 border-brand-700/30', pin: '#1A2B9E' },
+      'Resolved':    { label: 'Resolved',           badge: 'bg-ok-100 text-ok-600 border-ok-600/30', pin: '#2E7D4F' },
+      'Rejected':    { label: 'Rejected',           badge: 'bg-danger-100 text-danger-600 border-danger-600/30', pin: '#B3261E' },
+    };
+    const TABS = [
+      { key: 'open', label: 'Open' },
+      { key: 'Pending', label: 'Waiting for review' },
+      { key: 'In Progress', label: 'Crew dispatched' },
+      { key: 'Resolved', label: 'Resolved' },
+      { key: 'Rejected', label: 'Rejected' },
+      { key: 'all', label: 'All' },
+    ];
+
+    let reports = [];
+    let poles = [];
+    let reporters = {};
+    let activeTab = 'open';
+    let current = null;
+    let rejecting = false;
+    let overviewMap = null, overviewLayer = null;
+    let modalMap = null, modalLayer = null;
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+    }
+
+    function toast(msg, ok = true) {
+      const t = document.getElementById('toast');
+      t.className = 'toast-in fixed bottom-6 right-6 max-w-sm px-4 py-3 rounded-lg text-sm font-semibold shadow-lg z-[600] ' +
+        (ok ? 'bg-ok-100 text-ok-600 border border-ok-600/30' : 'bg-danger-100 text-danger-600 border border-danger-600/30');
+      t.textContent = msg;
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => t.classList.add('hidden'), 4500);
+    }
+
+    function showBanner(msg) {
+      const b = document.getElementById('diagBanner');
+      b.textContent = msg;
+      b.classList.remove('hidden');
+    }
+
+    const statusOf = (r) => STATUS[r.status] ? r.status : 'Pending';
+    const isOpen = (r) => ['Pending', 'In Progress'].includes(statusOf(r));
+    const hasPoint = (r) => r.latitude != null && r.longitude != null && !isNaN(Number(r.latitude)) && !isNaN(Number(r.longitude));
+
+    function ticketRef(r) {
+      const year = new Date(r.created_at).getFullYear();
+      return `ZSII-${year}-${String(r.id).padStart(5, '0')}`;
+    }
+
+    function fmtDate(v) {
+      if (!v) return '';
+      const d = new Date(v);
+      if (isNaN(d)) return String(v);
+      return d.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+    }
+
+    function badge(r) {
+      const s = STATUS[statusOf(r)];
+      return `<span class="px-2.5 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap ${s.badge}">${s.label}</span>`;
+    }
+
+    function metersBetween(a, b) {
+      const R = 6371000, toRad = (x) => x * Math.PI / 180;
+      const dLat = toRad(b[0] - a[0]), dLng = toRad(b[1] - a[1]);
+      const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a[0])) * Math.cos(toRad(b[0])) * Math.sin(dLng / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(h));
+    }
+
+    function nearestPole(r) {
+      if (!hasPoint(r) || !poles.length) return null;
+      const here = [Number(r.latitude), Number(r.longitude)];
+      let best = null;
+      poles.forEach(p => {
+        if (p.latitude == null || p.longitude == null) return;
+        const d = metersBetween(here, [Number(p.latitude), Number(p.longitude)]);
+        if (!best || d < best.d) best = { pole: p, d };
+      });
+      return best;
+    }
+
+    function pinIcon(color) {
+      return L.divIcon({ className: '', html: `<div class="pin" style="background:${color}"></div>`, iconSize: [16, 16], iconAnchor: [8, 8] });
+    }
 
     async function checkAuth() {
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (!session) { window.location.href = 'admin_login.html'; return; }
-      if (session.user && session.user.email) {
-        const loggedInEl = document.getElementById('loggedInAs');
-        if(loggedInEl) loggedInEl.innerHTML = `<strong style="color:#fff;">${session.user.email}</strong>`;
-      }
-      fetchIncidents();
+      initOverviewMap();
+      await Promise.all([loadPoles(), loadCrews()]);
+      await fetchIncidents();
+      openFromUrl();
+      supabaseClient.channel('admin-incidents')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'incident_reports' }, () => fetchIncidents())
+        .subscribe();
     }
 
-    // Safe logout event delegation para sa dynamic sidebar
+    async function loadPoles() {
+      const { data } = await supabaseClient.from('poles').select('pole_code, latitude, longitude, is_energized');
+      poles = data || [];
+    }
+
+    async function loadCrews() {
+      const names = new Set();
+      const collect = (rows, keys) => (rows || []).forEach(row => keys.forEach(k => { const v = (row[k] || '').toString().trim(); if (v) names.add(v); }));
+      try {
+        const { data } = await supabaseClient.from('linemen').select('*');
+        collect(data, ['team_name', 'crew_name', 'name', 'full_name']);
+      } catch (_) {}
+      try {
+        const { data } = await supabaseClient.from('incident_reports').select('assigned_to').not('assigned_to', 'is', null);
+        collect(data, ['assigned_to']);
+      } catch (_) {}
+      try {
+        const { data } = await supabaseClient.from('service_applications').select('assigned_crew').not('assigned_crew', 'is', null);
+        collect(data, ['assigned_crew']);
+      } catch (_) {}
+      document.getElementById('crewList').innerHTML = [...names].sort().map(n => `<option value="${escapeHtml(n)}"></option>`).join('');
+    }
+
+    async function loadReporters(list) {
+      const ids = [...new Set(list.map(r => r.user_id).filter(id => id && !reporters[id]))];
+      if (!ids.length) return;
+      const { data } = await supabaseClient.from('profiles').select('*').in('id', ids);
+      (data || []).forEach(p => { reporters[p.id] = p; });
+    }
+
+    async function fetchIncidents() {
+      const { data, error } = await supabaseClient
+        .from('incident_reports')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        showBanner('Could not load incident reports: ' + error.message);
+        document.getElementById('incidentRows').innerHTML = `<tr><td colspan="7" class="px-5 py-10 text-center text-danger-600">${escapeHtml(error.message)}</td></tr>`;
+        return;
+      }
+      reports = data || [];
+      await loadReporters(reports);
+      renderStats();
+      renderTabs();
+      renderRows();
+      renderOverview();
+    }
+
+    function renderStats() {
+      const count = (s) => reports.filter(r => statusOf(r) === s).length;
+      document.getElementById('statPending').textContent = count('Pending');
+      document.getElementById('statProgress').textContent = count('In Progress');
+      document.getElementById('statResolved').textContent = count('Resolved');
+      document.getElementById('statRejected').textContent = count('Rejected');
+    }
+
+    function inTab(r, key) {
+      if (key === 'all') return true;
+      if (key === 'open') return isOpen(r);
+      return statusOf(r) === key;
+    }
+
+    function renderTabs() {
+      document.getElementById('statusTabs').innerHTML = TABS.map(t => {
+        const n = reports.filter(r => inTab(r, t.key)).length;
+        return `<button class="tab ${activeTab === t.key ? 'active' : ''}" data-tab="${t.key}">${t.label}<span class="n">${n}</span></button>`;
+      }).join('');
+      document.querySelectorAll('#statusTabs .tab').forEach(b => b.addEventListener('click', () => {
+        activeTab = b.dataset.tab;
+        renderTabs();
+        renderRows();
+      }));
+    }
+
+    function renderRows() {
+      const q = document.getElementById('searchInput').value.trim().toLowerCase();
+      const list = reports.filter(r => inTab(r, activeTab)).filter(r => {
+        if (!q) return true;
+        return [ticketRef(r), r.category, r.location, r.description, r.assigned_to].join(' ').toLowerCase().includes(q);
+      });
+      const tbody = document.getElementById('incidentRows');
+      if (!list.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="px-5 py-10 text-center text-ink-700">No reports here.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = list.map(r => `
+        <tr class="hover:bg-paper-50">
+          <td class="px-5 py-3 num text-xs text-ink-700 whitespace-nowrap">${ticketRef(r)}</td>
+          <td class="px-3 py-3">
+            <div class="font-medium">${escapeHtml(r.category || 'General issue')}</div>
+            <div class="text-xs text-ink-700 truncate max-w-[240px]">${escapeHtml(r.description || '')}</div>
+          </td>
+          <td class="px-3 py-3 text-ink-700 max-w-[220px]"><div class="truncate">${escapeHtml(r.location || '')}</div></td>
+          <td class="px-3 py-3">${badge(r)}</td>
+          <td class="px-3 py-3 text-ink-700 whitespace-nowrap">${r.assigned_to ? escapeHtml(r.assigned_to) : '<span class="text-ink-700/60">Not assigned</span>'}</td>
+          <td class="px-3 py-3 text-xs text-ink-700 whitespace-nowrap">${fmtDate(r.created_at)}</td>
+          <td class="px-5 py-3 text-right">
+            <button class="review-btn ${isOpen(r) ? 'bg-brand-800 hover:bg-brand-900 text-white' : 'bg-white border border-line hover:bg-paper-100 text-ink-800'} px-3 py-1.5 rounded-md text-xs font-semibold" data-id="${r.id}">${statusOf(r) === 'Pending' ? 'Review' : 'View'}</button>
+          </td>
+        </tr>`).join('');
+      tbody.querySelectorAll('.review-btn').forEach(b => b.addEventListener('click', () => openReview(b.dataset.id)));
+    }
+
+    function initOverviewMap() {
+      overviewMap = L.map('overviewMap', { scrollWheelZoom: false }).setView(DEFAULT_CENTER, 13);
+      addBaseLayers(overviewMap);
+      overviewLayer = L.layerGroup().addTo(overviewMap);
+    }
+
+    function renderOverview() {
+      overviewLayer.clearLayers();
+      const open = reports.filter(r => isOpen(r) && hasPoint(r));
+      const pts = [];
+      open.forEach(r => {
+        const ll = [Number(r.latitude), Number(r.longitude)];
+        pts.push(ll);
+        L.marker(ll, { icon: pinIcon(STATUS[statusOf(r)].pin) })
+          .bindTooltip(`<b>${escapeHtml(r.category || 'Incident')}</b><br>${escapeHtml(STATUS[statusOf(r)].label)}`)
+          .on('click', () => openReview(r.id))
+          .addTo(overviewLayer);
+      });
+      if (pts.length === 1) overviewMap.setView(pts[0], 16);
+      else if (pts.length > 1) overviewMap.fitBounds(pts, { padding: [40, 40], maxZoom: 17 });
+    }
+
+    function stepsHtml(r) {
+      const s = statusOf(r);
+      const idx = s === 'Resolved' ? 2 : s === 'In Progress' ? 1 : 0;
+      const items = [
+        { lbl: 'Reported', sub: fmtDate(r.created_at) },
+        { lbl: 'Crew dispatched', sub: r.dispatched_at ? fmtDate(r.dispatched_at) : (r.assigned_to || '') },
+        { lbl: 'Resolved', sub: r.resolved_at ? fmtDate(r.resolved_at) : '' },
+      ];
+      return `<div class="steps">${items.map((it, i) => {
+        const cls = i < idx || s === 'Resolved' ? 'done' : i === idx ? 'current' : '';
+        const mark = cls === 'done' ? '&#10003;' : i + 1;
+        return `<div class="step ${cls}"><div class="dot">${mark}</div><div class="lbl">${it.lbl}</div><div class="sub">${escapeHtml(it.sub)}</div></div>`;
+      }).join('')}</div>`;
+    }
+
+    function detailRow(label, value) {
+      return `<div><div class="text-xs font-medium text-ink-700">${label}</div><div class="mt-0.5">${value}</div></div>`;
+    }
+
+    function openReview(id) {
+      const r = reports.find(x => String(x.id) === String(id));
+      if (!r) return;
+      current = r;
+      rejecting = false;
+      const s = statusOf(r);
+
+      document.getElementById('mTicket').textContent = ticketRef(r);
+      document.getElementById('mTitle').innerHTML = `${escapeHtml(r.category || 'General issue')} <span class="ml-2 align-middle">${badge(r)}</span>`;
+      document.getElementById('mError').classList.add('hidden');
+
+      const rejected = s === 'Rejected';
+      document.getElementById('mSteps').innerHTML = rejected ? '' : stepsHtml(r);
+      document.getElementById('mRejected').classList.toggle('hidden', !rejected);
+      document.getElementById('mRejectedText').textContent = r.reject_reason || 'No reason was recorded.';
+
+      const who = reporters[r.user_id];
+      const name = who ? `${who.first_name || ''} ${who.last_name || ''}`.trim() : '';
+      const phone = who ? (who.phone_number || who.phone || '') : '';
+      document.getElementById('mDetails').innerHTML = [
+        detailRow('Location', escapeHtml(r.location || 'Not provided')),
+        detailRow('What happened', escapeHtml(r.description || 'No details provided')),
+        detailRow('Reported by', name || phone
+          ? `${escapeHtml(name || 'Member')}${who && who.account_number ? ` <span class="num text-xs text-ink-700">· ${escapeHtml(who.account_number)}</span>` : ''}${phone ? `<div class="text-xs text-ink-700 num">${escapeHtml(phone)}</div>` : ''}`
+          : '<span class="text-ink-700">Member</span>'),
+        detailRow('Date reported', fmtDate(r.created_at)),
+      ].join('');
+
+      document.getElementById('mPhoto').innerHTML = r.image_url
+        ? `<div class="text-xs font-medium text-ink-700 mb-1.5">Photo from the member</div>
+           <a href="${escapeHtml(r.image_url)}" target="_blank" rel="noopener"><img src="${escapeHtml(r.image_url)}" class="w-full max-h-64 object-cover rounded-md border border-line" alt="Incident photo"></a>`
+        : '';
+
+      const crew = document.getElementById('crewInput');
+      const etr = document.getElementById('etrInput');
+      crew.value = r.assigned_to || '';
+      etr.value = r.etr ? String(r.etr).slice(0, 16) : '';
+      const locked = !isOpen(r);
+      crew.disabled = locked;
+      etr.disabled = locked;
+      document.getElementById('rejectInput').value = '';
+      document.getElementById('rejectBox').classList.add('hidden');
+      document.getElementById('mDispatch').classList.toggle('hidden', rejected);
+
+      renderActions();
+
+      const modal = document.getElementById('reviewModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      setTimeout(() => showOnModalMap(r), 50);
+    }
+
+    function showOnModalMap(r) {
+      if (!modalMap) {
+        modalMap = L.map('modalMap');
+        addBaseLayers(modalMap);
+        modalLayer = L.layerGroup().addTo(modalMap);
+      }
+      modalMap.invalidateSize();
+      modalLayer.clearLayers();
+
+      const nearestBox = document.getElementById('mNearest');
+      const route = document.getElementById('mRoute');
+      if (!hasPoint(r)) {
+        modalMap.setView(DEFAULT_CENTER, 13);
+        nearestBox.innerHTML = '<span class="text-ink-700">The member did not pin a location on the map.</span>';
+        route.classList.add('hidden');
+        return;
+      }
+
+      const here = [Number(r.latitude), Number(r.longitude)];
+      L.marker(here, { icon: pinIcon(STATUS[statusOf(r)].pin) }).addTo(modalLayer);
+
+      const near = nearestPole(r);
+      if (near) {
+        const pp = [Number(near.pole.latitude), Number(near.pole.longitude)];
+        L.circleMarker(pp, { radius: 7, color: '#fff', weight: 2, fillColor: near.pole.is_energized ? '#2E7D4F' : '#98A1B8', fillOpacity: 1 })
+          .bindTooltip(near.pole.pole_code || 'Pole').addTo(modalLayer);
+        L.polyline([here, pp], { color: '#F7E21A', weight: 2, dashArray: '5 5' }).addTo(modalLayer);
+        modalMap.fitBounds([here, pp], { padding: [40, 40], maxZoom: 18 });
+        nearestBox.innerHTML = `<span class="text-ink-700">Nearest pole:</span> <b class="num">${escapeHtml(near.pole.pole_code || '')}</b> <span class="text-ink-700">· ${Math.round(near.d)} m away · ${near.pole.is_energized ? 'Energized' : 'Not energized'}</span>`;
+      } else {
+        modalMap.setView(here, 17);
+        nearestBox.innerHTML = '';
+      }
+
+      route.href = `https://www.google.com/maps/dir/?api=1&destination=${here[0]},${here[1]}`;
+      route.classList.remove('hidden');
+    }
+
+    function btn(label, cls, handler) {
+      return { label, cls, handler };
+    }
+
+    function renderActions() {
+      const s = statusOf(current);
+      const PRIMARY = 'bg-brand-800 hover:bg-brand-900 text-white';
+      const OK = 'bg-ok-600 hover:opacity-90 text-white';
+      const DANGER = 'bg-danger-600 hover:opacity-90 text-white';
+      const GHOST = 'bg-white border border-line hover:bg-paper-100 text-ink-800';
+      const DANGER_GHOST = 'bg-white border border-danger-600/40 text-danger-600 hover:bg-danger-100';
+
+      let list = [];
+      if (rejecting) {
+        list = [btn('Back', GHOST, () => { rejecting = false; document.getElementById('rejectBox').classList.add('hidden'); renderActions(); }),
+                btn('Confirm rejection', DANGER, confirmReject)];
+      } else if (s === 'Pending') {
+        list = [btn('Reject', DANGER_GHOST, startReject), btn('Dispatch crew', PRIMARY, dispatchCrew)];
+      } else if (s === 'In Progress') {
+        list = [btn('Save crew / ETR', GHOST, saveDispatch), btn('Mark as resolved', OK, markResolved)];
+      }
+      list.unshift(btn('Close', GHOST, closeReview));
+
+      const box = document.getElementById('mActions');
+      box.innerHTML = list.map((b, i) => `<button data-i="${i}" class="${b.cls} px-4 py-2 rounded-md text-sm font-semibold">${b.label}</button>`).join('');
+      box.querySelectorAll('button').forEach(el => el.addEventListener('click', () => list[Number(el.dataset.i)].handler()));
+    }
+
+    function closeReview() {
+      const modal = document.getElementById('reviewModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      current = null;
+      rejecting = false;
+    }
+
+    function formError(msg) {
+      const e = document.getElementById('mError');
+      e.textContent = msg;
+      e.classList.remove('hidden');
+    }
+
+    async function saveReport(changes, message) {
+      document.getElementById('mError').classList.add('hidden');
+      const buttons = document.querySelectorAll('#mActions button');
+      buttons.forEach(b => b.disabled = true);
+      const { error } = await supabaseClient.from('incident_reports').update(changes).eq('id', current.id);
+      buttons.forEach(b => b.disabled = false);
+      if (error) { formError(error.message); return false; }
+      toast(message);
+      closeReview();
+      await fetchIncidents();
+      return true;
+    }
+
+    function dispatchValues() {
+      const crew = document.getElementById('crewInput').value.trim();
+      const etr = document.getElementById('etrInput').value;
+      return { crew, etr: etr || null };
+    }
+
+    async function dispatchCrew() {
+      const { crew, etr } = dispatchValues();
+      if (!crew) { formError('Enter the crew or lineman who will respond.'); return; }
+      await saveReport({ status: 'In Progress', assigned_to: crew, etr, dispatched_at: new Date().toISOString() },
+        `${crew} dispatched. The member can see this in the app.`);
+    }
+
+    async function saveDispatch() {
+      const { crew, etr } = dispatchValues();
+      if (!crew) { formError('Enter the crew or lineman who will respond.'); return; }
+      await saveReport({ assigned_to: crew, etr }, 'Crew and ETR updated.');
+    }
+
+    async function markResolved() {
+      const { crew, etr } = dispatchValues();
+      await saveReport({ status: 'Resolved', assigned_to: crew || current.assigned_to, etr, resolved_at: new Date().toISOString() },
+        'Incident marked as resolved.');
+    }
+
+    function startReject() {
+      rejecting = true;
+      document.getElementById('rejectBox').classList.remove('hidden');
+      document.getElementById('rejectInput').focus();
+      renderActions();
+    }
+
+    async function confirmReject() {
+      const reason = document.getElementById('rejectInput').value.trim();
+      if (!reason) { formError('Enter the reason so the member knows why the report was rejected.'); return; }
+      await saveReport({ status: 'Rejected', reject_reason: reason }, 'Report rejected.');
+    }
+
+    function openFromUrl() {
+      const id = new URLSearchParams(location.search).get('open');
+      if (!id) return;
+      const r = reports.find(x => String(x.id) === id);
+      if (r) { activeTab = inTab(r, 'open') ? 'open' : 'all'; renderTabs(); renderRows(); openReview(id); }
+    }
+
+    document.getElementById('searchInput').addEventListener('input', renderRows);
+    document.getElementById('refreshBtn').addEventListener('click', () => fetchIncidents().then(() => toast('List updated.')));
+    document.getElementById('mClose').addEventListener('click', closeReview);
+    document.getElementById('reviewModal').addEventListener('click', (e) => { if (e.target.id === 'reviewModal') closeReview(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && current) closeReview(); });
     document.addEventListener('click', async (e) => {
       if (e.target.closest('#logoutBtn')) {
         await supabaseClient.auth.signOut();
@@ -239,218 +642,7 @@
     });
 
     checkAuth();
-
-    function escapeHtml(str) {
-      if (str === null || str === undefined) return '';
-      return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-    }
-
-    function ticketRef(item) {
-      const year = new Date(item.created_at).getFullYear();
-      const num = String(item.id).padStart(5, '0');
-      return `ZSII-${year}-${num}`;
-    }
-
-    function statusBadge(status) {
-      const s = status || 'Pending';
-      let cls = 'bg-copper-100 text-copper-500 border-copper-500/30';
-      if (s === 'In Progress') cls = 'bg-info-100 text-info-600 border-info-600/30';
-      if (s === 'Resolved') cls = 'bg-ok-100 text-ok-600 border-ok-600/30';
-      if (s === 'Rejected') cls = 'bg-danger-100 text-danger-600 border-danger-600/30';
-      return `<span class="px-2.5 py-0.5 rounded-full text-xs font-medium inline-flex items-center border ${cls}">${escapeHtml(s)}</span>`;
-    }
-
-    async function fetchIncidents() {
-      const tbody = document.getElementById('incident-table-body');
-      tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-ink-700/60">Fetching records...</td></tr>`;
-
-      const { data, error } = await supabaseClient
-        .from('incident_reports')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-danger-600">Error: ${escapeHtml(error.message)}</td></tr>`;
-        return;
-      }
-
-      reportsCache = data || [];
-      document.getElementById('statTotal').textContent = reportsCache.length;
-      document.getElementById('statPending').textContent = reportsCache.filter(d => !d.status || d.status === 'Pending').length;
-      document.getElementById('statProgress').textContent = reportsCache.filter(d => d.status === 'In Progress').length;
-      document.getElementById('statResolved').textContent = reportsCache.filter(d => d.status === 'Resolved').length;
-      document.getElementById('statRejected').textContent = reportsCache.filter(d => d.status === 'Rejected').length;
-
-      if (reportsCache.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-ink-700/60">No pending incident reports found.</td></tr>`;
-        return;
-      }
-
-      tbody.innerHTML = '';
-      reportsCache.forEach((item, index) => {
-        const row = document.createElement('tr');
-        row.className = 'hover:bg-paper-100/60 transition';
-        row.innerHTML = `
-          <td class="p-4 ticket-id text-xs text-ink-700/70">${ticketRef(item)}</td>
-          <td class="p-3 font-medium text-ink-900">${escapeHtml(item.category)}</td>
-          <td class="p-3 text-ink-700">${escapeHtml(item.location)}</td>
-          <td class="p-3 text-ink-700 truncate max-w-xs">${escapeHtml(item.description)}</td>
-          <td class="p-3">${statusBadge(item.status)}</td>
-          <td class="p-3 text-ink-700">${escapeHtml(item.assigned_to || 'Unassigned')}</td>
-          <td class="p-3 text-xs text-ink-700/70 num">${new Date(item.created_at).toLocaleString('en-PH', { dateStyle:'medium', timeStyle:'short' })}</td>
-          <td class="p-4 text-center">
-            <button data-index="${index}" class="open-btn bg-paper-100 hover:bg-ink-900 hover:text-white text-ink-800 px-3 py-1.5 rounded text-xs font-semibold transition">Review</button>
-          </td>
-        `;
-        tbody.appendChild(row);
-      });
-
-      document.querySelectorAll('.open-btn').forEach(btn => {
-        btn.addEventListener('click', () => openModal(reportsCache[Number(btn.dataset.index)]));
-      });
-    }
-
-    function setStatusRail(status) {
-      const stages = ['pending', 'progress', 'resolved'];
-      const idx = status === 'Resolved' ? 2 : status === 'In Progress' ? 1 : 0;
-      stages.forEach((s, i) => {
-        const node = document.getElementById(`node-${s}`);
-        node.classList.remove('done', 'active');
-        if (i < idx) node.classList.add('done');
-        else if (i === idx) node.classList.add('active');
-      });
-      document.getElementById('line-1').classList.toggle('done', idx >= 1);
-      document.getElementById('line-2').classList.toggle('done', idx >= 2);
-    }
-
-    function openModal(item) {
-      selectedReportId = item.id;
-      document.getElementById('modal-error').classList.add('hidden');
-      document.getElementById('modal-ticket').textContent = ticketRef(item);
-
-      const railWrap = document.getElementById('status-rail-wrap');
-      const rejectedBanner = document.getElementById('rejected-banner');
-      if (item.status === 'Rejected') {
-        railWrap.classList.add('hidden');
-        rejectedBanner.classList.remove('hidden');
-        document.getElementById('rejected-reason-text').textContent = item.reject_reason || 'Walang detalyeng ibinigay.';
-      } else {
-        railWrap.classList.remove('hidden');
-        rejectedBanner.classList.add('hidden');
-        setStatusRail(item.status || 'Pending');
-      }
-      document.getElementById('rejectReasonInput').value = '';
-
-      document.getElementById('crewInput').value = item.assigned_to || '';
-      document.getElementById('etrInput').value = item.etr ? item.etr.slice(0, 16) : '';
-
-      let imageHtml = item.image_url
-        ? `<div class="mt-3"><p class="font-semibold text-xs text-ink-700/70 uppercase tracking-wide mb-1.5">Attachment proof:</p><img src="${item.image_url}" class="h-36 rounded object-cover w-full border border-line"></div>`
-        : ``;
-
-      document.getElementById('modal-content').innerHTML = `
-        <div class="grid grid-cols-2 gap-2 bg-paper-50 p-4 rounded border border-line">
-          <div><span class="text-xs text-ink-700/60 block uppercase font-semibold">Category</span><strong class="text-ink-900">${escapeHtml(item.category)}</strong></div>
-          <div><span class="text-xs text-ink-700/60 block uppercase font-semibold">Status</span><strong class="text-ink-900">${escapeHtml(item.status || 'Pending')}</strong></div>
-        </div>
-        <p><strong>Location:</strong> ${escapeHtml(item.location)}</p>
-        <p><strong>Description:</strong> ${escapeHtml(item.description)}</p>
-        ${imageHtml}
-      `;
-
-      document.getElementById('detail-modal').classList.remove('hidden');
-      document.getElementById('detail-modal').classList.add('flex');
-
-      // Initialize Leaflet Map centered in Ipil (Default: 7.8286, 122.5833)
-      setTimeout(() => {
-        const lat = item.latitude ? Number(item.latitude) : 7.8286;
-        const lng = item.longitude ? Number(item.longitude) : 122.5833;
-
-        if (!modalMap) {
-          modalMap = L.map('modalMap').setView([lat, lng], 14);
-
-          L.tileLayer('https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=JqtKbHhAXW1bqyZqdfwD', {
-            maxZoom: 19,
-            attribution: '&copy; MapTiler &copy; OpenStreetMap contributors'
-          }).addTo(modalMap);
-
-        } else {
-          modalMap.setView([lat, lng], 14);
-          if (modalMarker) modalMap.removeLayer(modalMarker);
-        }
-
-        modalMarker = L.marker([lat, lng]).addTo(modalMap)
-          .bindPopup(`<b>${escapeHtml(item.category)}</b><br>${escapeHtml(item.location)}`)
-          .openPopup();
-
-        modalMap.invalidateSize();
-      }, 300);
-    }
-
-    function closeModal() {
-      document.getElementById('detail-modal').classList.add('hidden');
-      document.getElementById('detail-modal').classList.remove('flex');
-      selectedReportId = null;
-    }
-
-    async function updateStatus(newStatus) {
-      if (selectedReportId === null) return;
-
-      const assignedCrewValue = document.getElementById('crewInput').value.trim();
-      const etrValue = document.getElementById('etrInput').value;
-      const errBox = document.getElementById('modal-error');
-      errBox.classList.add('hidden');
-
-      const { data, error } = await supabaseClient
-        .from('incident_reports')
-        .update({
-          status: newStatus,
-          assigned_to: assignedCrewValue,
-          etr: etrValue ? etrValue : null
-        })
-        .eq('id', selectedReportId)
-        .select();
-
-      if (error) {
-        errBox.textContent = error.message;
-        errBox.classList.remove('hidden');
-        return;
-      }
-
-      closeModal();
-      fetchIncidents();
-    }
-
-    async function rejectReport() {
-      if (selectedReportId === null) return;
-      const reason = document.getElementById('rejectReasonInput').value.trim();
-      const errBox = document.getElementById('modal-error');
-      errBox.classList.add('hidden');
-
-      if (!reason) {
-        errBox.textContent = 'Kailangan mong maglagay ng dahilan bago i-reject ang report.';
-        errBox.classList.remove('hidden');
-        return;
-      }
-
-      const { error } = await supabaseClient
-        .from('incident_reports')
-        .update({ status: 'Rejected', reject_reason: reason })
-        .eq('id', selectedReportId)
-        .select();
-
-      if (error) {
-        errBox.textContent = error.message;
-        errBox.classList.remove('hidden');
-        return;
-      }
-
-      closeModal();
-      fetchIncidents();
-    }
   </script>
-
-  <!-- Tawagin ang sidebar.js para lumitaw ang shared sidebar -->
   <script src="sidebar.js"></script>
 </body>
 </html>
