@@ -3,144 +3,181 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZAMSURECO II — FAQs & Service Inquiries</title>
+<title>ZAMSURECO II — FAQs &amp; Service Inquiries</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="theme.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script>
-  tailwind.config = {
-    theme: {
-      extend: {
-        colors: {
-          navy: { 900:'#081D45', 800:'#0D2E63', 700:'#153a7a' },
-          amber: { DEFAULT:'#F2A93B', deep:'#C97C1B' },
-        },
-        fontFamily: {
-          display: ['Space Grotesk','sans-serif'],
-          body: ['Inter','sans-serif'],
-          mono: ['IBM Plex Mono','monospace'],
-        }
-      }
-    }
-  }
-</script>
 <style>
-  body{font-family:'Inter',sans-serif;}
-  .faq-answer{max-height:0;overflow:hidden;transition:max-height .3s ease-out,padding .3s ease;}
-  .card.active .faq-answer{max-height:300px;}
-  .card.active .arrow{transform:rotate(180deg);}
-  .arrow{transition:transform .3s ease;}
+  .toast-in { animation: toastIn .2s ease; }
+  @keyframes toastIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+
+  .field { width: 100%; padding: 9px 12px; background: #F5F6FA; border: 1px solid #DFE3EE; border-radius: 6px; font-size: 14px; }
+  .field:focus { outline: none; box-shadow: 0 0 0 2px #1A2B9E; background: #fff; }
+
+  .cat-tab { padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 500; color: #4A5372; border: 1px solid #DFE3EE; background: #fff; }
+  .cat-tab:hover { border-color: #94A2EA; color: #1A2B9E; }
+  .cat-tab.active { background: #111F78; border-color: #111F78; color: #fff; }
+  .cat-tab .n { margin-left: 6px; font-size: 11px; opacity: .7; }
+
+  .faq-row { display: grid; grid-template-columns: 34px 72px minmax(0,1fr) 150px 140px; align-items: center; gap: 12px; }
+  @media (max-width: 900px) { .faq-row { grid-template-columns: 30px 64px minmax(0,1fr) 128px; } .faq-row .cat-col { display: none; } }
+
+  .icon-btn { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; color: #4A5372; }
+  .icon-btn:hover { background: #E2E6FA; color: #111F78; }
+  .icon-btn.danger:hover { background: #F9E3E1; color: #B3261E; }
+  .icon-btn svg { width: 17px; height: 17px; }
+
+  .answer { display: none; }
+  .faq-item.open .answer { display: block; }
+  .faq-item.open .preview-btn { background: #E2E6FA; color: #111F78; }
 </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-body overflow-x-hidden">
-  <!-- Dito i-i-inject ng sidebar.js ang shared sidebar at hamburger menu -->
+<body class="bg-paper-50 text-ink-900 font-sans overflow-x-hidden">
   <div id="sidebar-root"></div>
 
-  <!-- Main Content Wrapper -->
-  <div class="main-content flex-1 flex flex-col h-screen overflow-hidden">
-    <!-- Navbar -->
-    <nav class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm flex-shrink-0">
-      <div class="flex items-center space-x-4">
-        <button class="hamburger-btn bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 rounded-xl w-10 h-10 flex flex-col items-center justify-center gap-1 cursor-pointer transition flex-shrink-0" id="sidebarToggle" aria-label="Toggle navigation menu">
-          <span class="block w-4 h-0.5 bg-gray-700 rounded-full"></span>
-          <span class="block w-4 h-0.5 bg-gray-700 rounded-full"></span>
-          <span class="block w-4 h-0.5 bg-gray-700 rounded-full"></span>
+  <div class="main-content !p-0 flex-1 flex flex-col h-screen overflow-hidden">
+    <nav class="bg-white border-b border-line px-6 h-16 flex justify-between items-center flex-shrink-0">
+      <div class="flex items-center gap-4">
+        <button class="hamburger-btn" id="sidebarToggle" aria-label="Toggle navigation menu">
+          <span class="bar"></span><span class="bar"></span><span class="bar"></span>
         </button>
         <div>
-          <h1 class="text-lg font-display font-bold text-gray-900 leading-tight">FAQs & Service Inquiries</h1>
-          <p class="text-xs text-gray-500">Manage common questions shown to applicants and members</p>
+          <h1 class="text-lg font-semibold text-ink-900 leading-tight">FAQs &amp; Service Inquiries</h1>
+          <p class="text-xs text-ink-700">Common questions shown to applicants and members in the app</p>
         </div>
       </div>
-      <div class="flex items-center space-x-3">
-        <button id="addFaqBtn" onclick="openFormModal()" class="bg-navy-800 hover:bg-navy-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition">
-          + Add FAQ
-        </button>
-      </div>
+      <div></div>
     </nav>
 
-    <!-- Main Scrollable Area -->
-    <main class="flex-1 overflow-y-auto p-8 bg-slate-50">
-      <div class="max-w-3xl mx-auto">
-        <div class="mb-6">
-          <h2 class="text-2xl font-display font-bold text-navy-900">Common service inquiries</h2>
-          <p class="text-sm text-slate-500 mt-0.5">Click a question to preview. Only active FAQs appear in the user app.</p>
+    <main class="flex-1 overflow-y-auto p-6 lg:p-8">
+      <div class="max-w-6xl mx-auto space-y-5">
+
+        <div id="diagBanner" class="hidden bg-danger-100 border border-danger-600/30 text-danger-600 text-sm rounded-lg p-4"></div>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <div id="catTabs" class="flex flex-wrap gap-2"></div>
+          <div class="ml-auto flex items-center gap-2 w-full sm:w-auto">
+            <input id="searchInput" type="text" class="field sm:w-64" placeholder="Search questions…">
+            <button id="addFaqBtn" class="whitespace-nowrap bg-brand-800 hover:bg-brand-900 text-white px-4 py-2 rounded-md text-sm font-semibold">+ Add FAQ</button>
+          </div>
         </div>
 
-        <div id="diagBanner" class="hidden mb-5 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl p-4"></div>
+        <section class="bg-white border border-line rounded-lg overflow-hidden">
+          <div class="faq-row px-5 py-3 bg-paper-50 border-b border-line text-xs font-semibold text-ink-700 uppercase tracking-wide">
+            <span>#</span>
+            <span>Status</span>
+            <span>Question</span>
+            <span class="cat-col">Category</span>
+            <span class="text-right">Actions</span>
+          </div>
+          <div id="faqList">
+            <p class="px-5 py-10 text-center text-sm text-ink-700">Loading FAQs…</p>
+          </div>
+        </section>
 
-        <div id="faq-list" class="space-y-3">
-          <p class="text-center text-slate-400 text-sm py-8">Loading FAQs...</p>
-        </div>
+        <p class="text-xs text-ink-700">Only <b>Active</b> FAQs are shown in the member app, ordered by their number.</p>
       </div>
     </main>
   </div>
 
-  <!-- Add/Edit Modal -->
-  <div id="form-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-100 overflow-hidden">
-      <div class="bg-navy-800 text-white px-6 py-4 flex justify-between items-center">
-        <h3 id="form-title" class="text-base font-display font-bold">Add FAQ</h3>
-        <button onclick="closeFormModal()" class="text-white/70 hover:text-white bg-white/10 hover:bg-white/20 p-2 rounded-full transition">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+  <div id="formModal" class="hidden fixed inset-0 z-[500] items-center justify-center p-4" style="background:rgba(11,21,85,0.45)">
+    <div class="bg-white rounded-lg border border-line shadow-2xl w-full max-w-lg">
+      <div class="px-6 py-4 border-b border-line flex items-center justify-between">
+        <h3 id="formTitle" class="text-base font-semibold">Add FAQ</h3>
+        <button id="formClose" class="icon-btn" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
-      <div class="p-6 space-y-4">
+      <div class="px-6 py-5 space-y-4">
         <div>
-          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Question</label>
-          <input type="text" id="questionInput" placeholder="hal. Ano ang requirements..." class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 transition">
+          <label class="block text-xs font-medium text-ink-700 mb-1.5">Question</label>
+          <input id="questionInput" type="text" class="field" placeholder="e.g. What are the requirements for a new connection?">
         </div>
         <div>
-          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Answer</label>
-          <textarea id="answerInput" rows="4" placeholder="Isulat ang sagot dito..." class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 transition"></textarea>
+          <label class="block text-xs font-medium text-ink-700 mb-1.5">Answer</label>
+          <textarea id="answerInput" rows="5" class="field" placeholder="Write the answer here…"></textarea>
         </div>
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-medium text-ink-700 mb-1.5">Category</label>
+            <select id="categoryInput" class="field">
+              <option value="">General</option>
+              <option value="New Connection">New Connection</option>
+              <option value="Reconnection">Reconnection</option>
+              <option value="Transfer of Connection">Transfer of Connection</option>
+            </select>
+          </div>
           <div>
-            <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Sort order</label>
-            <input type="number" id="sortInput" value="0" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 transition">
-          </div>
-          <div class="flex items-end pb-2.5">
-            <label class="flex items-center gap-2 text-sm text-slate-700">
-              <input type="checkbox" id="activeInput" checked class="w-4 h-4 rounded border-slate-300 text-navy-800 focus:ring-navy-800">
-              Active (visible sa app)
-            </label>
+            <label class="block text-xs font-medium text-ink-700 mb-1.5">Order</label>
+            <input id="sortInput" type="number" min="0" class="field num" value="0">
           </div>
         </div>
-        <div id="form-error" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-3"></div>
+        <label class="flex items-center gap-2 text-sm text-ink-800">
+          <input id="activeInput" type="checkbox" class="w-4 h-4" checked>
+          Active (shown in the member app)
+        </label>
+        <div id="formError" class="hidden text-xs text-danger-600 bg-danger-100 border border-danger-600/30 rounded-md p-3"></div>
       </div>
-      <div class="px-6 pb-6 flex justify-end gap-2.5">
-        <button onclick="closeFormModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide transition">Cancel</button>
-        <button id="saveBtn" onclick="saveFaq()" class="bg-navy-800 hover:bg-navy-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold tracking-wide shadow-sm transition">Save FAQ</button>
+      <div class="px-6 py-4 bg-paper-50 border-t border-line flex justify-end gap-2 rounded-b-lg">
+        <button id="formCancel" class="bg-white border border-line hover:bg-paper-100 text-ink-800 px-4 py-2 rounded-md text-sm font-semibold">Cancel</button>
+        <button id="saveBtn" class="bg-brand-800 hover:bg-brand-900 text-white px-4 py-2 rounded-md text-sm font-semibold">Save FAQ</button>
       </div>
     </div>
   </div>
+
+  <div id="confirmModal" class="hidden fixed inset-0 z-[550] items-center justify-center p-4" style="background:rgba(11,21,85,0.45)">
+    <div class="bg-white rounded-lg border border-line shadow-2xl w-full max-w-sm">
+      <div class="px-6 pt-6 pb-4">
+        <h3 class="text-base font-semibold" id="confirmTitle">Delete this FAQ?</h3>
+        <p class="text-sm text-ink-700 mt-1.5" id="confirmText"></p>
+      </div>
+      <div class="px-6 py-4 bg-paper-50 border-t border-line flex justify-end gap-2 rounded-b-lg">
+        <button id="confirmNo" class="bg-white border border-line hover:bg-paper-100 text-ink-800 px-4 py-2 rounded-md text-sm font-semibold">Cancel</button>
+        <button id="confirmYes" class="bg-danger-600 hover:opacity-90 text-white px-4 py-2 rounded-md text-sm font-semibold">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="hidden fixed bottom-6 right-6 max-w-sm px-4 py-3 rounded-lg text-sm font-semibold shadow-lg z-[600]"></div>
 
   <script>
     const SUPABASE_URL = 'https://zrnvivattocqvxlxzsld.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_PUfegf_zyb5B_gVas_SLyw_mto9NFGF';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    let faqsCache = [];
+    const CATEGORIES = ['New Connection', 'Reconnection', 'Transfer of Connection'];
+    const CAT_STYLE = {
+      'New Connection': 'bg-gold-100 text-gold-700',
+      'Reconnection': 'bg-brand-100 text-brand-800',
+      'Transfer of Connection': 'bg-ok-100 text-ok-600',
+      '': 'bg-paper-100 text-ink-700',
+    };
+
+    const ICONS = {
+      eye: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
+      edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>',
+      hide: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><path d="M1 1l22 22"/></svg>',
+      show: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 6L9 17l-5-5"/></svg>',
+      trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>',
+    };
+
+    let faqs = [];
     let editingId = null;
-
-    async function checkAuth() {
-      const { data: { session } } = await supabaseClient.auth.getSession();
-      if (!session) { window.location.href = 'admin_login.html'; return; }
-      fetchFaqs();
-    }
-
-    document.addEventListener('click', async (e) => {
-      if (e.target.closest('#logoutBtn')) {
-        await supabaseClient.auth.signOut();
-        window.location.href = 'admin_login.html';
-      }
-    });
-
-    checkAuth();
+    let activeCat = 'all';
+    let pendingDelete = null;
 
     function escapeHtml(str) {
       if (str === null || str === undefined) return '';
-      return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+      return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+    }
+
+    function toast(msg, ok = true) {
+      const t = document.getElementById('toast');
+      t.className = 'toast-in fixed bottom-6 right-6 max-w-sm px-4 py-3 rounded-lg text-sm font-semibold shadow-lg z-[600] ' +
+        (ok ? 'bg-ok-100 text-ok-600 border border-ok-600/30' : 'bg-danger-100 text-danger-600 border border-danger-600/30');
+      t.textContent = msg;
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => t.classList.add('hidden'), 4500);
     }
 
     function showBanner(msg) {
@@ -149,143 +186,204 @@
       b.classList.remove('hidden');
     }
 
+    function openModal(id) { const m = document.getElementById(id); m.classList.remove('hidden'); m.classList.add('flex'); }
+    function closeModal(id) { const m = document.getElementById(id); m.classList.add('hidden'); m.classList.remove('flex'); }
+
+    const catOf = (f) => CATEGORIES.includes(f.category) ? f.category : '';
+
+    async function checkAuth() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) { window.location.href = 'admin_login.html'; return; }
+      fetchFaqs();
+    }
+
     async function fetchFaqs() {
-      const list = document.getElementById('faq-list');
-      list.innerHTML = `<p class="text-center text-slate-400 text-sm py-8">Loading FAQs...</p>`;
-
-      const { data, error } = await supabaseClient
-        .from('faqs')
-        .select('*')
-        .order('sort_order', { ascending: true });
-
+      const { data, error } = await supabaseClient.from('faqs').select('*').order('sort_order', { ascending: true });
       if (error) {
         showBanner('Error loading FAQs: ' + error.message);
-        list.innerHTML = '';
+        document.getElementById('faqList').innerHTML = '';
+        return;
+      }
+      faqs = data || [];
+      render();
+    }
+
+    function renderTabs() {
+      const tabs = [['all', 'All'], ...CATEGORIES.map(c => [c, c === 'Transfer of Connection' ? 'Transfer' : c])];
+      if (faqs.some(f => !catOf(f))) tabs.push(['', 'General']);
+      document.getElementById('catTabs').innerHTML = tabs.map(([key, label]) => {
+        const n = key === 'all' ? faqs.length : faqs.filter(f => catOf(f) === key).length;
+        return `<button class="cat-tab ${activeCat === key ? 'active' : ''}" data-cat="${escapeHtml(key)}">${label}<span class="n">${n}</span></button>`;
+      }).join('');
+    }
+
+    function render() {
+      renderTabs();
+      const q = document.getElementById('searchInput').value.trim().toLowerCase();
+      const rows = faqs.filter(f =>
+        (activeCat === 'all' || catOf(f) === activeCat) &&
+        (!q || `${f.question} ${f.answer}`.toLowerCase().includes(q)));
+
+      const list = document.getElementById('faqList');
+      if (!faqs.length) {
+        list.innerHTML = `<p class="px-5 py-10 text-center text-sm text-ink-700">No FAQs yet. Click <b>+ Add FAQ</b> to create one.</p>`;
+        return;
+      }
+      if (!rows.length) {
+        list.innerHTML = `<p class="px-5 py-10 text-center text-sm text-ink-700">No FAQs match this filter.</p>`;
         return;
       }
 
-      faqsCache = data || [];
-
-      if (faqsCache.length === 0) {
-        list.innerHTML = `<p class="text-center text-slate-400 text-sm py-8">Wala pang FAQ. I-click ang "+ Add FAQ" para magdagdag.</p>`;
-        return;
-      }
-
-      list.innerHTML = '';
-      faqsCache.forEach((faq) => {
-        const statusBadge = faq.is_active
-          ? `<span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">Active</span>`
-          : `<span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-500 border border-slate-200">Hidden</span>`;
-
-        const card = document.createElement('div');
-        card.className = 'card bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden';
-        card.innerHTML = `
-          <button class="faq-question w-full text-left px-6 py-4 flex justify-between items-center gap-4 hover:bg-slate-50 transition" onclick="toggleFaq(this)">
-            <div class="flex items-center gap-3 min-w-0">
-              ${statusBadge}
-              <span class="text-sm font-semibold text-navy-900 truncate">${escapeHtml(faq.question)}</span>
+      list.innerHTML = rows.map((f, i) => {
+        const cat = catOf(f);
+        return `
+          <div class="faq-item border-b border-line last:border-b-0" data-id="${f.id}">
+            <div class="faq-row px-5 py-3 hover:bg-brand-50/50 cursor-pointer" data-action="preview">
+              <span class="text-xs text-ink-700 num">${i + 1}</span>
+              <span>${f.is_active
+                ? '<span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-ok-100 text-ok-600">Active</span>'
+                : '<span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-paper-100 text-ink-700">Hidden</span>'}</span>
+              <span class="text-sm font-medium text-ink-900 truncate ${f.is_active ? '' : 'opacity-60'}" title="${escapeHtml(f.question)}">${escapeHtml(f.question)}</span>
+              <span class="cat-col"><span class="text-[11px] font-semibold px-2 py-0.5 rounded ${CAT_STYLE[cat]}">${escapeHtml(cat || 'General')}</span></span>
+              <span class="flex justify-end gap-0.5">
+                <button class="icon-btn preview-btn" title="Preview answer" data-action="preview">${ICONS.eye}</button>
+                <button class="icon-btn" title="Edit" data-action="edit">${ICONS.edit}</button>
+                <button class="icon-btn" title="${f.is_active ? 'Hide from app' : 'Show in app'}" data-action="toggle">${f.is_active ? ICONS.hide : ICONS.show}</button>
+                <button class="icon-btn danger" title="Delete" data-action="delete">${ICONS.trash}</button>
+              </span>
             </div>
-            <span class="arrow text-navy-800 flex-shrink-0">&#9660;</span>
-          </button>
-          <div class="faq-answer px-6">
-            <p class="text-sm text-slate-600 leading-relaxed pt-4 border-t border-slate-100">${escapeHtml(faq.answer)}</p>
-            <div class="flex flex-wrap gap-2 pb-5 pt-4">
-              <button onclick="event.stopPropagation(); openFormModal(${faq.id})" class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition">Edit</button>
-              <button onclick="event.stopPropagation(); toggleActive(${faq.id}, ${faq.is_active})" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3.5 py-1.5 rounded-lg text-xs font-bold transition">${faq.is_active ? 'Hide' : 'Unhide'}</button>
-              <button onclick="event.stopPropagation(); deleteFaq(${faq.id})" class="bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition">Delete</button>
+            <div class="answer px-5 pb-4">
+              <div class="ml-[118px] max-[900px]:ml-0 text-sm text-ink-800 leading-relaxed bg-paper-50 border border-line rounded-md p-3 whitespace-pre-line">${escapeHtml(f.answer)}</div>
             </div>
-          </div>
-        `;
-        list.appendChild(card);
-      });
+          </div>`;
+      }).join('');
     }
 
-    function toggleFaq(button) {
-      button.parentElement.classList.toggle('active');
-    }
+    document.getElementById('catTabs').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-cat]');
+      if (!b) return;
+      activeCat = b.dataset.cat;
+      render();
+    });
+    document.getElementById('searchInput').addEventListener('input', render);
 
-    function openFormModal(id = null) {
+    document.getElementById('faqList').addEventListener('click', (e) => {
+      const el = e.target.closest('[data-action]');
+      if (!el) return;
+      const item = el.closest('.faq-item');
+      const id = Number(item.dataset.id);
+      const action = el.dataset.action;
+      if (el.tagName === 'BUTTON') e.stopPropagation();
+
+      if (action === 'preview') item.classList.toggle('open');
+      else if (action === 'edit') openForm(id);
+      else if (action === 'toggle') toggleActive(id);
+      else if (action === 'delete') askDelete(id);
+    });
+
+    function openForm(id = null) {
       editingId = id;
-      document.getElementById('form-error').classList.add('hidden');
-
-      if (id) {
-        const faq = faqsCache.find(f => f.id === id);
-        document.getElementById('form-title').textContent = 'Edit FAQ';
-        document.getElementById('questionInput').value = faq.question;
-        document.getElementById('answerInput').value = faq.answer;
-        document.getElementById('sortInput').value = faq.sort_order;
-        document.getElementById('activeInput').checked = faq.is_active;
-      } else {
-        document.getElementById('form-title').textContent = 'Add FAQ';
-        document.getElementById('questionInput').value = '';
-        document.getElementById('answerInput').value = '';
-        document.getElementById('sortInput').value = faqsCache.length;
-        document.getElementById('activeInput').checked = true;
-      }
-
-      document.getElementById('form-modal').classList.remove('hidden');
-      document.getElementById('form-modal').classList.add('flex');
-    }
-
-    function closeFormModal() {
-      document.getElementById('form-modal').classList.add('hidden');
-      document.getElementById('form-modal').classList.remove('flex');
-      editingId = null;
+      document.getElementById('formError').classList.add('hidden');
+      const f = id ? faqs.find(x => x.id === id) : null;
+      document.getElementById('formTitle').textContent = f ? 'Edit FAQ' : 'Add FAQ';
+      document.getElementById('questionInput').value = f ? f.question : '';
+      document.getElementById('answerInput').value = f ? f.answer : '';
+      document.getElementById('categoryInput').value = f ? catOf(f) : (CATEGORIES.includes(activeCat) ? activeCat : '');
+      document.getElementById('sortInput').value = f ? (f.sort_order ?? 0) : faqs.length;
+      document.getElementById('activeInput').checked = f ? !!f.is_active : true;
+      openModal('formModal');
+      document.getElementById('questionInput').focus();
     }
 
     async function saveFaq() {
       const question = document.getElementById('questionInput').value.trim();
       const answer = document.getElementById('answerInput').value.trim();
-      const sortOrder = parseInt(document.getElementById('sortInput').value, 10) || 0;
-      const isActive = document.getElementById('activeInput').checked;
-      const errBox = document.getElementById('form-error');
+      const errBox = document.getElementById('formError');
       errBox.classList.add('hidden');
 
       if (!question || !answer) {
-        errBox.textContent = 'Kailangan punan ang tanong at sagot.';
+        errBox.textContent = 'Please enter both the question and the answer.';
         errBox.classList.remove('hidden');
         return;
       }
 
-      const payload = { question, answer, sort_order: sortOrder, is_active: isActive };
+      const payload = {
+        question,
+        answer,
+        category: document.getElementById('categoryInput').value || null,
+        sort_order: parseInt(document.getElementById('sortInput').value, 10) || 0,
+        is_active: document.getElementById('activeInput').checked,
+      };
 
-      let error;
-      if (editingId) {
-        ({ error } = await supabaseClient.from('faqs').update(payload).eq('id', editingId));
-      } else {
-        ({ error } = await supabaseClient.from('faqs').insert(payload));
-      }
+      const btn = document.getElementById('saveBtn');
+      btn.disabled = true; btn.textContent = 'Saving…';
+      const { error } = editingId
+        ? await supabaseClient.from('faqs').update(payload).eq('id', editingId)
+        : await supabaseClient.from('faqs').insert(payload);
+      btn.disabled = false; btn.textContent = 'Save FAQ';
 
       if (error) {
-        errBox.textContent = error.message;
+        errBox.textContent = error.message + (/category/.test(error.message) ? ' (Run faq_categories.sql in Supabase first.)' : '');
         errBox.classList.remove('hidden');
         return;
       }
-
-      closeFormModal();
+      const wasEditing = !!editingId;
+      closeModal('formModal');
+      editingId = null;
+      toast(wasEditing ? 'FAQ updated.' : 'FAQ added.');
       fetchFaqs();
     }
 
-    async function toggleActive(id, current) {
-      const { error } = await supabaseClient
-        .from('faqs')
-        .update({ is_active: !current })
-        .eq('id', id);
-
-      if (error) { showBanner('Error: ' + error.message); return; }
+    async function toggleActive(id) {
+      const f = faqs.find(x => x.id === id);
+      if (!f) return;
+      const { error } = await supabaseClient.from('faqs').update({ is_active: !f.is_active }).eq('id', id);
+      if (error) { toast('Error: ' + error.message, false); return; }
+      toast(f.is_active ? 'FAQ hidden from the app.' : 'FAQ is now shown in the app.');
       fetchFaqs();
     }
 
-    async function deleteFaq(id) {
-      if (!confirm('Sigurado ka bang gusto mong i-delete ang FAQ na ito?')) return;
+    function askDelete(id) {
+      const f = faqs.find(x => x.id === id);
+      if (!f) return;
+      pendingDelete = id;
+      document.getElementById('confirmText').textContent = `"${f.question}" will be removed permanently. To keep it but stop showing it, use Hide instead.`;
+      openModal('confirmModal');
+    }
 
-      const { error } = await supabaseClient.from('faqs').delete().eq('id', id);
-      if (error) { showBanner('Error: ' + error.message); return; }
+    async function confirmDelete() {
+      if (!pendingDelete) return;
+      const { error } = await supabaseClient.from('faqs').delete().eq('id', pendingDelete);
+      closeModal('confirmModal');
+      pendingDelete = null;
+      if (error) { toast('Error: ' + error.message, false); return; }
+      toast('FAQ deleted.');
       fetchFaqs();
     }
+
+    document.getElementById('addFaqBtn').addEventListener('click', () => openForm());
+    document.getElementById('saveBtn').addEventListener('click', saveFaq);
+    document.getElementById('formCancel').addEventListener('click', () => closeModal('formModal'));
+    document.getElementById('formClose').addEventListener('click', () => closeModal('formModal'));
+    document.getElementById('formModal').addEventListener('click', (e) => { if (e.target.id === 'formModal') closeModal('formModal'); });
+    document.getElementById('confirmNo').addEventListener('click', () => { closeModal('confirmModal'); pendingDelete = null; });
+    document.getElementById('confirmYes').addEventListener('click', confirmDelete);
+    document.getElementById('confirmModal').addEventListener('click', (e) => { if (e.target.id === 'confirmModal') { closeModal('confirmModal'); pendingDelete = null; } });
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      closeModal('formModal');
+      closeModal('confirmModal');
+    });
+    document.addEventListener('click', async (e) => {
+      if (e.target.closest('#logoutBtn')) {
+        await supabaseClient.auth.signOut();
+        window.location.href = 'admin_login.html';
+      }
+    });
+
+    checkAuth();
   </script>
 
-  <!-- Tawagin ang sidebar.js para lumitaw ang shared sidebar -->
   <script src="sidebar.js"></script>
 </body>
 </html>
