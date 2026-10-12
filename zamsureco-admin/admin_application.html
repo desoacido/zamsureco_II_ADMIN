@@ -33,6 +33,11 @@
   }
 </script>
 <style>
+  .type-tab { padding: 10px 2px; font-size: 14px; font-weight: 500; color: #4A5372; border-bottom: 3px solid transparent; display: inline-flex; align-items: center; gap: 8px; }
+  .type-tab:hover { color: #1A2B9E; }
+  .type-tab.active { color: #141B3D; font-weight: 600; border-bottom-color: #EBCB00; }
+  .type-tab .count { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: #E2E6FA; color: #1A2B9E; }
+  .type-tab .count.zero { background: #EEF0F5; color: #8A93AD; }
   body { font-family: 'IBM Plex Sans', system-ui, sans-serif; }
   .num { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
   .pulse-dot{animation:pulse 2s infinite;}
@@ -85,7 +90,7 @@
         </button>
         <div>
           <h1 class="text-lg font-semibold text-ink-900 leading-tight">Service Applications</h1>
-          <p class="text-xs text-ink-700 mt-0.5">Schedule, track, and process new connection and reconnection requests</p>
+          <p class="text-xs text-ink-700 mt-0.5">New connection, reconnection, and transfer requests</p>
         </div>
       </div>
       <div class="flex items-center space-x-2">
@@ -98,43 +103,18 @@
     <main class="flex-1 overflow-y-auto p-8">
       <div class="max-w-6xl mx-auto space-y-6">
 
-        <!-- Summary -->
-        <section class="grid grid-cols-2 md:grid-cols-4 bg-white border border-line rounded divide-x divide-line">
-          <!-- Each number is a shortcut to the same filter below -->
-          <button type="button" data-filter="active" class="stat-tile p-5 text-left hover:bg-paper-50 transition">
-            <p class="text-xs text-ink-700">Needs action</p>
-            <p id="statActive" class="text-3xl font-semibold num mt-1">–</p>
-          </button>
-          <button type="button" data-filter="For Inspection" class="stat-tile p-5 text-left hover:bg-paper-50 transition">
-            <p class="text-xs text-ink-700">For inspection</p>
-            <p id="statInspection" class="text-3xl font-semibold num mt-1 text-info-600">–</p>
-          </button>
-          <button type="button" data-filter="Energized" class="stat-tile p-5 text-left hover:bg-paper-50 transition">
-            <p class="text-xs text-ink-700">Energized</p>
-            <p id="statEnergized" class="text-3xl font-semibold num mt-1 text-ok-600">–</p>
-          </button>
-          <button type="button" data-filter="flagged" class="stat-tile p-5 text-left hover:bg-paper-50 transition">
-            <p class="text-xs text-ink-700">Flagged</p>
-            <p id="statFlagged" class="text-3xl font-semibold num mt-1 text-danger-600">–</p>
-          </button>
-        </section>
+        <div id="typeTabs" class="border-b border-line flex items-end gap-6"></div>
+
+        <section id="statTiles" class="grid grid-cols-2 md:grid-cols-4 bg-white border border-line rounded divide-x divide-line"></section>
 
         <section class="bg-white border border-line rounded">
           <header class="section-head px-5 pt-5 pb-4 flex items-end justify-between gap-4 flex-wrap">
             <div>
-              <h2 class="text-base font-semibold text-ink-900">Applications</h2>
+              <h2 id="listTitle" class="text-base font-semibold text-ink-900">Applications</h2>
               <p class="text-xs text-ink-700 mt-0.5">Click Manage to schedule the next step. Applicants see every change in the app.</p>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
-              <select id="statusFilter" class="field" style="width:auto">
-                <option value="all">All applications</option>
-                <option value="active">Needs action</option>
-                <option value="For Inspection">For inspection</option>
-                <option value="flagged">Flagged (needs review)</option>
-                <option value="Energized">Energized</option>
-                <option value="Rejected">Rejected</option>
-                <option value="reconnection">Reconnection requests</option>
-              </select>
+              <select id="statusFilter" class="field" style="width:auto"></select>
               <input id="searchInput" type="search" placeholder="Search name or contact..." class="field" style="width:220px">
             </div>
           </header>
@@ -145,17 +125,7 @@
             </div>
             <div id="tableWrapper" class="overflow-x-auto border-t border-line">
               <table class="w-full text-left border-collapse">
-                <thead>
-                  <tr class="bg-paper-100 text-ink-700 text-xs font-medium border-b border-line">
-                    <th class="p-4">Applicant</th>
-                    <th class="p-4">Connection type</th>
-                    <th class="p-4">Eligibility</th>
-                    <th class="p-4">Status</th>
-                    <th class="p-4">Next step</th>
-                    <th class="p-4">Date applied</th>
-                    <th class="p-4 text-center">Action</th>
-                  </tr>
-                </thead>
+                <thead id="tableHead"></thead>
                 <tbody id="applicationTableBody" class="divide-y divide-line text-sm">
                   <tr><td colspan="7" class="p-8 text-center text-ink-700/60">Loading applications...</td></tr>
                 </tbody>
@@ -227,9 +197,28 @@
       'Reconnected':            'Completed',
       'Rejected':               '—',
     };
+    const TRANSFER_STEPS = [
+      { status: 'Pending',            label: 'Requested' },
+      { status: 'For Inspection',     label: 'Inspection' },
+      { status: 'For Payment',        label: 'Payment' },
+      { status: 'Paid',               label: 'Paid' },
+      { status: 'Transfer Scheduled', label: 'Scheduled' },
+      { status: 'Transferred',        label: 'Transferred' },
+    ];
+    const TRANSFER_NEXT = {
+      'Pending':            'Check papers & schedule inspection',
+      'For Inspection':     'Record inspection result',
+      'Inspection Failed':  'Re-inspect or reject',
+      'For Payment':        'Record OR number',
+      'Paid':               'Schedule the transfer',
+      'Transfer Scheduled': 'Mark as transferred',
+      'Transferred':        'Completed',
+      'Rejected':           '—',
+    };
     const isRecon = (a) => (a && a.application_type) === 'Reconnection';
-    const nextLabel = (a) => (isRecon(a) ? RECON_NEXT : NEXT_STEP)[a.status || 'Pending'] || '—';
-    const FINISHED = ['Energized', 'Reconnected', 'Rejected'];
+    const isTransfer = (a) => (a && a.application_type) === 'Transfer of Connection';
+    const nextLabel = (a) => (isRecon(a) ? RECON_NEXT : (isTransfer(a) ? TRANSFER_NEXT : NEXT_STEP))[a.status || 'Pending'] || '—';
+    const FINISHED = ['Energized', 'Reconnected', 'Transferred', 'Rejected'];
 
     const NEXT_STEP = {
       'Pending':                'Set PMES schedule',
@@ -260,7 +249,52 @@
       'Payment Verified':       'background:#E1EBE3;color:#3F7857',
       'Reconnection Scheduled': 'background:#DEE7EF;color:#2F5D8A',
       'Reconnected':            'background:#3F7857;color:#fff',
+      'Transfer Scheduled':     'background:#DEE7EF;color:#2F5D8A',
+      'Transferred':            'background:#3F7857;color:#fff',
     };
+
+    const TYPES = {
+      new: {
+        tab: 'New Connection',
+        title: 'New connection applications',
+        match: (a) => !isRecon(a) && !isTransfer(a),
+        tiles: [
+          ['active', 'Needs action', ''],
+          ['For Inspection', 'For inspection', 'text-info-600'],
+          ['Energized', 'Energized', 'text-ok-600'],
+          ['flagged', 'Flagged', 'text-danger-600'],
+        ],
+        statuses: ['Pending', 'PMES Scheduled', 'PMES Completed', 'Submission Scheduled', 'For Inspection',
+                   'Inspection Failed', 'For Payment', 'Paid', 'Installation Scheduled', 'Energized', 'Rejected'],
+      },
+      reconnection: {
+        tab: 'Reconnection',
+        title: 'Reconnection requests',
+        match: (a) => isRecon(a),
+        tiles: [
+          ['active', 'Needs action', ''],
+          ['Pending', 'Awaiting payment', 'text-copper-500'],
+          ['Reconnection Scheduled', 'Scheduled', 'text-info-600'],
+          ['Reconnected', 'Reconnected', 'text-ok-600'],
+        ],
+        statuses: ['Pending', 'Payment Verified', 'Reconnection Scheduled', 'Reconnected', 'Rejected'],
+      },
+      transfer: {
+        tab: 'Transfer of Connection',
+        title: 'Transfer requests',
+        match: (a) => isTransfer(a),
+        tiles: [
+          ['active', 'Needs action', ''],
+          ['For Inspection', 'For inspection', 'text-info-600'],
+          ['Transfer Scheduled', 'Scheduled', 'text-copper-500'],
+          ['Transferred', 'Transferred', 'text-ok-600'],
+        ],
+        statuses: ['Pending', 'For Inspection', 'Inspection Failed', 'For Payment', 'Paid',
+                   'Transfer Scheduled', 'Transferred', 'Rejected'],
+      },
+    };
+    const typeOf = (a) => isRecon(a) ? 'reconnection' : (isTransfer(a) ? 'transfer' : 'new');
+    let currentType = 'new';
 
     let applications = [];
     let pmesHints = {};        // connection_type -> PMES schedule text
@@ -278,7 +312,15 @@
 
       // From the Dashboard schedule: open that application's Manage panel right away
       const openId = new URLSearchParams(window.location.search).get('open');
-      if (openId) openDrawer(openId);
+      if (openId) {
+        const target = applications.find(a => String(a.id) === String(openId));
+        if (target && typeOf(target) !== currentType) {
+          currentType = typeOf(target);
+          renderStats();
+          renderTable();
+        }
+        openDrawer(openId);
+      }
     }
 
     document.addEventListener('click', async (e) => {
@@ -426,23 +468,62 @@
       if (window.refreshOverviewTabs) window.refreshOverviewTabs();
     }
 
+    function matchesFilter(a, filter) {
+      if (filter === 'all') return true;
+      if (filter === 'active') return isActive(a);
+      if (filter === 'flagged') return a.is_flagged && isActive(a);
+      return a.status === filter;
+    }
+
+    function renderTypeTabs() {
+      document.getElementById('typeTabs').innerHTML = Object.entries(TYPES).map(([key, t]) => {
+        const n = applications.filter(a => t.match(a) && isActive(a)).length;
+        return `<button type="button" class="type-tab ${currentType === key ? 'active' : ''}" data-type="${key}">
+            ${t.tab}<span class="count ${n ? '' : 'zero'}" title="Needs action">${n}</span>
+          </button>`;
+      }).join('');
+    }
+
     function renderStats() {
-      document.getElementById('statActive').textContent = applications.filter(isActive).length;
-      document.getElementById('statInspection').textContent = applications.filter(a => a.status === 'For Inspection').length;
-      document.getElementById('statEnergized').textContent = applications.filter(a => a.status === 'Energized').length;
-      document.getElementById('statFlagged').textContent = applications.filter(a => a.is_flagged && isActive(a)).length;
+      renderTypeTabs();
+      const t = TYPES[currentType];
+      const mine = applications.filter(t.match);
+      document.getElementById('statTiles').innerHTML = t.tiles.map(([filter, label, color]) => `
+        <button type="button" data-filter="${escapeHtml(filter)}" class="stat-tile p-5 text-left hover:bg-paper-50 transition">
+          <p class="text-xs text-ink-700">${label}</p>
+          <p class="text-3xl font-semibold num mt-1 ${color}">${mine.filter(a => matchesFilter(a, filter)).length}</p>
+        </button>`).join('');
+
+      const select = document.getElementById('statusFilter');
+      const keep = select.value || 'all';
+      const options = [['all', 'All'], ['active', 'Needs action'], ['flagged', 'Flagged (needs review)'],
+                       ...t.statuses.map(st => [st, st])];
+      select.innerHTML = options.map(([v, l]) => `<option value="${escapeHtml(v)}">${escapeHtml(l)}</option>`).join('');
+      select.value = options.some(o => o[0] === keep) ? keep : 'all';
+
+      document.getElementById('listTitle').textContent = t.title;
+      highlightActiveTile();
+    }
+
+    function tableHead() {
+      const cols = currentType === 'new'
+        ? ['Applicant', 'Connection type', 'Eligibility', 'Status', 'Next step', 'Date applied', 'Action']
+        : currentType === 'reconnection'
+          ? ['Member', 'Account no.', 'Address', 'Status', 'Next step', 'Date requested', 'Action']
+          : ['Member', 'Account no.', 'New location', 'Status', 'Next step', 'Date requested', 'Action'];
+      document.getElementById('tableHead').innerHTML =
+        `<tr class="bg-paper-100 text-ink-700 text-xs font-medium border-b border-line">${cols.map((c, i) =>
+          `<th class="p-4 ${i === cols.length - 1 ? 'text-center' : ''}">${c}</th>`).join('')}</tr>`;
     }
 
     function renderTable() {
       const filter = document.getElementById('statusFilter').value;
       const q = document.getElementById('searchInput').value.trim().toLowerCase();
 
+      tableHead();
       const rows = applications.filter(a => {
-        // Each filter counts exactly what its summary number counts
-        if (filter === 'active' && !isActive(a)) return false;
-        if (filter === 'reconnection' && !isRecon(a)) return false;
-        if (filter === 'flagged' && !(a.is_flagged && isActive(a))) return false;
-        if (['For Inspection', 'Energized', 'Rejected'].includes(filter) && a.status !== filter) return false;
+        if (!TYPES[currentType].match(a)) return false;
+        if (!matchesFilter(a, filter)) return false;
         if (q) {
           const hay = `${a.consumer_name || ''} ${a.contact_number || ''}`.toLowerCase();
           if (!hay.includes(q)) return false;
@@ -458,7 +539,7 @@
         emptyState.style.display = 'block';
         tableWrapper.style.display = 'none';
         document.getElementById('emptyText').textContent =
-          applications.length ? 'No applications match this filter.' : 'No applications at the moment.';
+          applications.some(TYPES[currentType].match) ? 'Nothing matches this filter.' : `No ${TYPES[currentType].title.toLowerCase()} yet.`;
         return;
       }
 
@@ -477,14 +558,14 @@
             <div class="font-semibold text-ink-900">${escapeHtml(a.consumer_name || 'N/A')}${flagged}</div>
             <div class="text-xs text-ink-700 num">${escapeHtml(a.contact_number || '—')}</div>
           </td>
-          <td class="p-4 text-ink-700">${isRecon(a)
-            ? '<span class="badge" style="background:#E2E6FA;color:#1A2B9E">Reconnection</span>'
-            : escapeHtml(a.connection_type || '—')}</td>
-          <td class="p-4">
-            ${isRecon(a)
-              ? `<div class="text-xs text-ink-700">Account</div><div class="text-xs font-semibold num">${escapeHtml(a.account_number || '—')}</div>`
-              : `<div class="text-xs font-semibold ${eligColor}">${escapeHtml(elig)}</div>${poleInfo}`}
-          </td>
+          ${currentType === 'new'
+            ? `<td class="p-4 text-ink-700">${escapeHtml(a.connection_type || '—')}</td>
+               <td class="p-4"><div class="text-xs font-semibold ${eligColor}">${escapeHtml(elig)}</div>${poleInfo}</td>`
+            : `<td class="p-4 text-sm font-semibold num text-ink-900 whitespace-nowrap">${escapeHtml(a.account_number || '—')}</td>
+               <td class="p-4 max-w-[260px]">
+                 <div class="text-xs text-ink-800 truncate" title="${escapeHtml(a.address || '')}">${escapeHtml(a.address || '—')}</div>
+                 ${currentType === 'transfer' ? `<div class="text-xs font-semibold ${eligColor}">${escapeHtml(elig)}</div>${poleInfo}` : ''}
+               </td>`}
           <td class="p-4">${statusBadge(a.status)}</td>
           <td class="p-4 text-xs text-ink-700">${escapeHtml(nextLabel(a))}</td>
           <td class="p-4 text-xs text-ink-700 num">${a.created_at ? escapeHtml(fmtDate(a.created_at)) : 'N/A'}</td>
@@ -498,14 +579,32 @@
     // Start with the filter from the link (e.g. ?filter=active from the dashboard).
     // Opening the page from the sidebar shows all applications.
     (function applyFilterFromUrl() {
-      const wanted = new URLSearchParams(window.location.search).get('filter');
+      const params = new URLSearchParams(window.location.search);
+      let type = params.get('type');
+      let filter = params.get('filter') || 'all';
+      if (filter === 'reconnection' || filter === 'transfer') { type = filter; filter = 'all'; }
+      currentType = TYPES[type] ? type : 'new';
       const select = document.getElementById('statusFilter');
-      if (wanted && [...select.options].some(o => o.value === wanted)) {
-        select.value = wanted;
-      } else {
-        select.value = 'all';
-      }
+      select.innerHTML = `<option value="${escapeHtml(filter)}">${escapeHtml(filter)}</option>`;
+      select.value = filter;
     })();
+
+    function setType(type) {
+      if (!TYPES[type] || type === currentType) return;
+      currentType = type;
+      document.getElementById('statusFilter').value = 'all';
+      const url = new URL(window.location.href);
+      url.searchParams.set('type', type);
+      url.searchParams.delete('filter');
+      history.replaceState(null, '', url);
+      renderStats();
+      renderTable();
+    }
+
+    document.getElementById('typeTabs').addEventListener('click', (e) => {
+      const tab = e.target.closest('[data-type]');
+      if (tab) setType(tab.dataset.type);
+    });
 
     // Keep the URL in step with the filter, so refresh or sharing keeps the same view
     function setFilter(value) {
@@ -531,15 +630,12 @@
 
     document.getElementById('statusFilter').addEventListener('change', (e) => setFilter(e.target.value));
 
-    // Clicking a summary number filters the list; clicking it again shows all
-    document.querySelectorAll('.stat-tile').forEach(tile => {
-      tile.addEventListener('click', () => {
-        const current = document.getElementById('statusFilter').value;
-        setFilter(current === tile.dataset.filter ? 'all' : tile.dataset.filter);
-      });
+    document.getElementById('statTiles').addEventListener('click', (e) => {
+      const tile = e.target.closest('.stat-tile');
+      if (!tile) return;
+      const current = document.getElementById('statusFilter').value;
+      setFilter(current === tile.dataset.filter ? 'all' : tile.dataset.filter);
     });
-
-    highlightActiveTile();
     document.getElementById('searchInput').addEventListener('input', renderTable);
     document.getElementById('applicationTableBody').addEventListener('click', (e) => {
       const btn = e.target.closest('[data-manage]');
@@ -615,8 +711,8 @@
     function renderStepper(app) {
       const status = app.status || 'Pending';
       if (status === 'Rejected') return '';
-      const steps = isRecon(app) ? RECON_STEPS : STEPS;
-      const finalStatus = isRecon(app) ? 'Reconnected' : 'Energized';
+      const steps = isRecon(app) ? RECON_STEPS : (isTransfer(app) ? TRANSFER_STEPS : STEPS);
+      const finalStatus = isRecon(app) ? 'Reconnected' : (isTransfer(app) ? 'Transferred' : 'Energized');
       let idx = steps.findIndex(s => s.status === status);
       const failed = status === 'Inspection Failed';
       if (failed) idx = steps.findIndex(s => s.status === 'For Inspection');
@@ -646,6 +742,12 @@
     function nextStepText(app) {
       const status = app.status || 'Pending';
       if (isRecon(app)) return nextLabel(app);
+      if (isTransfer(app)) {
+        if (status === 'Pending' && !allPapersReceived()) {
+          return `Receive papers (${currentReqs.filter(r => !r.is_received).length} missing)`;
+        }
+        return nextLabel(app);
+      }
       if (status === 'PMES Completed' && currentReqs.length > 0 && allPapersReceived()) {
         return 'Schedule inspection';
       }
@@ -660,6 +762,9 @@
     function renderNextAction(app) {
       const status = app.status || 'Pending';
       if (isRecon(app)) return renderReconAction(app);
+      if (isTransfer(app) && ['Pending', 'Paid', 'Transfer Scheduled', 'Transferred'].includes(status)) {
+        return renderTransferAction(app);
+      }
       const hint = pmesHints[app.connection_type];
 
       switch (status) {
@@ -817,6 +922,42 @@
       }
     }
 
+    function renderTransferAction(app) {
+      const status = app.status || 'Pending';
+      switch (status) {
+        case 'Pending': {
+          const ready = allPapersReceived();
+          return actionCard('Check the papers, then schedule the site inspection', `
+            <p class="text-sm text-ink-800 mb-1">Moving account <b class="num">${escapeHtml(app.account_number || '—')}</b></p>
+            <p class="text-xs text-ink-700 mb-3">From: ${escapeHtml(app.previous_address || '—')}<br>To: ${escapeHtml(app.address || '—')}</p>
+            ${ready
+              ? `<p class="text-xs text-ok-600 font-semibold mb-3">All papers received. Schedule the inspection of the new location.</p>`
+              : `<p class="text-xs text-copper-500 font-semibold mb-3">Tick each paper below as it is received. The inspection can be scheduled once everything is complete.</p>`}
+            ${inspectionForm(app, !ready)}`);
+        }
+        case 'Paid':
+          return actionCard('Schedule the transfer', `
+            <p class="text-sm text-ink-800 mb-3">Fees paid · OR <b class="num">${escapeHtml(app.or_number || '—')}</b></p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div><label class="text-xs font-medium text-ink-700">Date &amp; time</label><input id="trDate" type="datetime-local" class="field mt-1" min="${nowLocalInput()}" value="${toLocalInput(app.transfer_schedule)}"></div>
+              <div><label class="text-xs font-medium text-ink-700">Assigned crew / lineman</label><input id="trCrew" type="text" class="field mt-1" placeholder="e.g. Line Crew Team 1" value="${escapeHtml(app.assigned_crew || '')}"></div>
+            </div>
+            <button class="btn-primary mt-3" onclick="actTransferSchedule()">Save schedule</button>
+            <p class="text-xs text-ink-700/70 mt-2">The crew removes the meter and service drop at the old address and installs them at the new location.</p>`);
+        case 'Transfer Scheduled':
+          return actionCard('Mark as transferred', `
+            <p class="text-sm text-ink-800 mb-3">Scheduled: <b>${escapeHtml(fmtDate(app.transfer_schedule))}</b>${app.assigned_crew ? ` · ${escapeHtml(app.assigned_crew)}` : ''}</p>
+            <button class="btn-ok" onclick="actTransferDone()">Mark as transferred</button>
+            <button class="btn-ghost ml-2" onclick="actResetStatus('Paid', 'Moved back so you can set a new schedule.')">Reschedule</button>
+            <p class="text-xs text-ink-700/70 mt-2">The account number stays the same. The slot on the old pole is freed automatically.</p>`);
+        case 'Transferred':
+          return actionCard('Completed', `
+            <p class="text-sm text-ok-600 font-semibold">Transferred on ${escapeHtml(fmtDate(app.transferred_at || app.transfer_schedule))}</p>
+            <p class="text-sm text-ink-800 mt-1">Account <b class="num">${escapeHtml(app.account_number || '—')}</b> is now served at the new location.</p>`, true);
+      }
+      return '';
+    }
+
     function inspectionForm(app, disabled) {
       return `
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -872,6 +1013,7 @@
         ['Official receipt', app.or_number ? `OR ${app.or_number}${app.paid_at ? ' · ' + fmtDate(app.paid_at) : ''}` : ''],
         ['Installation', fmtDate(app.installation_schedule)],
         ['Reconnection', app.reconnection_schedule ? `${fmtDate(app.reconnection_schedule)}${app.assigned_crew ? ' · ' + app.assigned_crew : ''}` : ''],
+        ['Transfer', app.transfer_schedule ? `${fmtDate(app.transfer_schedule)}${app.assigned_crew ? ' · ' + app.assigned_crew : ''}` : ''],
       ].filter(r => r[1]);
 
       document.getElementById('drawerContent').innerHTML = `
@@ -908,11 +1050,17 @@
                 <div><p class="text-xs text-ink-700">Account status</p><p class="font-semibold">${escapeHtml((currentRecon || {}).accountStatus || '—')}</p></div>
                 <div class="col-span-2"><p class="text-xs text-ink-700">Address</p><p class="font-medium">${escapeHtml(app.address || '—')}</p></div>
                 ${app.request_note ? `<div class="col-span-2"><p class="text-xs text-ink-700">Member's note</p><p class="font-medium">${escapeHtml(app.request_note)}</p></div>` : ''}
-              </div>`) : foldPanel('panelDetails', 'Applicant details &amp; map', `
+              </div>`) : foldPanel('panelDetails', isTransfer(app) ? 'Transfer details &amp; map' : 'Applicant details &amp; map', `
               <div class="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                <div><p class="text-xs text-ink-700">Connection type</p><p class="font-semibold">${escapeHtml(app.connection_type || '—')}</p></div>
-                <div><p class="text-xs text-ink-700">Ownership</p><p class="font-semibold">${escapeHtml(app.ownership_status || '—')}${app.via_representative ? ' · via representative' : ''}</p></div>
-                <div class="col-span-2"><p class="text-xs text-ink-700">Address</p><p class="font-medium">${escapeHtml(app.address || '—')}</p></div>
+                ${isTransfer(app) ? `
+                <div><p class="text-xs text-ink-700">Account number</p><p class="font-semibold num">${escapeHtml(app.account_number || '—')}</p></div>
+                <div><p class="text-xs text-ink-700">Current pole</p><p class="font-semibold num">${escapeHtml(app.previous_pole || '—')}</p></div>
+                <div class="col-span-2"><p class="text-xs text-ink-700">Moving from</p><p class="font-medium">${escapeHtml(app.previous_address || '—')}</p></div>
+                ${app.request_note ? `<div class="col-span-2"><p class="text-xs text-ink-700">Member's note</p><p class="font-medium">${escapeHtml(app.request_note)}</p></div>` : ''}
+                ` : ''}
+                <div class="${isTransfer(app) ? 'hidden' : ''}"><p class="text-xs text-ink-700">Connection type</p><p class="font-semibold">${escapeHtml(app.connection_type || '—')}</p></div>
+                <div class="${isTransfer(app) ? 'hidden' : ''}"><p class="text-xs text-ink-700">Ownership</p><p class="font-semibold">${escapeHtml(app.ownership_status || '—')}${app.via_representative ? ' · via representative' : ''}</p></div>
+                <div class="col-span-2"><p class="text-xs text-ink-700">${isTransfer(app) ? 'New location' : 'Address'}</p><p class="font-medium">${escapeHtml(app.address || '—')}</p></div>
                 <div><p class="text-xs text-ink-700">Eligibility</p><p class="font-semibold">${escapeHtml(app.eligibility_status || '—')}</p></div>
                 <div><p class="text-xs text-ink-700">Nearest pole</p><p class="font-semibold num">${escapeHtml(app.nearest_pole || '—')}${app.distance ? ` · ${Number(app.distance).toFixed(1)} m` : ''}${pole ? ` · ${pole.available_slots} slot(s) left` : ''}${app.slot_reserved ? ' · slot reserved' : ''}</p></div>
               </div>
@@ -928,7 +1076,7 @@
               <textarea id="remarksInput" rows="2" class="field">${escapeHtml(status === 'Rejected' ? '' : (app.remarks || ''))}</textarea>
               <button class="btn-ghost mt-2" onclick="actSaveRemarks()">Save note</button>`)}
 
-            ${!['Energized', 'Rejected'].includes(status) ? foldPanel('panelReject', '<span class="text-danger-600">Reject application</span>', `
+            ${!FINISHED.includes(status) ? foldPanel('panelReject', '<span class="text-danger-600">Reject application</span>', `
               <p class="text-xs text-ink-700 mb-2">The reason is shown to the applicant. ${app.slot_reserved ? 'The reserved pole slot will be returned.' : ''}</p>
               <textarea id="rejectReason" rows="2" class="field" placeholder="Reason for rejection"></textarea>
               <button class="btn-danger mt-2" onclick="actReject()">Reject</button>`) : ''}
@@ -968,7 +1116,9 @@
       if (!app.pmes_attended || currentReqs.length === 0) return '';
 
       const received = currentReqs.filter(r => r.is_received).length;
-      const receivingNow = ['PMES Completed', 'Submission Scheduled'].includes(status);
+      const receivingNow = isTransfer(app)
+        ? status === 'Pending'
+        : ['PMES Completed', 'Submission Scheduled'].includes(status);
 
       if (receivingNow) {
         return `<section class="bg-white border border-line rounded p-5">
@@ -1053,6 +1203,28 @@
         'Submission schedule saved.');
     }
 
+    function actTransferSchedule() {
+      const date = val('trDate');
+      const crew = val('trCrew');
+      if (!date) { toast('Please set the transfer date and time.', false); return; }
+      if (isPast(date)) { toast('The schedule cannot be in the past.', false); return; }
+      if (!crew) { toast('Please enter the assigned crew or lineman.', false); return; }
+      updateApp({ transfer_schedule: fromLocalInput(date), assigned_crew: crew, status: 'Transfer Scheduled' },
+        'Transfer scheduled. The member can now see it in the app.');
+    }
+
+    async function actTransferDone() {
+      const ok = await confirmDialog({
+        title: 'Mark as transferred?',
+        message: `Account ${current.account_number || ''} will be served at the new location. The account number stays the same.`,
+        okText: 'Yes, transferred',
+        tone: 'ok',
+      });
+      if (!ok) return;
+      updateApp({ status: 'Transferred', transferred_at: new Date().toISOString() },
+        'Transfer completed.');
+    }
+
     function actSetInspection() {
       if (!allPapersReceived()) { toast('All papers must be received first.', false); return; }
       const date = val('inspDate');
@@ -1083,7 +1255,7 @@
     function actMarkPaid() {
       const or = val('orNumber');
       if (!or) { toast('Please enter the OR number.', false); return; }
-      updateApp({ or_number: or, status: 'Paid' }, 'OR number saved. You can now schedule the installation.');
+      updateApp({ or_number: or, status: 'Paid' }, isTransfer(current) ? 'OR number saved. You can now schedule the transfer.' : 'OR number saved. You can now schedule the installation.');
     }
 
     function actSetInstallation() {
