@@ -18,10 +18,10 @@
   .field:focus { outline: none; box-shadow: 0 0 0 2px #1A2B9E; background: #fff; }
   .field:disabled { color: #6B7490; cursor: not-allowed; }
 
-  .tab { padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 500; color: #4A5372; border: 1px solid #DFE3EE; background: #fff; }
-  .tab:hover { border-color: #94A2EA; color: #1A2B9E; }
-  .tab.active { background: #111F78; border-color: #111F78; color: #fff; }
-  .tab .n { margin-left: 6px; font-size: 11px; opacity: .7; }
+  .stat-card { text-align: left; background: #fff; border: 1px solid #DFE3EE; border-radius: 8px; padding: 16px 20px; transition: border-color .15s, box-shadow .15s, background .15s; }
+  .stat-card:hover { border-color: #94A2EA; }
+  .stat-card.active { border-color: var(--accent); box-shadow: inset 0 3px 0 var(--accent), 0 1px 6px rgba(17,31,120,.08); background: var(--tint); }
+  .stat-card .hint { font-size: 11px; color: #6B7490; margin-top: 2px; }
 
   .steps { display: flex; align-items: flex-start; }
   .step { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; position: relative; text-align: center; }
@@ -65,23 +65,27 @@
 
         <div id="diagBanner" class="hidden bg-danger-100 border border-danger-600/30 text-danger-600 text-sm rounded-lg p-4"></div>
 
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div class="bg-white border border-line rounded-lg px-5 py-4">
+        <div id="statCards" class="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          <button class="stat-card" data-tab="Pending" style="--accent:#C9A800;--tint:#FFFBE6">
             <div class="text-xs font-semibold uppercase tracking-wide text-gold-700">Waiting for review</div>
             <div id="statPending" class="text-2xl font-semibold num mt-1">0</div>
-          </div>
-          <div class="bg-white border border-line rounded-lg px-5 py-4">
+          </button>
+          <button class="stat-card" data-tab="In Progress" style="--accent:#1A2B9E;--tint:#F3F5FD">
             <div class="text-xs font-semibold uppercase tracking-wide text-brand-700">Crew dispatched</div>
             <div id="statProgress" class="text-2xl font-semibold num mt-1">0</div>
-          </div>
-          <div class="bg-white border border-line rounded-lg px-5 py-4">
+          </button>
+          <button class="stat-card" data-tab="Resolved" style="--accent:#2E7D4F;--tint:#F1F8F3">
             <div class="text-xs font-semibold uppercase tracking-wide text-ok-600">Resolved</div>
             <div id="statResolved" class="text-2xl font-semibold num mt-1">0</div>
-          </div>
-          <div class="bg-white border border-line rounded-lg px-5 py-4">
+          </button>
+          <button class="stat-card" data-tab="Rejected" style="--accent:#B3261E;--tint:#FDF3F2">
             <div class="text-xs font-semibold uppercase tracking-wide text-danger-600">Rejected</div>
             <div id="statRejected" class="text-2xl font-semibold num mt-1">0</div>
-          </div>
+          </button>
+          <button class="stat-card col-span-2 lg:col-span-1" data-tab="all" style="--accent:#111F78;--tint:#F3F5FD">
+            <div class="text-xs font-semibold uppercase tracking-wide text-ink-700">All reports</div>
+            <div id="statAll" class="text-2xl font-semibold num mt-1">0</div>
+          </button>
         </div>
 
         <section class="bg-white border border-line rounded-lg overflow-hidden">
@@ -98,9 +102,12 @@
           <div id="overviewMap"></div>
         </section>
 
-        <div class="flex flex-wrap items-center gap-3">
-          <div id="statusTabs" class="flex flex-wrap gap-2"></div>
-          <input id="searchInput" type="text" class="field sm:w-64 ml-auto" placeholder="Search ticket, category, location…">
+        <div class="flex flex-wrap items-end gap-3">
+          <div>
+            <h2 id="listTitle" class="text-base font-semibold">Open incidents</h2>
+            <p id="listHint" class="text-xs text-ink-700"></p>
+          </div>
+          <div class="w-full sm:w-72 sm:ml-auto"><input id="searchInput" type="text" class="field" placeholder="Search ticket, category, location…"></div>
         </div>
 
         <section class="bg-white border border-line rounded-lg overflow-hidden">
@@ -156,7 +163,7 @@
             <div id="mNearest" class="text-sm"></div>
             <a id="mRoute" target="_blank" rel="noopener" class="inline-flex items-center gap-2 text-sm font-semibold text-brand-700 hover:underline">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
-              Open route for the crew (Google Maps)
+              <span id="mRouteLabel">Open route for the crew (Google Maps)</span>
             </a>
           </div>
         </div>
@@ -200,14 +207,14 @@
       'Resolved':    { label: 'Resolved',           badge: 'bg-ok-100 text-ok-600 border-ok-600/30', pin: '#2E7D4F' },
       'Rejected':    { label: 'Rejected',           badge: 'bg-danger-100 text-danger-600 border-danger-600/30', pin: '#B3261E' },
     };
-    const TABS = [
-      { key: 'open', label: 'Open' },
-      { key: 'Pending', label: 'Waiting for review' },
-      { key: 'In Progress', label: 'Crew dispatched' },
-      { key: 'Resolved', label: 'Resolved' },
-      { key: 'Rejected', label: 'Rejected' },
-      { key: 'all', label: 'All' },
-    ];
+    const LIST_TITLES = {
+      'open': 'Open incidents',
+      'Pending': 'Waiting for review',
+      'In Progress': 'Crew dispatched',
+      'Resolved': 'Resolved incidents',
+      'Rejected': 'Rejected reports',
+      'all': 'All reports',
+    };
 
     let reports = [];
     let poles = [];
@@ -286,12 +293,22 @@
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (!session) { window.location.href = 'admin_login.html'; return; }
       initOverviewMap();
-      await Promise.all([loadPoles(), loadCrews()]);
+      await Promise.all([loadPoles(), loadCrews(), loadOffice()]);
       await fetchIncidents();
       openFromUrl();
       supabaseClient.channel('admin-incidents')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'incident_reports' }, () => fetchIncidents())
         .subscribe();
+    }
+
+    let office = null;
+
+    async function loadOffice() {
+      try {
+        const { data } = await supabaseClient.from('system_settings').select('value').eq('key', 'office_location').maybeSingle();
+        const parts = String((data && data.value) || '').split(',').map(v => Number(v.trim()));
+        if (parts.length === 2 && parts.every(v => !isNaN(v) && v !== 0)) office = parts;
+      } catch (_) {}
     }
 
     async function loadPoles() {
@@ -349,6 +366,7 @@
       document.getElementById('statProgress').textContent = count('In Progress');
       document.getElementById('statResolved').textContent = count('Resolved');
       document.getElementById('statRejected').textContent = count('Rejected');
+      document.getElementById('statAll').textContent = reports.length;
     }
 
     function inTab(r, key) {
@@ -358,16 +376,24 @@
     }
 
     function renderTabs() {
-      document.getElementById('statusTabs').innerHTML = TABS.map(t => {
-        const n = reports.filter(r => inTab(r, t.key)).length;
-        return `<button class="tab ${activeTab === t.key ? 'active' : ''}" data-tab="${t.key}">${t.label}<span class="n">${n}</span></button>`;
-      }).join('');
-      document.querySelectorAll('#statusTabs .tab').forEach(b => b.addEventListener('click', () => {
-        activeTab = b.dataset.tab;
-        renderTabs();
-        renderRows();
-      }));
+      document.querySelectorAll('#statCards .stat-card').forEach(card => {
+        const key = card.dataset.tab;
+        const on = activeTab === key || (activeTab === 'open' && (key === 'Pending' || key === 'In Progress'));
+        card.classList.toggle('active', on);
+      });
+      document.getElementById('listTitle').textContent = LIST_TITLES[activeTab] || 'Reports';
+      document.getElementById('listHint').innerHTML = activeTab === 'open'
+        ? 'Waiting for review and crew dispatched. Click a card above to see other reports.'
+        : 'Click the card again to go back to open incidents.';
     }
+
+    document.querySelectorAll('#statCards .stat-card').forEach(card => card.addEventListener('click', () => {
+      const key = card.dataset.tab;
+      activeTab = activeTab === key ? 'open' : key;
+      renderTabs();
+      renderRows();
+      document.getElementById('listTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }));
 
     function renderRows() {
       const q = document.getElementById('searchInput').value.trim().toLowerCase();
@@ -385,12 +411,12 @@
           <td class="px-5 py-3 num text-xs text-ink-700 whitespace-nowrap">${ticketRef(r)}</td>
           <td class="px-3 py-3">
             <div class="font-medium">${escapeHtml(r.category || 'General issue')}</div>
-            <div class="text-xs text-ink-700 truncate max-w-[240px]">${escapeHtml(r.description || '')}</div>
+            <div class="text-xs text-ink-700 truncate max-w-[200px]">${escapeHtml(r.description || '')}</div>
           </td>
-          <td class="px-3 py-3 text-ink-700 max-w-[220px]"><div class="truncate">${escapeHtml(r.location || '')}</div></td>
+          <td class="px-3 py-3 text-ink-700 max-w-[180px]"><div class="truncate">${escapeHtml(r.location || '')}</div></td>
           <td class="px-3 py-3">${badge(r)}</td>
           <td class="px-3 py-3 text-ink-700 whitespace-nowrap">${r.assigned_to ? escapeHtml(r.assigned_to) : '<span class="text-ink-700/60">Not assigned</span>'}</td>
-          <td class="px-3 py-3 text-xs text-ink-700 whitespace-nowrap">${fmtDate(r.created_at)}</td>
+          <td class="px-3 py-3 text-xs text-ink-700 whitespace-nowrap">${new Date(r.created_at).toLocaleDateString('en-PH', { dateStyle: 'medium' })}<div class="text-ink-700/70">${new Date(r.created_at).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}</div></td>
           <td class="px-5 py-3 text-right">
             <button class="review-btn ${isOpen(r) ? 'bg-brand-800 hover:bg-brand-900 text-white' : 'bg-white border border-line hover:bg-paper-100 text-ink-800'} px-3 py-1.5 rounded-md text-xs font-semibold" data-id="${r.id}">${statusOf(r) === 'Pending' ? 'Review' : 'View'}</button>
           </td>
@@ -525,7 +551,11 @@
         nearestBox.innerHTML = '';
       }
 
-      route.href = `https://www.google.com/maps/dir/?api=1&destination=${here[0]},${here[1]}`;
+      const origin = office ? `&origin=${office[0]},${office[1]}` : '';
+      route.href = `https://www.google.com/maps/dir/?api=1${origin}&destination=${here[0]},${here[1]}&travelmode=driving`;
+      document.getElementById('mRouteLabel').textContent = office
+        ? 'Open route from the office (Google Maps)'
+        : 'Open route for the crew (Google Maps)';
       route.classList.remove('hidden');
     }
 
