@@ -120,14 +120,6 @@
               </label>
             </div>
             <div>
-              <label class="block text-xs font-medium text-navy-700 mb-1.5">Line group <span class="text-ink-700">(optional)</span></label>
-              <input type="text" id="newLineGroup" placeholder="e.g. MAIN-A" class="cell-input num">
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-navy-700 mb-1.5">Sequence on line <span class="text-ink-700">(optional)</span></label>
-              <input type="number" id="newSequence" min="1" placeholder="e.g. 8" class="cell-input num">
-            </div>
-            <div>
               <label class="block text-xs font-medium text-navy-700 mb-1.5">Latitude</label>
               <input type="number" step="any" id="newLat" required class="cell-input num" placeholder="Pick on map">
             </div>
@@ -149,7 +141,7 @@
               <h2 class="text-base font-semibold text-navy-900">All poles</h2>
               <p class="text-xs text-ink-700 mt-0.5">Edit a row, then click Save. Changes appear on the member app right away.</p>
             </div>
-            <input type="search" id="searchInput" placeholder="Search pole code or line..." class="cell-input max-w-xs">
+            <input type="search" id="searchInput" placeholder="Search pole code or type..." class="cell-input max-w-xs">
           </header>
           <div class="overflow-x-auto border-t border-line">
             <table class="w-full text-left border-collapse">
@@ -159,14 +151,12 @@
                   <th class="p-3">Type</th>
                   <th class="p-3 text-center">Energized</th>
                   <th class="p-3 w-28">Available slots</th>
-                  <th class="p-3 w-32">Line group</th>
-                  <th class="p-3 w-24">Sequence</th>
                   <th class="p-3">Location</th>
                   <th class="p-3 text-center">Action</th>
                 </tr>
               </thead>
               <tbody id="polesTableBody" class="divide-y divide-line text-sm">
-                <tr><td colspan="8" class="p-8 text-center text-ink-700 font-medium">Loading poles...</td></tr>
+                <tr><td colspan="6" class="p-8 text-center text-ink-700 font-medium">Loading poles...</td></tr>
               </tbody>
             </table>
           </div>
@@ -261,27 +251,48 @@
       });
     }
 
+    const MAX_SPAN_M = 250;
+
+    function metersBetween(a, b) {
+      const R = 6371000, rad = Math.PI / 180;
+      const dLat = (b.latitude - a.latitude) * rad, dLng = (b.longitude - a.longitude) * rad;
+      const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.latitude * rad) * Math.cos(b.latitude * rad) * Math.sin(dLng / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(h));
+    }
+
+    function distributionLines(list) {
+      const pts = list.filter(p => !isNaN(p.latitude) && !isNaN(p.longitude));
+      if (pts.length < 2) return [];
+      const inTree = new Array(pts.length).fill(false);
+      const best = new Array(pts.length).fill(Infinity);
+      const from = new Array(pts.length).fill(-1);
+      const edges = [];
+      best[0] = 0;
+      for (let k = 0; k < pts.length; k++) {
+        let u = -1;
+        for (let i = 0; i < pts.length; i++) if (!inTree[i] && (u === -1 || best[i] < best[u])) u = i;
+        inTree[u] = true;
+        if (from[u] !== -1 && best[u] <= MAX_SPAN_M) edges.push([pts[from[u]], pts[u]]);
+        for (let v = 0; v < pts.length; v++) {
+          if (inTree[v]) continue;
+          const d = metersBetween(pts[u], pts[v]);
+          if (d < best[v]) { best[v] = d; from[v] = u; }
+        }
+      }
+      return edges;
+    }
+
     function renderMap() {
       poleLayer.clearLayers();
       lineLayer.clearLayers();
 
-      const groups = {};
-      poles.forEach(p => {
-        if (!p.line_group) return;
-        (groups[p.line_group] = groups[p.line_group] || []).push(p);
-      });
-      Object.values(groups).forEach(members => {
-        if (members.length < 2) return;
-        members.sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
-        const isMain = members.some(p => (p.pole_type || '').toLowerCase().includes('main'));
-        for (let i = 0; i < members.length - 1; i++) {
-          const a = members[i], b = members[i + 1];
-          const energized = a.is_energized && b.is_energized;
-          L.polyline(
-            [[a.latitude, a.longitude], [b.latitude, b.longitude]],
-            { color: energized ? '#2F5D8A' : '#9CA3AF', weight: isMain ? 5 : 3, opacity: 0.85 }
-          ).addTo(lineLayer);
-        }
+      distributionLines(poles).forEach(([a, b]) => {
+        const energized = a.is_energized && b.is_energized;
+        const isMain = (a.pole_type || '').toLowerCase().includes('main') && (b.pole_type || '').toLowerCase().includes('main');
+        L.polyline(
+          [[a.latitude, a.longitude], [b.latitude, b.longitude]],
+          { color: energized ? '#2F5D8A' : '#9CA3AF', weight: isMain ? 5 : 3, opacity: 0.9, dashArray: energized ? null : '6 6' }
+        ).addTo(lineLayer);
       });
 
       const bounds = [];
@@ -343,7 +354,7 @@
       const tbody = document.getElementById('polesTableBody');
 
       if (error) {
-        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-danger-600 font-medium">Error: ${escapeHtml(error.message)}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-danger-600 font-medium">Error: ${escapeHtml(error.message)}</td></tr>`;
         return;
       }
 
@@ -377,12 +388,11 @@
       const rows = poles.filter(p =>
         !q ||
         (p.pole_code || '').toLowerCase().includes(q) ||
-        (p.line_group || '').toLowerCase().includes(q) ||
         (p.pole_type || '').toLowerCase().includes(q)
       );
 
       if (rows.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-ink-700 font-medium">${poles.length ? 'No poles match your search.' : 'No poles yet. Add one above.'}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-ink-700 font-medium">${poles.length ? 'No poles match your search.' : 'No poles yet. Add one above.'}</td></tr>`;
         return;
       }
 
@@ -405,12 +415,6 @@
           </td>
           <td class="p-3">
             <input type="number" min="0" class="cell-input num f-slots" value="${p.available_slots}">
-          </td>
-          <td class="p-3">
-            <input type="text" class="cell-input num f-line" value="${escapeHtml(p.line_group ?? '')}" placeholder="—">
-          </td>
-          <td class="p-3">
-            <input type="number" min="1" class="cell-input num f-seq" value="${p.sequence ?? ''}" placeholder="—">
           </td>
           <td class="p-3 text-xs num text-ink-700">${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}</td>
           <td class="p-3 text-center whitespace-nowrap">
@@ -436,7 +440,6 @@
     async function savePole(id) {
       const row = document.getElementById('row-' + id);
       const slots = parseInt(row.querySelector('.f-slots').value, 10);
-      const seqRaw = row.querySelector('.f-seq').value;
 
       if (isNaN(slots) || slots < 0) { toast('Available slots must be 0 or more.', false); return; }
 
@@ -444,8 +447,6 @@
         pole_type: row.querySelector('.f-type').value,
         is_energized: row.querySelector('.f-energized').checked,
         available_slots: slots,
-        line_group: row.querySelector('.f-line').value.trim() || null,
-        sequence: seqRaw ? parseInt(seqRaw, 10) : null,
       };
 
       const { error } = await _supabase.from('poles').update(update).eq('id', id);
@@ -485,7 +486,6 @@
       const lat = parseFloat(document.getElementById('newLat').value);
       const lng = parseFloat(document.getElementById('newLng').value);
       const slots = parseInt(document.getElementById('newSlots').value, 10);
-      const seqRaw = document.getElementById('newSequence').value;
 
       if (poles.some(p => (p.pole_code || '').toUpperCase() === code)) {
         addMsg.className = 'text-xs font-semibold text-danger-600';
@@ -506,8 +506,6 @@
         pole_type: document.getElementById('newType').value,
         is_energized: document.getElementById('newEnergized').checked,
         available_slots: isNaN(slots) ? 0 : slots,
-        line_group: document.getElementById('newLineGroup').value.trim() || null,
-        sequence: seqRaw ? parseInt(seqRaw, 10) : null,
         latitude: lat,
         longitude: lng,
       }]);
