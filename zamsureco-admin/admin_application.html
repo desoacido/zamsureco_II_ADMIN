@@ -592,6 +592,7 @@
       }
 
       renderDrawer(app, currentReqs, pole);
+      if (document.getElementById('acctNo') && !document.getElementById('acctNo').value) fillNextAccountNumber(false);
     }
 
     // For a reconnection request: the account's unpaid bills, its status, and the fee
@@ -740,7 +741,11 @@
           return actionCard('Energize and give the account number', `
             <p class="text-sm text-ink-800 mb-3">Installation: <b>${escapeHtml(fmtDate(app.installation_schedule))}</b></p>
             <label class="text-xs font-medium text-ink-700">Account number</label>
-            <input id="acctNo" type="text" class="field mt-1 num" placeholder="e.g. 01-2345-6789" value="${escapeHtml(app.account_number || '')}">
+            <div class="flex gap-2 mt-1">
+              <input id="acctNo" type="text" class="field num" placeholder="Generating…" value="${escapeHtml(app.account_number || '')}">
+              <button class="btn-ghost whitespace-nowrap" onclick="fillNextAccountNumber(true)">Generate</button>
+            </div>
+            <p id="acctHint" class="text-xs text-ink-700 mt-1.5">The next available account number is filled in automatically. You can change it if the office assigns a different one.</p>
             <button class="btn-ok mt-3" onclick="actEnergize()">Mark as energized</button>
             <p class="text-xs text-ink-700/70 mt-2">The account number is copied to the member's profile, so their app switches from "Applicant account" to their account number and billing can start.</p>`);
 
@@ -1089,9 +1094,51 @@
         'Installation scheduled.');
     }
 
+    const ACCT_PATTERN = /^(\d{2})-(\d{4})-(\d{4})$/;
+
+    async function usedAccountNumbers() {
+      const sources = [
+        ['service_applications', 'account_number'],
+        ['profiles', 'account_number'],
+        ['billing_statements', 'acct_no'],
+        ['account_status', 'acct_no'],
+      ];
+      const results = await Promise.all(sources.map(([table, col]) =>
+        _supabase.from(table).select(col).not(col, 'is', null).then(r => (r.data || []).map(x => String(x[col]).trim()))
+      ));
+      return new Set(results.flat().filter(Boolean));
+    }
+
+    async function fillNextAccountNumber(manual) {
+      const input = document.getElementById('acctNo');
+      if (!input) return;
+      const used = await usedAccountNumbers();
+      let prefix = '01', max = 0;
+      used.forEach(a => {
+        const m = a.match(ACCT_PATTERN);
+        if (!m) return;
+        const n = Number(m[2] + m[3]);
+        if (n > max) { max = n; prefix = m[1]; }
+      });
+      let next = max + 1;
+      const fmt = (n) => { const d = String(n).padStart(8, '0'); return `${prefix}-${d.slice(0, 4)}-${d.slice(4)}`; };
+      while (used.has(fmt(next))) next++;
+      input.value = fmt(next);
+      input.placeholder = 'e.g. 01-2345-6789';
+      if (manual) toast('Next available account number generated.');
+    }
+
     async function actEnergize() {
       const acct = val('acctNo');
       if (!acct) { toast('Please enter the account number.', false); return; }
+      if (!ACCT_PATTERN.test(acct)) { toast('Use the format 01-2345-6789.', false); return; }
+      const { data: taken } = await _supabase
+        .from('service_applications').select('id').eq('account_number', acct).neq('id', current.id).limit(1);
+      const used = await usedAccountNumbers();
+      if ((taken && taken.length) || (used.has(acct) && acct !== (current.account_number || ''))) {
+        toast(`Account number ${acct} is already in use. Click Generate for a new one.`, false);
+        return;
+      }
       const ok = await confirmDialog({
         title: 'Mark as energized?',
         message: `Account number ${acct} will be given to ${current?.consumer_name || 'the applicant'}. Their app will switch to this account number and billing can start.`,
