@@ -8,33 +8,9 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
-<script>
-  tailwind.config = {
-    theme: {
-      extend: {
-        colors: {
-          navy:   { 900:'#081D45', 800:'#0D2E63', 700:'#153A7A' },
-          paper:  { 50:'#F7F8FA', 100:'#EEF1F6' },
-          line:   '#DDE3EC',
-          amber:  { 500:'#F2A93B', 100:'#FCEACB' },
-          ok:     { 600:'#3F7857', 100:'#E1EBE3' },
-          danger: { 600:'#A33B34', 100:'#F2E1DF' },
-          info:   { 600:'#2F5D8A', 100:'#DEE7EF' },
-        },
-        fontFamily: {
-          sans: ['"IBM Plex Sans"','system-ui','sans-serif'],
-          mono: ['"IBM Plex Mono"','ui-monospace','monospace'],
-        },
-        borderRadius: { DEFAULT: '3px' }
-      }
-    }
-  }
-</script>
+<script src="theme.js"></script>
+<script src="map-layers.js"></script>
 <style>
-  body { font-family: 'IBM Plex Sans', system-ui, sans-serif; }
-  .num { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
   .pulse-dot{animation:pulse 2s infinite;}
   @keyframes pulse{
     0%{box-shadow:0 0 0 0 rgba(63,120,87,0.45);}
@@ -42,7 +18,7 @@
     100%{box-shadow:0 0 0 0 rgba(63,120,87,0);}
   }
   .section-head { border-left: 3px solid #F2A93B; padding-left: 12px; }
-  #gridMap { height: 420px; z-index: 0; }
+  #gridMap { height: 480px; z-index: 0; }
   #gridMap.picking { cursor: crosshair; }
   .cell-input { width: 100%; padding: 6px 8px; background: #F7F8FA; border: 1px solid #DDE3EC; border-radius: 3px; font-size: 13px; }
   .cell-input:focus { outline: none; box-shadow: 0 0 0 2px #0D2E63; }
@@ -53,11 +29,9 @@
 </head>
 <body class="bg-paper-50 text-navy-900 font-sans overflow-x-hidden">
 
-  <!-- Dito i-i-inject ng sidebar.js ang shared sidebar at hamburger menu -->
   <div id="sidebar-root"></div>
 
   <div class="main-content flex-1 flex flex-col h-screen overflow-hidden">
-    <!-- Navbar -->
     <nav class="bg-paper-50 border-b border-line px-6 py-4 flex justify-between items-center flex-shrink-0">
       <div class="flex items-center space-x-4">
         <button class="hamburger-btn bg-white hover:bg-paper-100 border border-line text-navy-700 rounded w-10 h-10 flex flex-col items-center justify-center gap-1 cursor-pointer transition flex-shrink-0" id="sidebarToggle" aria-label="Toggle navigation menu">
@@ -67,7 +41,7 @@
         </button>
         <div>
           <h1 class="text-lg font-semibold text-navy-900 leading-tight">Grid &amp; Poles</h1>
-          <p class="text-xs text-navy-700/60 mt-0.5">Manage distribution poles, service slots, and energized status</p>
+          <p class="text-xs text-ink-700 mt-0.5">Manage distribution poles, service slots, and energized status</p>
         </div>
       </div>
       <div class="flex items-center space-x-2">
@@ -79,36 +53,34 @@
     <main class="flex-1 overflow-y-auto p-8">
       <div class="max-w-6xl mx-auto space-y-8">
 
-        <!-- Stats -->
         <section class="grid grid-cols-2 md:grid-cols-5 bg-white border border-line rounded divide-x divide-line">
           <div class="p-5">
-            <p class="text-xs text-navy-700/70">Total poles</p>
+            <p class="text-xs text-ink-700">Total poles</p>
             <p id="statTotal" class="text-3xl font-semibold num mt-1">–</p>
           </div>
           <div class="p-5">
-            <p class="text-xs text-navy-700/70">Energized</p>
+            <p class="text-xs text-ink-700">Energized</p>
             <p id="statEnergized" class="text-3xl font-semibold num mt-1 text-ok-600">–</p>
           </div>
           <div class="p-5">
-            <p class="text-xs text-navy-700/70">Non-energized</p>
-            <p id="statOff" class="text-3xl font-semibold num mt-1 text-navy-700/60">–</p>
+            <p class="text-xs text-ink-700">Non-energized</p>
+            <p id="statOff" class="text-3xl font-semibold num mt-1 text-ink-700">–</p>
           </div>
           <div class="p-5">
-            <p class="text-xs text-navy-700/70">Full (no slots)</p>
+            <p class="text-xs text-ink-700">Full (no slots)</p>
             <p id="statFull" class="text-3xl font-semibold num mt-1 text-danger-600">–</p>
           </div>
           <div class="p-5">
-            <p class="text-xs text-navy-700/70">Open service slots</p>
+            <p class="text-xs text-ink-700">Open service slots</p>
             <p id="statSlots" class="text-3xl font-semibold num mt-1 text-info-600">–</p>
           </div>
         </section>
 
-        <!-- Map -->
         <section class="bg-white border border-line rounded">
           <header class="section-head px-5 pt-5 pb-4 flex items-start justify-between gap-4 flex-wrap">
             <div>
               <h2 class="text-base font-semibold text-navy-900">Grid map</h2>
-              <p class="text-xs text-navy-700/60 mt-0.5">Same data the member app shows. Click a pole to jump to its row.</p>
+              <p class="text-xs text-ink-700 mt-0.5">Same data the member app shows. Click a pole to jump to its row.</p>
             </div>
             <div class="flex items-center gap-4 text-xs text-navy-700">
               <span class="flex items-center gap-1.5"><span class="legend-dot" style="background:#3F7857"></span>Energized</span>
@@ -119,11 +91,10 @@
           <div id="gridMap" class="border-t border-line"></div>
         </section>
 
-        <!-- Add pole -->
         <section class="bg-white border border-line rounded p-8">
           <div class="section-head mb-6">
             <h2 class="text-base font-semibold text-navy-900">Add new pole</h2>
-            <p class="text-xs text-navy-700/60 mt-0.5">Click "Pick location on map," then click the pole's spot on the map above.</p>
+            <p class="text-xs text-ink-700 mt-0.5">Click "Pick location on map," then click the pole's spot on the map above.</p>
           </div>
 
           <form id="addPoleForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -149,11 +120,11 @@
               </label>
             </div>
             <div>
-              <label class="block text-xs font-medium text-navy-700 mb-1.5">Line group <span class="text-navy-700/50">(optional)</span></label>
+              <label class="block text-xs font-medium text-navy-700 mb-1.5">Line group <span class="text-ink-700">(optional)</span></label>
               <input type="text" id="newLineGroup" placeholder="e.g. MAIN-A" class="cell-input num">
             </div>
             <div>
-              <label class="block text-xs font-medium text-navy-700 mb-1.5">Sequence on line <span class="text-navy-700/50">(optional)</span></label>
+              <label class="block text-xs font-medium text-navy-700 mb-1.5">Sequence on line <span class="text-ink-700">(optional)</span></label>
               <input type="number" id="newSequence" min="1" placeholder="e.g. 8" class="cell-input num">
             </div>
             <div>
@@ -172,12 +143,11 @@
           </form>
         </section>
 
-        <!-- Poles table -->
         <section class="bg-white border border-line rounded">
           <header class="section-head px-5 pt-5 pb-4 flex items-start justify-between gap-4 flex-wrap">
             <div>
               <h2 class="text-base font-semibold text-navy-900">All poles</h2>
-              <p class="text-xs text-navy-700/60 mt-0.5">Edit a row, then click Save. Changes appear on the member app right away.</p>
+              <p class="text-xs text-ink-700 mt-0.5">Edit a row, then click Save. Changes appear on the member app right away.</p>
             </div>
             <input type="search" id="searchInput" placeholder="Search pole code or line..." class="cell-input max-w-xs">
           </header>
@@ -196,7 +166,7 @@
                 </tr>
               </thead>
               <tbody id="polesTableBody" class="divide-y divide-line text-sm">
-                <tr><td colspan="8" class="p-8 text-center text-navy-700/60 font-medium">Loading poles...</td></tr>
+                <tr><td colspan="8" class="p-8 text-center text-ink-700 font-medium">Loading poles...</td></tr>
               </tbody>
             </table>
           </div>
@@ -206,7 +176,19 @@
     </main>
   </div>
 
-  <!-- Toast -->
+  <div id="confirmModal" class="hidden fixed inset-0 z-[550] items-center justify-center p-4" style="background:rgba(11,21,85,0.45)">
+    <div class="bg-white rounded-lg border border-line shadow-2xl w-full max-w-sm">
+      <div class="px-6 pt-6 pb-4">
+        <h3 class="text-base font-semibold">Delete this pole?</h3>
+        <p id="confirmText" class="text-sm text-navy-700 mt-1.5"></p>
+      </div>
+      <div class="px-6 py-4 bg-paper-50 border-t border-line flex justify-end gap-2 rounded-b-lg">
+        <button id="confirmNo" class="bg-white border border-line hover:bg-paper-100 text-navy-800 px-4 py-2 rounded-md text-sm font-semibold">Cancel</button>
+        <button id="confirmYes" class="bg-danger-600 hover:opacity-90 text-white px-4 py-2 rounded-md text-sm font-semibold">Delete</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="hidden fixed bottom-6 right-6 px-4 py-3 rounded text-sm font-semibold shadow-lg z-50"></div>
 
   <script>
@@ -266,15 +248,9 @@
       return '#3F7857';
     }
 
-    // ---------------------------------------------------------
-    // MAP
-    // ---------------------------------------------------------
     function initMap() {
       map = L.map('gridMap').setView([7.8018, 122.6155], 16);
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap contributors',
-      }).addTo(map);
+      addBaseLayers(map);
       lineLayer = L.layerGroup().addTo(map);
       poleLayer = L.layerGroup().addTo(map);
 
@@ -289,7 +265,6 @@
       poleLayer.clearLayers();
       lineLayer.clearLayers();
 
-      // Distribution lines (grouped by line_group, ordered by sequence)
       const groups = {};
       poles.forEach(p => {
         if (!p.line_group) return;
@@ -309,7 +284,6 @@
         }
       });
 
-      // Poles
       const bounds = [];
       poles.forEach(p => {
         const lat = Number(p.latitude), lng = Number(p.longitude);
@@ -364,9 +338,6 @@
       else startPicking();
     });
 
-    // ---------------------------------------------------------
-    // DATA
-    // ---------------------------------------------------------
     async function loadPoles() {
       const { data, error } = await _supabase.from('poles').select('*').order('pole_code', { ascending: true });
       const tbody = document.getElementById('polesTableBody');
@@ -411,7 +382,7 @@
       );
 
       if (rows.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-navy-700/60 font-medium">${poles.length ? 'No poles match your search.' : 'No poles yet. Add one above.'}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-ink-700 font-medium">${poles.length ? 'No poles match your search.' : 'No poles yet. Add one above.'}</td></tr>`;
         return;
       }
 
@@ -441,7 +412,7 @@
           <td class="p-3">
             <input type="number" min="1" class="cell-input num f-seq" value="${p.sequence ?? ''}" placeholder="—">
           </td>
-          <td class="p-3 text-xs num text-navy-700/70">${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}</td>
+          <td class="p-3 text-xs num text-ink-700">${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}</td>
           <td class="p-3 text-center whitespace-nowrap">
             <button onclick="savePole('${p.id}')" class="text-xs bg-navy-900 hover:bg-navy-800 text-white px-3 py-1.5 rounded font-semibold">Save</button>
             <button onclick="deletePole('${p.id}', '${escapeHtml(p.pole_code)}')" class="text-xs text-danger-600 underline underline-offset-2 font-medium ml-2">Delete</button>
@@ -485,8 +456,20 @@
       focusRow(id);
     }
 
+    function confirmDelete(code) {
+      return new Promise(resolve => {
+        const m = document.getElementById('confirmModal');
+        document.getElementById('confirmText').textContent = `${code} will be removed from the grid map and the member app. This cannot be undone.`;
+        m.classList.remove('hidden'); m.classList.add('flex');
+        const done = (v) => { m.classList.add('hidden'); m.classList.remove('flex'); resolve(v); };
+        document.getElementById('confirmYes').onclick = () => done(true);
+        document.getElementById('confirmNo').onclick = () => done(false);
+        m.onclick = (e) => { if (e.target === m) done(false); };
+      });
+    }
+
     async function deletePole(id, code) {
-      if (!confirm(`Sigurado ka bang tatanggalin ang ${code}? Hindi na ito mababawi.`)) return;
+      if (!(await confirmDelete(code))) return;
       const { error } = await _supabase.from('poles').delete().eq('id', id);
       if (error) { toast('Error: ' + friendlyError(error), false); return; }
       toast(`${code} deleted.`);
@@ -550,7 +533,6 @@
     });
   </script>
 
-  <!-- Tawagin ang sidebar.js para gumana ang shared drawer navigation -->
   <script src="sidebar.js"></script>
 </body>
 </html>
