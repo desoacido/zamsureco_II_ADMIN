@@ -3,232 +3,382 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZAMSURECO II — Manage Linemen</title>
+<title>ZAMSURECO II — Field Personnel</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="theme.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
-<script>
-  tailwind.config = {
-    theme: {
-      extend: {
-        colors: {
-          ink:    { 900:'#12203A', 800:'#1B2E4F', 700:'#2A4166' },
-          paper:  { 50:'#F5F3EE', 100:'#EFEDE6' },
-          line:   '#DBD8CF',
-          copper: { 500:'#B9722E', 100:'#F3E4D2' },
-          ok:     { 600:'#3F7857', 100:'#E1EBE3' },
-          danger: { 600:'#A33B34', 100:'#F2E1DF' },
-          info:   { 600:'#2F5D8A', 100:'#DEE7EF' },
-        },
-        fontFamily: {
-          sans: ['"IBM Plex Sans"','system-ui','sans-serif'],
-          mono: ['"IBM Plex Mono"','ui-monospace','monospace'],
-        },
-        borderRadius: { DEFAULT: '3px' }
-      }
-    }
-  }
-</script>
 <style>
-  body { font-family: 'IBM Plex Sans', system-ui, sans-serif; }
-  .num { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  .toast-in { animation: toastIn .2s ease; }
+  @keyframes toastIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+
+  .field { width: 100%; padding: 9px 12px; background: #F5F6FA; border: 1px solid #DFE3EE; border-radius: 6px; font-size: 14px; }
+  .field:focus { outline: none; box-shadow: 0 0 0 2px #1A2B9E; background: #fff; }
+
+  .stat-card { text-align: left; background: #fff; border: 1px solid #DFE3EE; border-radius: 8px; padding: 16px 20px; transition: border-color .15s, box-shadow .15s, background .15s; }
+  .stat-card:hover { border-color: #94A2EA; }
+  .stat-card.active { border-color: var(--accent); box-shadow: inset 0 3px 0 var(--accent), 0 1px 6px rgba(17,31,120,.08); background: var(--tint); }
+
+  .icon-btn { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; color: #4A5372; }
+  .icon-btn:hover { background: #E2E6FA; color: #111F78; }
+  .icon-btn.danger:hover { background: #F9E3E1; color: #B3261E; }
+  .icon-btn svg { width: 17px; height: 17px; }
 </style>
 </head>
 <body class="bg-paper-50 text-ink-900 font-sans overflow-x-hidden">
-
   <div id="sidebar-root"></div>
 
   <div class="main-content !p-0 flex-1 flex flex-col h-screen overflow-hidden">
-
-    <nav class="bg-paper-50 border-b border-line px-6 h-16 flex justify-between items-center flex-shrink-0">
+    <nav class="bg-white border-b border-line px-6 h-16 flex justify-between items-center flex-shrink-0">
       <div class="flex items-center gap-4">
-        <button class="hamburger-btn bg-white hover:bg-paper-100 border border-line rounded w-9 h-9 flex flex-col items-center justify-center gap-1 cursor-pointer transition flex-shrink-0" id="sidebarToggle" aria-label="Toggle navigation menu">
-          <span class="block w-4 h-0.5 bg-ink-700"></span>
-          <span class="block w-4 h-0.5 bg-ink-700"></span>
-          <span class="block w-4 h-0.5 bg-ink-700"></span>
+        <button class="hamburger-btn" id="sidebarToggle" aria-label="Toggle navigation menu">
+          <span class="bar"></span><span class="bar"></span><span class="bar"></span>
         </button>
-        <h1 class="text-lg font-semibold text-ink-900 leading-tight">Manage Linemen</h1>
+        <div>
+          <h1 class="text-lg font-semibold text-ink-900 leading-tight">Field Personnel</h1>
+          <p class="text-xs text-ink-700">Engineers who inspect sites and line crews who respond in the field</p>
+        </div>
       </div>
-      <div class="hidden sm:flex items-center gap-4 text-sm text-ink-700">
-        <span id="adminEmail" class="font-medium"></span>
-        <span class="h-4 w-px bg-line"></span>
-        <span id="clockText" class="num text-[13px]">—</span>
-      </div>
+      <button id="addBtn" class="bg-brand-800 hover:bg-brand-900 text-white px-4 py-2 rounded-md text-sm font-semibold">+ Add personnel</button>
     </nav>
 
     <main class="flex-1 overflow-y-auto p-6 lg:p-8">
-      <div class="max-w-4xl mx-auto space-y-8">
+      <div class="max-w-5xl mx-auto space-y-5">
 
-        <!-- Add lineman form -->
-        <section class="bg-white border border-line rounded">
-          <header class="px-5 py-3 border-b border-line">
-            <h2 class="text-sm font-semibold text-ink-900">Add new lineman</h2>
-            <p class="text-xs text-ink-700/70 mt-0.5">This roster feeds the "Assigned Crew/Lineman" dropdown in Incident Review.</p>
-          </header>
-          <div class="p-5">
-            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
-              <div>
-                <label class="block text-xs font-medium text-ink-700 mb-1">Name</label>
-                <input id="fName" type="text" placeholder="Juan Dela Cruz"
-                  class="w-full border border-line rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ink-700">
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-ink-700 mb-1">Contact number</label>
-                <input id="fContact" type="text" placeholder="09171234567"
-                  class="w-full border border-line rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ink-700">
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-ink-700 mb-1">Team</label>
-                <input id="fTeam" type="text" placeholder="Line Crew Alpha (Team 3)"
-                  class="w-full border border-line rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ink-700">
-              </div>
-              <button onclick="addLineman()"
-                class="bg-ink-900 hover:bg-ink-800 text-white font-medium px-4 py-2 rounded transition text-sm">
-                + Add lineman
-              </button>
-            </div>
-            <div id="formStatus" class="text-xs mt-2"></div>
+        <div id="diagBanner" class="hidden bg-danger-100 border border-danger-600/30 text-danger-600 text-sm rounded-lg p-4"></div>
+
+        <div id="roleCards" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <button class="stat-card" data-filter="Engineer" style="--accent:#1A2B9E;--tint:#F3F5FD">
+            <div class="text-xs font-semibold uppercase tracking-wide text-brand-700">Engineers</div>
+            <div id="countEngineer" class="text-2xl font-semibold num mt-1">0</div>
+            <div class="text-xs text-ink-700 mt-0.5">Shown in Applications → Inspection</div>
+          </button>
+          <button class="stat-card" data-filter="Line Crew" style="--accent:#C9A800;--tint:#FFFBE6">
+            <div class="text-xs font-semibold uppercase tracking-wide text-gold-700">Line crew</div>
+            <div id="countCrew" class="text-2xl font-semibold num mt-1">0</div>
+            <div class="text-xs text-ink-700 mt-0.5">Shown in Reconnection, Transfer, Disconnection and Incidents</div>
+          </button>
+          <button class="stat-card" data-filter="inactive" style="--accent:#98A1B8;--tint:#F5F6FA">
+            <div class="text-xs font-semibold uppercase tracking-wide text-ink-700">Inactive</div>
+            <div id="countInactive" class="text-2xl font-semibold num mt-1">0</div>
+            <div class="text-xs text-ink-700 mt-0.5">Hidden from all dropdowns</div>
+          </button>
+        </div>
+
+        <div class="flex flex-wrap items-end gap-3">
+          <div>
+            <h2 id="listTitle" class="text-base font-semibold">All active personnel</h2>
+            <p id="listHint" class="text-xs text-ink-700">Click a card above to filter.</p>
           </div>
-        </section>
+          <div class="w-full sm:w-72 sm:ml-auto"><input id="searchInput" type="text" class="field" placeholder="Search name, team, contact…"></div>
+        </div>
 
-        <!-- Roster table -->
-        <section class="bg-white border border-line rounded">
-          <header class="px-5 py-3 border-b border-line flex justify-between items-baseline">
-            <h2 class="text-sm font-semibold text-ink-900">Linemen roster</h2>
-            <span class="text-xs text-ink-700/70">Toggle status to control who appears as "active" in dispatch</span>
-          </header>
+        <section class="bg-white border border-line rounded-lg overflow-hidden">
           <div class="overflow-x-auto">
-            <table class="w-full text-sm">
+            <table class="w-full text-left text-sm">
               <thead>
-                <tr class="text-left text-ink-700 bg-paper-100">
-                  <th class="px-5 py-2 font-medium">Name</th>
-                  <th class="px-3 py-2 font-medium">Contact</th>
-                  <th class="px-3 py-2 font-medium">Team</th>
-                  <th class="px-3 py-2 font-medium">Status</th>
-                  <th class="px-5 py-2 font-medium">Actions</th>
+                <tr class="bg-paper-50 border-b border-line text-xs font-semibold text-ink-700 uppercase tracking-wide">
+                  <th class="px-5 py-3">Name</th>
+                  <th class="px-3 py-3">Role</th>
+                  <th class="px-3 py-3">Team</th>
+                  <th class="px-3 py-3">Contact</th>
+                  <th class="px-3 py-3">Status</th>
+                  <th class="px-5 py-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody id="linemenBody" class="divide-y divide-line">
-                <tr><td colspan="5" class="px-5 py-6 text-center text-ink-700/60">Loading…</td></tr>
+              <tbody id="personnelRows" class="divide-y divide-line">
+                <tr><td colspan="6" class="px-5 py-10 text-center text-ink-700">Loading…</td></tr>
               </tbody>
             </table>
           </div>
         </section>
 
+        <p class="text-xs text-ink-700">For line crews, the <b>Team</b> name is what appears in the dropdowns, so members of the same team are listed once. Engineers appear by name.</p>
       </div>
     </main>
   </div>
 
-  <script src="sidebar.js"></script>
+  <div id="formModal" class="hidden fixed inset-0 z-[500] items-center justify-center p-4" style="background:rgba(11,21,85,0.45)">
+    <div class="bg-white rounded-lg border border-line shadow-2xl w-full max-w-md">
+      <div class="px-6 pt-6 pb-2">
+        <h3 id="formTitle" class="text-base font-semibold">Add personnel</h3>
+      </div>
+      <div class="px-6 py-4 space-y-3">
+        <div>
+          <label class="block text-xs font-medium text-ink-700 mb-1.5">Role</label>
+          <select id="fRole" class="field">
+            <option value="Engineer">Engineer</option>
+            <option value="Line Crew">Line Crew</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-ink-700 mb-1.5">Full name</label>
+          <input id="fName" type="text" class="field" placeholder="e.g. Engr. Juan Dela Cruz">
+        </div>
+        <div id="teamWrap">
+          <label class="block text-xs font-medium text-ink-700 mb-1.5">Team</label>
+          <input id="fTeam" type="text" list="teamList" class="field" placeholder="e.g. Line Crew Team 1">
+          <datalist id="teamList"></datalist>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-ink-700 mb-1.5">Contact number</label>
+          <input id="fContact" type="text" class="field num" placeholder="09XXXXXXXXX" maxlength="11">
+        </div>
+        <label class="flex items-center gap-2 text-sm text-ink-800">
+          <input id="fActive" type="checkbox" class="w-4 h-4" checked>
+          Active (shown in dropdowns)
+        </label>
+        <div id="formError" class="hidden text-xs text-danger-600 bg-danger-100 border border-danger-600/30 rounded-md p-3"></div>
+      </div>
+      <div class="px-6 py-4 bg-paper-50 border-t border-line flex justify-end gap-2 rounded-b-lg">
+        <button id="formCancel" class="bg-white border border-line hover:bg-paper-100 text-ink-800 px-4 py-2 rounded-md text-sm font-semibold">Cancel</button>
+        <button id="formSave" class="bg-brand-800 hover:bg-brand-900 text-white px-4 py-2 rounded-md text-sm font-semibold">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="confirmModal" class="hidden fixed inset-0 z-[550] items-center justify-center p-4" style="background:rgba(11,21,85,0.45)">
+    <div class="bg-white rounded-lg border border-line shadow-2xl w-full max-w-sm">
+      <div class="px-6 pt-6 pb-4">
+        <h3 class="text-base font-semibold">Remove from the list?</h3>
+        <p class="text-sm text-ink-700 mt-1.5" id="confirmText"></p>
+      </div>
+      <div class="px-6 py-4 bg-paper-50 border-t border-line flex justify-end gap-2 rounded-b-lg">
+        <button id="confirmNo" class="bg-white border border-line hover:bg-paper-100 text-ink-800 px-4 py-2 rounded-md text-sm font-semibold">Cancel</button>
+        <button id="confirmYes" class="bg-danger-600 hover:opacity-90 text-white px-4 py-2 rounded-md text-sm font-semibold">Remove</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="hidden fixed bottom-6 right-6 max-w-sm px-4 py-3 rounded-lg text-sm font-semibold shadow-lg z-[600]"></div>
+
   <script>
     const SUPABASE_URL = 'https://zrnvivattocqvxlxzsld.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_PUfegf_zyb5B_gVas_SLyw_mto9NFGF';
-    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const ICONS = {
+      edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>',
+      pause: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M10 9v6M14 9v6"/></svg>',
+      play: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 6L9 17l-5-5"/></svg>',
+      trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>',
+    };
+    const ROLE_STYLE = {
+      'Engineer': 'bg-brand-100 text-brand-800',
+      'Line Crew': 'bg-gold-100 text-gold-700',
+    };
+    const TITLES = {
+      all: 'All active personnel',
+      'Engineer': 'Engineers',
+      'Line Crew': 'Line crew',
+      inactive: 'Inactive personnel',
+    };
 
-    function tickClock() {
-      const el = document.getElementById('clockText');
-      if (el) el.textContent = new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
-    }
-    tickClock();
-    setInterval(tickClock, 30000);
+    let people = [];
+    let filter = 'all';
+    let editingId = null;
+    let pendingDelete = null;
 
-    (async () => {
-      try {
-        const { data } = await _supabase.auth.getSession();
-        const email = data?.session?.user?.email;
-        if (email) document.getElementById('adminEmail').textContent = email;
-      } catch (e) { /* optional */ }
-    })();
-
-    function showStatus(msg, isError = false) {
-      const el = document.getElementById('formStatus');
-      el.textContent = msg;
-      el.className = 'text-xs mt-2 ' + (isError ? 'text-danger-600' : 'text-ok-600');
-      setTimeout(() => { el.textContent = ''; }, 3000);
-    }
-
-    function statusBadge(status) {
-      const isActive = status === 'active';
-      const cls = isActive
-        ? 'bg-ok-100 text-ok-600 border-ok-600/30'
-        : 'bg-paper-100 text-ink-700 border-line';
-      return `<span class="inline-block text-xs font-medium px-2 py-0.5 rounded border ${cls}">${esc(status)}</span>`;
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
     }
 
-    async function loadLinemen() {
-      const body = document.getElementById('linemenBody');
-      const { data, error } = await _supabase
-        .from('linemen')
-        .select('*')
-        .order('created_at', { ascending: false });
+    function toast(msg, ok = true) {
+      const t = document.getElementById('toast');
+      t.className = 'toast-in fixed bottom-6 right-6 max-w-sm px-4 py-3 rounded-lg text-sm font-semibold shadow-lg z-[600] ' +
+        (ok ? 'bg-ok-100 text-ok-600 border border-ok-600/30' : 'bg-danger-100 text-danger-600 border border-danger-600/30');
+      t.textContent = msg;
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => t.classList.add('hidden'), 4500);
+    }
+
+    function showBanner(msg) {
+      const b = document.getElementById('diagBanner');
+      b.textContent = msg;
+      b.classList.remove('hidden');
+    }
+
+    function openModal(id) { const m = document.getElementById(id); m.classList.remove('hidden'); m.classList.add('flex'); }
+    function closeModal(id) { const m = document.getElementById(id); m.classList.add('hidden'); m.classList.remove('flex'); }
+
+    const roleOf = (p) => p.role === 'Engineer' ? 'Engineer' : 'Line Crew';
+    const isActive = (p) => (p.status || 'active') === 'active';
+
+    async function checkAuth() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) { window.location.href = 'admin_login.html'; return; }
+      loadPeople();
+    }
+
+    async function loadPeople() {
+      const { data, error } = await supabaseClient.from('linemen').select('*').order('name', { ascending: true });
+      if (error) {
+        showBanner('Could not load personnel: ' + error.message);
+        document.getElementById('personnelRows').innerHTML = `<tr><td colspan="6" class="px-5 py-10 text-center text-danger-600">${escapeHtml(error.message)}</td></tr>`;
+        return;
+      }
+      people = data || [];
+      if (people.length && !('role' in people[0])) {
+        showBanner('The "role" column is missing. Please run field_personnel.sql in Supabase, then refresh this page.');
+      }
+      render();
+    }
+
+    function inFilter(p) {
+      if (filter === 'inactive') return !isActive(p);
+      if (!isActive(p)) return false;
+      return filter === 'all' || roleOf(p) === filter;
+    }
+
+    function render() {
+      document.getElementById('countEngineer').textContent = people.filter(p => isActive(p) && roleOf(p) === 'Engineer').length;
+      document.getElementById('countCrew').textContent = people.filter(p => isActive(p) && roleOf(p) === 'Line Crew').length;
+      document.getElementById('countInactive').textContent = people.filter(p => !isActive(p)).length;
+
+      document.querySelectorAll('#roleCards .stat-card').forEach(c => c.classList.toggle('active', c.dataset.filter === filter));
+      document.getElementById('listTitle').textContent = TITLES[filter];
+      document.getElementById('listHint').textContent = filter === 'all' ? 'Click a card above to filter.' : 'Click the card again to show all active personnel.';
+
+      const q = document.getElementById('searchInput').value.trim().toLowerCase();
+      const list = people.filter(inFilter).filter(p => !q || [p.name, p.team, p.contact_number, roleOf(p)].join(' ').toLowerCase().includes(q));
+      const tbody = document.getElementById('personnelRows');
+
+      if (!list.length) {
+        tbody.innerHTML = `<tr><td colspan="6" class="px-5 py-10 text-center text-ink-700">${people.length ? 'No personnel here.' : 'No personnel yet. Click "+ Add personnel" to add an engineer or line crew member.'}</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = list.map(p => `
+        <tr class="hover:bg-paper-50 ${isActive(p) ? '' : 'opacity-60'}">
+          <td class="px-5 py-3 font-medium">${escapeHtml(p.name)}</td>
+          <td class="px-3 py-3"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium ${ROLE_STYLE[roleOf(p)]}">${roleOf(p)}</span></td>
+          <td class="px-3 py-3 text-ink-700">${roleOf(p) === 'Line Crew' ? escapeHtml(p.team || '—') : '<span class="text-ink-700/50">—</span>'}</td>
+          <td class="px-3 py-3 text-ink-700 num">${escapeHtml(p.contact_number || '—')}</td>
+          <td class="px-3 py-3">${isActive(p)
+            ? '<span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-ok-100 text-ok-600">Active</span>'
+            : '<span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-paper-100 text-ink-700">Inactive</span>'}</td>
+          <td class="px-5 py-3 text-right whitespace-nowrap">
+            <button class="icon-btn" data-act="edit" data-id="${p.id}" title="Edit">${ICONS.edit}</button>
+            <button class="icon-btn" data-act="toggle" data-id="${p.id}" title="${isActive(p) ? 'Set inactive' : 'Set active'}">${isActive(p) ? ICONS.pause : ICONS.play}</button>
+            <button class="icon-btn danger" data-act="delete" data-id="${p.id}" title="Remove">${ICONS.trash}</button>
+          </td>
+        </tr>`).join('');
+    }
+
+    function syncTeamField() {
+      const crew = document.getElementById('fRole').value === 'Line Crew';
+      document.getElementById('teamWrap').classList.toggle('hidden', !crew);
+      document.getElementById('fName').placeholder = crew ? 'e.g. Juan Dela Cruz' : 'e.g. Engr. Juan Dela Cruz';
+    }
+
+    function openForm(p) {
+      editingId = p ? p.id : null;
+      document.getElementById('formTitle').textContent = p ? 'Edit personnel' : 'Add personnel';
+      document.getElementById('fRole').value = p ? roleOf(p) : (filter === 'Engineer' ? 'Engineer' : 'Line Crew');
+      document.getElementById('fName').value = p ? (p.name || '') : '';
+      document.getElementById('fTeam').value = p ? (p.team || '') : '';
+      document.getElementById('fContact').value = p ? (p.contact_number || '') : '';
+      document.getElementById('fActive').checked = p ? isActive(p) : true;
+      document.getElementById('formError').classList.add('hidden');
+      const teams = [...new Set(people.map(x => (x.team || '').trim()).filter(Boolean))].sort();
+      document.getElementById('teamList').innerHTML = teams.map(t => `<option value="${escapeHtml(t)}"></option>`).join('');
+      syncTeamField();
+      openModal('formModal');
+      document.getElementById('fName').focus();
+    }
+
+    function formError(msg) {
+      const e = document.getElementById('formError');
+      e.textContent = msg;
+      e.classList.remove('hidden');
+    }
+
+    async function saveForm() {
+      const role = document.getElementById('fRole').value;
+      const name = document.getElementById('fName').value.trim();
+      const team = role === 'Line Crew' ? document.getElementById('fTeam').value.trim() : '';
+      const contact = document.getElementById('fContact').value.trim();
+      const status = document.getElementById('fActive').checked ? 'active' : 'inactive';
+
+      if (!name) { formError('Enter the full name.'); return; }
+      if (role === 'Line Crew' && !team) { formError('Enter the team this lineman belongs to.'); return; }
+      if (contact && !/^09\d{9}$/.test(contact)) { formError('Contact number must be 11 digits starting with 09.'); return; }
+
+      const values = { name, role, team: team || null, contact_number: contact || null, status };
+      const btn = document.getElementById('formSave');
+      btn.disabled = true;
+      const { error } = editingId
+        ? await supabaseClient.from('linemen').update(values).eq('id', editingId)
+        : await supabaseClient.from('linemen').insert([values]);
+      btn.disabled = false;
 
       if (error) {
-        body.innerHTML = `<tr><td colspan="5" class="px-5 py-6 text-center text-danger-600">Error: ${esc(error.message)}</td></tr>`;
+        formError(/role/.test(error.message) ? 'The "role" column is missing. Please run field_personnel.sql in Supabase first.' : error.message);
         return;
       }
-      if (!data.length) {
-        body.innerHTML = `<tr><td colspan="5" class="px-5 py-6 text-center text-ink-700/60">Wala pang lineman na naka-add.</td></tr>`;
-        return;
+      closeModal('formModal');
+      toast(editingId ? `${name} updated.` : `${name} added as ${role === 'Engineer' ? 'an engineer' : 'line crew'}.`);
+      loadPeople();
+    }
+
+    async function toggleStatus(p) {
+      const status = isActive(p) ? 'inactive' : 'active';
+      const { error } = await supabaseClient.from('linemen').update({ status }).eq('id', p.id);
+      if (error) { toast(error.message, false); return; }
+      toast(`${p.name} is now ${status}.`);
+      loadPeople();
+    }
+
+    async function confirmDelete() {
+      if (!pendingDelete) return;
+      const p = pendingDelete;
+      closeModal('confirmModal');
+      pendingDelete = null;
+      const { error } = await supabaseClient.from('linemen').delete().eq('id', p.id);
+      if (error) { toast(error.message, false); return; }
+      toast(`${p.name} removed.`);
+      loadPeople();
+    }
+
+    document.getElementById('personnelRows').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-act]');
+      if (!btn) return;
+      const p = people.find(x => String(x.id) === btn.dataset.id);
+      if (!p) return;
+      if (btn.dataset.act === 'edit') openForm(p);
+      if (btn.dataset.act === 'toggle') toggleStatus(p);
+      if (btn.dataset.act === 'delete') {
+        pendingDelete = p;
+        document.getElementById('confirmText').textContent =
+          `${p.name} will be removed from the list. Past records that mention this name will stay as they are. To hide them from dropdowns only, set them as inactive instead.`;
+        openModal('confirmModal');
       }
+    });
 
-      body.innerHTML = data.map(l => `
-        <tr class="hover:bg-paper-100/60">
-          <td class="px-5 py-3 font-medium text-ink-800">${esc(l.name)}</td>
-          <td class="px-3 py-3 text-ink-700 num">${esc(l.contact_number || '—')}</td>
-          <td class="px-3 py-3 text-ink-700">${esc(l.team || '—')}</td>
-          <td class="px-3 py-3">${statusBadge(l.status)}</td>
-          <td class="px-5 py-3 space-x-2">
-            <button onclick="toggleStatus('${l.id}', '${l.status}')"
-              class="text-xs text-ink-700 hover:text-ink-900 underline underline-offset-2">
-              ${l.status === 'active' ? 'Set inactive' : 'Set active'}
-            </button>
-            <button onclick="deleteLineman('${l.id}')"
-              class="text-xs text-danger-600 hover:text-danger-600/80 underline underline-offset-2">
-              Delete
-            </button>
-          </td>
-        </tr>
-      `).join('');
-    }
+    document.querySelectorAll('#roleCards .stat-card').forEach(card => card.addEventListener('click', () => {
+      filter = filter === card.dataset.filter ? 'all' : card.dataset.filter;
+      render();
+    }));
 
-    async function addLineman() {
-      const name = document.getElementById('fName').value.trim();
-      const contact = document.getElementById('fContact').value.trim();
-      const team = document.getElementById('fTeam').value.trim();
+    document.getElementById('addBtn').addEventListener('click', () => openForm(null));
+    document.getElementById('fRole').addEventListener('change', syncTeamField);
+    document.getElementById('formCancel').addEventListener('click', () => closeModal('formModal'));
+    document.getElementById('formSave').addEventListener('click', saveForm);
+    document.getElementById('formModal').addEventListener('click', (e) => { if (e.target.id === 'formModal') closeModal('formModal'); });
+    document.getElementById('confirmNo').addEventListener('click', () => { closeModal('confirmModal'); pendingDelete = null; });
+    document.getElementById('confirmYes').addEventListener('click', confirmDelete);
+    document.getElementById('confirmModal').addEventListener('click', (e) => { if (e.target.id === 'confirmModal') { closeModal('confirmModal'); pendingDelete = null; } });
+    document.getElementById('searchInput').addEventListener('input', render);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeModal('formModal'); closeModal('confirmModal'); } });
+    document.addEventListener('click', async (e) => {
+      if (e.target.closest('#logoutBtn')) {
+        await supabaseClient.auth.signOut();
+        window.location.href = 'admin_login.html';
+      }
+    });
 
-      if (!name) { showStatus('Kailangan ng pangalan.', true); return; }
-
-      const { error } = await _supabase
-        .from('linemen')
-        .insert([{ name, contact_number: contact, team, status: 'active' }]);
-
-      if (error) { showStatus('Error: ' + error.message, true); return; }
-
-      document.getElementById('fName').value = '';
-      document.getElementById('fContact').value = '';
-      document.getElementById('fTeam').value = '';
-      showStatus('Na-add si ' + name + '.');
-      loadLinemen();
-    }
-
-    async function toggleStatus(id, currentStatus) {
-      const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-      const { error } = await _supabase.from('linemen').update({ status: newStatus }).eq('id', id);
-      if (error) { showStatus('Error: ' + error.message, true); return; }
-      loadLinemen();
-    }
-
-    async function deleteLineman(id) {
-      if (!confirm('Sigurado ka bang tatanggalin ito sa listahan?')) return;
-      const { error } = await _supabase.from('linemen').delete().eq('id', id);
-      if (error) { showStatus('Error: ' + error.message, true); return; }
-      loadLinemen();
-    }
-
-    loadLinemen();
+    checkAuth();
   </script>
+  <script src="sidebar.js"></script>
 </body>
 </html>
