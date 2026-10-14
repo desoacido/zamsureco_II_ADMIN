@@ -8,6 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="map-layers.js"></script>
+<script src="personnel.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script>
@@ -900,7 +902,7 @@
             <p class="text-sm text-ink-800 mb-3">Reconnection fee paid · OR <b class="num">${escapeHtml(app.or_number || '—')}</b></p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><label class="text-xs font-medium text-ink-700">Date &amp; time</label><input id="reconDate" type="datetime-local" class="field mt-1" min="${nowLocalInput()}" value="${toLocalInput(app.reconnection_schedule)}"></div>
-              <div><label class="text-xs font-medium text-ink-700">Assigned crew / lineman</label><input id="reconCrew" type="text" class="field mt-1" placeholder="e.g. Maintenance Team 1" value="${escapeHtml(app.assigned_crew || '')}"></div>
+              <div><label class="text-xs font-medium text-ink-700">Assigned crew / lineman</label><select id="reconCrew" class="field mt-1" data-personnel="Line Crew" data-current="${escapeHtml(app.assigned_crew || '')}"></select></div>
             </div>
             <button class="btn-primary mt-3" onclick="actReconSchedule()">Save schedule</button>`);
         case 'Reconnection Scheduled':
@@ -940,7 +942,7 @@
             <p class="text-sm text-ink-800 mb-3">Fees paid · OR <b class="num">${escapeHtml(app.or_number || '—')}</b></p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><label class="text-xs font-medium text-ink-700">Date &amp; time</label><input id="trDate" type="datetime-local" class="field mt-1" min="${nowLocalInput()}" value="${toLocalInput(app.transfer_schedule)}"></div>
-              <div><label class="text-xs font-medium text-ink-700">Assigned crew / lineman</label><input id="trCrew" type="text" class="field mt-1" placeholder="e.g. Line Crew Team 1" value="${escapeHtml(app.assigned_crew || '')}"></div>
+              <div><label class="text-xs font-medium text-ink-700">Assigned crew / lineman</label><select id="trCrew" class="field mt-1" data-personnel="Line Crew" data-current="${escapeHtml(app.assigned_crew || '')}"></select></div>
             </div>
             <button class="btn-primary mt-3" onclick="actTransferSchedule()">Save schedule</button>
             <p class="text-xs text-ink-700/70 mt-2">The crew removes the meter and service drop at the old address and installs them at the new location.</p>`);
@@ -962,7 +964,7 @@
       return `
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div><label class="text-xs font-medium text-ink-700">Inspection date &amp; time</label><input id="inspDate" type="datetime-local" class="field mt-1" min="${nowLocalInput()}" value="${toLocalInput(app.inspection_schedule)}" ${disabled ? 'disabled' : ''}></div>
-          <div><label class="text-xs font-medium text-ink-700">Engineer</label><input id="inspName" type="text" class="field mt-1" placeholder="e.g. Engr. Juan Dela Cruz" value="${escapeHtml(app.inspector_name || '')}" ${disabled ? 'disabled' : ''}></div>
+          <div><label class="text-xs font-medium text-ink-700">Engineer</label><select id="inspName" class="field mt-1" data-personnel="Engineer" data-current="${escapeHtml(app.inspector_name || '')}" ${disabled ? 'disabled' : ''}></select></div>
         </div>
         <button class="btn-primary mt-3" onclick="actSetInspection()" ${disabled ? 'disabled' : ''}>Schedule inspection</button>`;
     }
@@ -1083,6 +1085,8 @@
           </div>
         </div>`;
 
+      fillPersonnel(_supabase, document.getElementById('drawerContent'));
+
       // Checklist toggles
       document.querySelectorAll('[data-req]').forEach(cb => {
         cb.addEventListener('change', () => toggleRequirement(cb.dataset.req, cb.checked));
@@ -1138,9 +1142,7 @@
       if (appMap || !app.latitude || !app.longitude || !document.getElementById('appMap')) return;
       const home = [Number(app.latitude), Number(app.longitude)];
       appMap = L.map('appMap', { scrollWheelZoom: false });
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19, attribution: '&copy; OpenStreetMap contributors',
-      }).addTo(appMap);
+      addBaseLayers(appMap);
       L.marker(home).addTo(appMap).bindTooltip('Applicant', { permanent: true, direction: 'top' });
 
       if (pole) {
@@ -1229,7 +1231,7 @@
       if (!allPapersReceived()) { toast('All papers must be received first.', false); return; }
       const date = val('inspDate');
       const name = val('inspName');
-      if (!date || !name) { toast('Please set the inspection date and the engineer.', false); return; }
+      if (!date || !name) { toast('Please set the inspection date and choose the engineer.', false); return; }
       if (isPast(date)) { toast('The inspection schedule cannot be in the past.', false); return; }
       updateApp({
         inspection_schedule: fromLocalInput(date),
