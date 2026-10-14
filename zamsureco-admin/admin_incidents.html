@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="map-layers.js"></script>
+<script src="personnel.js"></script>
 <style>
   .toast-in { animation: toastIn .2s ease; }
   @keyframes toastIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
@@ -173,8 +174,7 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-medium text-ink-700 mb-1.5">Assigned crew / lineman</label>
-              <input id="crewInput" list="crewList" type="text" class="field" placeholder="e.g. Line Crew Team 1">
-              <datalist id="crewList"></datalist>
+              <select id="crewInput" class="field" data-personnel="Line Crew"></select>
             </div>
             <div>
               <label class="block text-xs font-medium text-ink-700 mb-1.5">Estimated restoration (ETR)</label>
@@ -293,7 +293,7 @@
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (!session) { window.location.href = 'admin_login.html'; return; }
       initOverviewMap();
-      await Promise.all([loadPoles(), loadCrews(), loadOffice()]);
+      await Promise.all([loadPoles(), loadOffice()]);
       await fetchIncidents();
       openFromUrl();
       supabaseClient.channel('admin-incidents')
@@ -314,24 +314,6 @@
     async function loadPoles() {
       const { data } = await supabaseClient.from('poles').select('pole_code, latitude, longitude, is_energized');
       poles = data || [];
-    }
-
-    async function loadCrews() {
-      const names = new Set();
-      const collect = (rows, keys) => (rows || []).forEach(row => keys.forEach(k => { const v = (row[k] || '').toString().trim(); if (v) names.add(v); }));
-      try {
-        const { data } = await supabaseClient.from('linemen').select('*');
-        collect(data, ['team_name', 'crew_name', 'name', 'full_name']);
-      } catch (_) {}
-      try {
-        const { data } = await supabaseClient.from('incident_reports').select('assigned_to').not('assigned_to', 'is', null);
-        collect(data, ['assigned_to']);
-      } catch (_) {}
-      try {
-        const { data } = await supabaseClient.from('service_applications').select('assigned_crew').not('assigned_crew', 'is', null);
-        collect(data, ['assigned_crew']);
-      } catch (_) {}
-      document.getElementById('crewList').innerHTML = [...names].sort().map(n => `<option value="${escapeHtml(n)}"></option>`).join('');
     }
 
     async function loadReporters(list) {
@@ -500,7 +482,8 @@
 
       const crew = document.getElementById('crewInput');
       const etr = document.getElementById('etrInput');
-      crew.value = r.assigned_to || '';
+      crew.dataset.current = r.assigned_to || '';
+      fillPersonnel(supabaseClient, crew.parentElement);
       etr.value = r.etr ? String(r.etr).slice(0, 16) : '';
       const locked = !isOpen(r);
       crew.disabled = locked;
@@ -622,14 +605,14 @@
 
     async function dispatchCrew() {
       const { crew, etr } = dispatchValues();
-      if (!crew) { formError('Enter the crew or lineman who will respond.'); return; }
+      if (!crew) { formError('Choose the line crew who will respond.'); return; }
       await saveReport({ status: 'In Progress', assigned_to: crew, etr, dispatched_at: new Date().toISOString() },
         `${crew} dispatched. The member can see this in the app.`);
     }
 
     async function saveDispatch() {
       const { crew, etr } = dispatchValues();
-      if (!crew) { formError('Enter the crew or lineman who will respond.'); return; }
+      if (!crew) { formError('Choose the line crew who will respond.'); return; }
       await saveReport({ assigned_to: crew, etr }, 'Crew and ETR updated.');
     }
 
