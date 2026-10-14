@@ -48,7 +48,7 @@
           href: "admin_application.html",
           label: "Applications",
           // Badge: applications still waiting for an admin step
-          count: { table: "service_applications", exclude: ["Energized", "Reconnected", "Rejected"] },
+          count: { table: "service_applications", exclude: ["Energized", "Reconnected", "Transferred", "Rejected"] },
           icon: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
         },
         {
@@ -61,7 +61,7 @@
         },
         {
           href: "manage_linemen.html",
-          label: "Manage Linemen",
+          label: "Field Personnel",
           icon: '<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0116 0v1"/>',
         },
       ],
