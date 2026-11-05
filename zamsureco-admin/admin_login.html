@@ -49,6 +49,53 @@
     transition:border-color .15s ease, box-shadow .15s ease;
   }
   input:focus{outline:none; border-color:var(--navy-700); box-shadow:0 0 0 3px rgba(21,58,122,0.12); background:#fff;}
+
+  /* ===== PASSWORD FIELD WITH TOGGLE ===== */
+  .password-wrapper {
+    position: relative;
+    width: 100%;
+  }
+  .password-wrapper input {
+    padding-right: 42px; /* space for the eye icon */
+  }
+  .toggle-password {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-faint);
+    transition: color 0.15s ease;
+    margin: 0;
+    border-radius: 0;
+    font-size: 0; /* hide any accidental text */
+  }
+  .toggle-password:hover {
+    color: var(--navy-800);
+  }
+  .toggle-password:focus-visible {
+    outline: 2px solid var(--navy-700);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  .toggle-password svg {
+    width: 20px;
+    height: 20px;
+    display: block;
+  }
+  /* Hide the "eye-off" icon by default; show when .is-visible */
+  .toggle-password .icon-eye-off { display: none; }
+  .toggle-password.is-visible .icon-eye { display: none; }
+  .toggle-password.is-visible .icon-eye-off { display: block; }
+
   .forgot-password-container {
     text-align: right;
     margin-top: 8px;
@@ -62,15 +109,15 @@
   .forgot-password-container a:hover {
     text-decoration: underline;
   }
-  button{
+  button[type="submit"]{
     width:100%; margin-top:18px; padding:12px; font-size:14px;
     background:var(--navy-800); color:#fff; border:none; border-radius:8px;
     cursor:pointer; font-weight:600; font-family:'Inter',sans-serif;
     transition:background .15s ease, transform .1s ease;
   }
-  button:hover{background:var(--navy-700);}
-  button:active{transform:scale(0.98);}
-  button:disabled{opacity:0.6; cursor:default;}
+  button[type="submit"]:hover{background:var(--navy-700);}
+  button[type="submit"]:active{transform:scale(0.98);}
+  button[type="submit"]:disabled{opacity:0.6; cursor:default;}
   .login-error{
     margin-top:14px; padding:10px 12px; border-radius:8px; font-size:12.5px; font-weight:500; display:none;
     background:var(--red-bg); color:var(--red); border:1px solid #f5c2c7;
@@ -93,12 +140,26 @@
     </div>
 
     <form id="loginForm">
-      <label>Email</label>
+      <label for="loginEmail">Email</label>
       <input type="email" id="loginEmail" placeholder="admin@zamsureco2.com" required autocomplete="username">
       
-      <label>Password</label>
-      <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
-      
+      <label for="loginPassword">Password</label>
+      <div class="password-wrapper">
+        <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
+        <button type="button" class="toggle-password" id="togglePassword" aria-label="Show password" aria-pressed="false" tabindex="0">
+          <!-- Eye (hidden) icon -->
+          <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+          <!-- Eye-off (visible) icon -->
+          <svg class="icon-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+            <line x1="1" y1="1" x2="23" y2="23"/>
+          </svg>
+        </button>
+      </div>
+
       <div class="forgot-password-container">
         <a href="forgot_password.html">Forgot Password?</a>
       </div>
@@ -121,6 +182,20 @@
     const loginForm = document.getElementById('loginForm');
     const loginError = document.getElementById('loginError');
     const loginBtn = document.getElementById('loginBtn');
+
+    // ===== PASSWORD TOGGLE LOGIC =====
+    const passwordInput = document.getElementById('loginPassword');
+    const toggleBtn = document.getElementById('togglePassword');
+
+    toggleBtn.addEventListener('click', function () {
+      const isPassword = passwordInput.type === 'password';
+      passwordInput.type = isPassword ? 'text' : 'password';
+      toggleBtn.classList.toggle('is-visible', isPassword);
+      toggleBtn.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+      toggleBtn.setAttribute('aria-pressed', isPassword ? 'true' : 'false');
+      // Keep focus on the input for better UX
+      passwordInput.focus();
+    });
 
     // Auto-redirect if already logged in
     (async () => {
