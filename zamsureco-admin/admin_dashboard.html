@@ -132,6 +132,8 @@
   }
   .map-style-btn:hover { background: #F7F8FA; box-shadow: 0 4px 10px rgba(11, 21, 85, 0.12); transform: translateY(-1px); }
   .map-style-btn svg { width: 15px; height: 15px; flex-shrink: 0; color: #0D2E63; }
+  .map-style-btn.is-on { background: #0D2E63; color: #fff; border-color: #0D2E63; }
+  .map-style-btn.is-on svg { color: #fff; }
 
   .legend-pill {
     display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600;
@@ -147,7 +149,7 @@
   .cat-tag { border-left: 3px solid #081D45; padding: 2px 10px 2px 8px; background: #F7F8FA; }
   .area-tag { background: #FCEACB; color: #8A5A12; padding: 2px 8px; border-radius: 3px; }
 
-  /* Modern Map Pin Design */
+  /* Modern Map Pin Design (schedule / incident / application) */
   .modern-pin {
     width: 32px; height: 32px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
     display: flex; align-items: center; justify-content: center; border: 2px solid white;
@@ -162,6 +164,48 @@
     color: #0D2E63; line-height: 1.5;
   }
   .leaflet-tooltip.custom-tooltip::before { border-top-color: rgba(255, 255, 255, 0.98); }
+
+  /* ============================================================
+     Pole marker styling (ported verbatim from admin_poles.html)
+     ============================================================ */
+  .pole-icon-wrap {
+    background: transparent;
+    border: none;
+  }
+  .pole-marker {
+    position: relative;
+    width: 32px;
+    height: 40px;
+    filter: drop-shadow(0 1px 2px rgba(11, 21, 85, 0.35));
+    transition: transform 0.15s ease, filter 0.15s ease;
+    transform-origin: 50% 95%;
+    cursor: pointer;
+  }
+  .pole-marker:hover {
+    transform: scale(1.15) translateY(-2px);
+    filter: drop-shadow(0 3px 5px rgba(11, 21, 85, 0.4));
+  }
+  .pole-marker svg {
+    display: block;
+    overflow: visible;
+  }
+  .pole-badge {
+    position: absolute;
+    top: -2px;
+    right: -4px;
+    min-width: 14px;
+    height: 14px;
+    padding: 0 3px;
+    border-radius: 9999px;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 14px;
+    text-align: center;
+    border: 1.5px solid #fff;
+    box-shadow: 0 1px 2px rgba(11, 21, 85, 0.25);
+    font-family: system-ui, sans-serif;
+  }
 </style>
 </head>
 <body class="bg-paper-50 text-ink-900 font-sans overflow-x-hidden">
@@ -199,7 +243,7 @@
           <header class="px-5 py-3 border-b border-line flex justify-between items-center flex-wrap gap-3">
             <div>
               <h2 class="text-sm font-semibold text-ink-900 section-head">Activity map</h2>
-              <p class="text-xs text-ink-700 mt-0.5">Pins show scheduled work, recent incident reports, and recent applications</p>
+              <p class="text-xs text-ink-700 mt-0.5">Poles, scheduled work, recent incident reports, and recent applications</p>
             </div>
 
             <div class="flex items-center gap-3 flex-wrap">
@@ -234,6 +278,13 @@
 
               <div class="h-5 w-px bg-line hidden sm:block"></div>
 
+              <button id="togglePolesBtn" class="map-style-btn is-on" title="Show/hide poles on the map">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 2v20M5 8l7-4 7 4M5 16l7-4 7 4"/>
+                </svg>
+                <span>Poles</span>
+              </button>
+
               <button id="toggleMapStyle" class="map-style-btn" title="Switch between street and satellite view">
                 <svg id="mapIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -245,6 +296,10 @@
 
           <div class="px-5 py-2 border-t border-line bg-paper-50 flex items-center gap-2 flex-wrap">
             <span class="text-[11px] font-semibold uppercase tracking-wide text-ink-700 mr-1">Legend</span>
+            <span class="legend-pill"><span class="dot" style="background:#3F7857;"></span>Energized pole</span>
+            <span class="legend-pill"><span class="dot" style="background:#A33B34;"></span>Full pole</span>
+            <span class="legend-pill"><span class="dot" style="background:#9CA3AF;"></span>Off pole</span>
+            <span class="h-4 w-px bg-line mx-1 hidden sm:block"></span>
             <span class="legend-pill"><span class="dot" style="background:#3F7857;"></span>Schedule</span>
             <span class="legend-pill"><span class="dot" style="background:#A33B34;"></span>Incident</span>
             <span class="legend-pill"><span class="dot" style="background:#0D2E63;"></span>Application</span>
@@ -303,8 +358,6 @@
             </div>
           </div>
         </section>
-
-
 
       </div>
     </main>
@@ -463,11 +516,13 @@
     let scheduleLayer = null;
     let incidentLayer = null;
     let applicationLayer = null;
+    let poleLayer = null;
     let allBounds = [];
 
     let streetLayer = null;
     let satelliteLayer = null;
     let isSatellite = false;
+    let polesVisible = true;
 
     const ICONS = {
       schedule: `<div class="modern-pin" style="background:#3F7857;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>`,
@@ -475,6 +530,64 @@
       application: `<div class="modern-pin" style="background:#0D2E63;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg></div>`
     };
 
+    /* ============================================================
+       Pole icon factory (ported verbatim from admin_poles.html)
+       ============================================================ */
+    function poleColor(p) {
+      if (!p.is_energized) return '#9CA3AF';
+      if ((p.available_slots ?? 0) === 0) return '#A33B34';
+      return '#3F7857';
+    }
+
+    function poleIcon(p) {
+      const color = poleColor(p);
+      const energized = !!p.is_energized;
+      const full = energized && (p.available_slots ?? 0) === 0;
+
+      // Small badge shown on the top-right of the icon
+      let badge = '';
+      if (!energized) {
+        badge = `<span class="pole-badge" style="background:#6B7280">&#x2715;</span>`;
+      } else if (full) {
+        badge = `<span class="pole-badge" style="background:#A33B34">!</span>`;
+      } else {
+        badge = `<span class="pole-badge" style="background:#3F7857">&#x2713;</span>`;
+      }
+
+      const html = `
+        <div class="pole-marker" style="--pole-color:${color}">
+          <svg viewBox="0 0 32 40" width="32" height="40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <!-- ground shadow -->
+            <ellipse cx="16" cy="37" rx="7" ry="2.2" fill="rgba(11,21,85,0.18)"/>
+            <!-- pole body -->
+            <rect x="14.2" y="8" width="3.6" height="28" rx="1" fill="${color}" stroke="#ffffff" stroke-width="1.4"/>
+            <!-- cross arms -->
+            <rect x="6" y="10" width="20" height="3" rx="1.2" fill="${color}" stroke="#ffffff" stroke-width="1.2"/>
+            <rect x="8.5" y="17" width="15" height="2.6" rx="1" fill="${color}" stroke="#ffffff" stroke-width="1.2"/>
+            <!-- insulators -->
+            <circle cx="7.6" cy="11.5" r="1.6" fill="#ffffff" stroke="${color}" stroke-width="1.4"/>
+            <circle cx="24.4" cy="11.5" r="1.6" fill="#ffffff" stroke="${color}" stroke-width="1.4"/>
+            <circle cx="10.5" cy="18.3" r="1.4" fill="#ffffff" stroke="${color}" stroke-width="1.3"/>
+            <circle cx="21.5" cy="18.3" r="1.4" fill="#ffffff" stroke="${color}" stroke-width="1.3"/>
+            <!-- top cap -->
+            <circle cx="16" cy="7" r="2.2" fill="${color}" stroke="#ffffff" stroke-width="1.3"/>
+          </svg>
+          ${badge}
+        </div>`;
+
+      return L.divIcon({
+        html,
+        className: 'pole-icon-wrap',
+        iconSize: [32, 40],
+        iconAnchor: [16, 38],   // tip of the pole = geographic point
+        tooltipAnchor: [0, -30],
+        popupAnchor: [0, -32],
+      });
+    }
+
+    /* ============================================================
+       Map init
+       ============================================================ */
     function initDashMap() {
       dashMap = L.map('dashMap', { zoomControl: true }).setView(MAP_CENTER, 13);
 
@@ -490,6 +603,8 @@
 
       streetLayer.addTo(dashMap);
 
+      // Layer order: poles first (bottom), then schedule / incidents / applications
+      poleLayer = L.layerGroup().addTo(dashMap);
       scheduleLayer = L.layerGroup().addTo(dashMap);
       incidentLayer = L.layerGroup().addTo(dashMap);
       applicationLayer = L.layerGroup().addTo(dashMap);
@@ -513,6 +628,15 @@
           btnText.textContent = 'Satellite';
           btnIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />';
         }
+      });
+
+      // Toggle poles visibility
+      document.getElementById('togglePolesBtn').addEventListener('click', (e) => {
+        polesVisible = !polesVisible;
+        const btn = e.currentTarget;
+        btn.classList.toggle('is-on', polesVisible);
+        if (polesVisible) poleLayer.addTo(dashMap);
+        else dashMap.removeLayer(poleLayer);
       });
     }
 
@@ -539,6 +663,54 @@
       const nLat = Number(lat), nLng = Number(lng);
       if (isNaN(nLat) || isNaN(nLng)) return null;
       return { lat: nLat, lng: nLng };
+    }
+
+    /* ============================================================
+       Poles loader (mirrors admin_poles.html renderMap)
+       ============================================================ */
+    async function loadPoles() {
+      if (!poleLayer) return;
+
+      const { data, error } = await _supabase
+        .from('poles')
+        .select('*')
+        .order('pole_code', { ascending: true });
+
+      if (error) {
+        console.error('Poles load error:', error.message);
+        return;
+      }
+
+      const poles = (data || []).map(p => ({
+        ...p,
+        latitude: Number(p.latitude),
+        longitude: Number(p.longitude),
+        available_slots: Number(p.available_slots ?? 0),
+      }));
+
+      poleLayer.clearLayers();
+
+      poles.forEach(p => {
+        const lat = p.latitude, lng = p.longitude;
+        if (isNaN(lat) || isNaN(lng)) return;
+
+        const marker = L.marker([lat, lng], {
+          icon: poleIcon(p),
+          riseOnHover: true,
+          keyboard: true,
+          title: p.pole_code,
+        }).addTo(poleLayer);
+
+        marker.bindTooltip(
+          `<b>${esc(p.pole_code)}</b><br>${esc(p.pole_type || '')}<br>` +
+          `${p.is_energized ? 'Energized' : 'Non-energized'} · ${p.available_slots ?? 0} slot(s)`,
+          { direction: 'top', offset: [0, -8] }
+        );
+
+        allBounds.push([lat, lng]);
+      });
+
+      fitAllBounds();
     }
 
     // ---------- 1. Numbers that need action ----------
@@ -605,7 +777,7 @@
       const { data: orders } = await _supabase.from('account_status')
         .select('acct_no, disconnection_schedule, assigned_crew, latitude, longitude')
         .eq('status', 'Disconnection Scheduled');
-      
+
       (orders || []).forEach(o => {
         if (!o.disconnection_schedule) return;
         events.push({
@@ -673,7 +845,7 @@
       fitAllBounds();
     }
 
-    // ---------- 3. Grid status + advisories (FIXED) ----------
+    // ---------- 3. Grid status + advisories ----------
     async function loadGrid() {
       const { data: poles, error } = await _supabase.from('poles').select('is_energized, available_slots');
       if (error) {
@@ -694,26 +866,26 @@
       const wrap = document.getElementById('advisoryListWrap');
       const btn = document.getElementById('toggleAdvisoryBtn');
       const label = document.getElementById('toggleAdvisoryLabel');
+      if (!wrap || !btn) return;
       const isHidden = wrap.classList.contains('hidden');
 
       if (isHidden) {
         wrap.classList.remove('hidden');
         btn.setAttribute('aria-expanded', 'true');
-        label.textContent = 'Hide advisories';
+        if (label) label.textContent = 'Hide advisories';
         if (!advisoriesLoaded) await fetchAdvisories();
       } else {
         wrap.classList.add('hidden');
         btn.setAttribute('aria-expanded', 'false');
-        label.textContent = 'View advisories';
+        if (label) label.textContent = 'View advisories';
       }
     }
 
     async function fetchAdvisories() {
       const tbody = document.getElementById('advisoryTableBody');
+      if (!tbody) return;
       tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-ink-700 font-medium">Loading advisories...</td></tr>`;
 
-      // Removed the .not('affected_pole_codes', 'is', null) filter
-      // so it fetches all announcements without failing if the column is missing or null
       const { data, error } = await _supabase
         .from('announcements')
         .select('*')
@@ -728,7 +900,8 @@
       }
 
       const list = data || [];
-      document.getElementById('advisoryCount').textContent = `${list.length} posted · most recent first`;
+      const countEl = document.getElementById('advisoryCount');
+      if (countEl) countEl.textContent = `${list.length} posted · most recent first`;
 
       if (list.length === 0) {
         tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-ink-700 font-medium">No announcements found.</td></tr>`;
@@ -739,7 +912,7 @@
       tbody.innerHTML = list.map(item => {
         const poles = Array.isArray(item.affected_pole_codes) ? item.affected_pole_codes : [];
         let scheduleHtml = `<span class="text-xs text-ink-700/50 italic">General</span>`;
-        
+
         if (poles.length || item.start_time || item.end_time) {
           const ended = item.end_time && new Date(item.end_time) < now;
           const status = ended
@@ -843,8 +1016,9 @@
     // ---------- Boot ----------
     initDashMap();
     loadKpis();
-    loadSchedule().then(() => fitAllBounds());
     loadGrid();
+    loadPoles();                                                       // poles first
+    loadSchedule().then(() => fitAllBounds());
     loadRecent('incident_reports', 'recentIncidents', incidentRow, incidentLayer, 'incident', 'Incident', 'incidentsCount')
       .then(() => fitAllBounds());
     loadRecent('service_applications', 'recentApplications', applicationRow, applicationLayer, 'application', 'Application', 'applicationsCount')
