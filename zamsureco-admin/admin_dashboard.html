@@ -8,6 +8,8 @@
 <!-- Shared colors and fonts (taken from the ZAMSURECO II logo) -->
 <script src="theme.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
   .kpi { transition: border-color .15s, box-shadow .15s; }
   .kpi:hover { border-color: #94A2EA; box-shadow: 0 2px 10px rgba(11, 21, 85, 0.06); }
@@ -20,6 +22,146 @@
   .group-label {
     font-size: 11px; font-weight: 600; letter-spacing: .8px; text-transform: uppercase;
   }
+
+  /* ===== Shared scrollable container ===== */
+  .scroll-box {
+    max-height: 340px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #C5CCDA #F3F5FD;
+  }
+  .scroll-box::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scroll-box::-webkit-scrollbar-track { background: #F3F5FD; border-radius: 4px; }
+  .scroll-box::-webkit-scrollbar-thumb { background: #C5CCDA; border-radius: 4px; border: 2px solid #F3F5FD; }
+  .scroll-box::-webkit-scrollbar-thumb:hover { background: #A9B3C6; }
+  .scroll-box table thead th { position: sticky; top: 0; z-index: 1; }
+
+  /* Map styling */
+  .map-container { position: relative; }
+  #dashMap { width: 100%; height: 480px; z-index: 0; border-radius: 8px; }
+
+  /* ===== Overlay KPI cards at the BOTTOM of the map ===== */
+  .kpi-overlay {
+    position: absolute;
+    bottom: 14px;
+    left: 14px;
+    right: 14px;
+    z-index: 400;
+    pointer-events: none;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .kpi-overlay > * { pointer-events: auto; }
+
+  .kpi-card {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(221, 227, 236, 0.9);
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(11, 21, 85, 0.12);
+    padding: 12px 14px;
+    transition: border-color .15s, box-shadow .15s, transform .15s;
+  }
+  .kpi-card:hover {
+    border-color: #94A2EA;
+    box-shadow: 0 10px 28px rgba(11, 21, 85, 0.18);
+    transform: translateY(-1px);
+  }
+  .kpi-card .kpi-value {
+    font-size: 26px;
+    line-height: 1.1;
+    font-weight: 700;
+    color: #0B1555;
+    font-variant-numeric: tabular-nums;
+    margin-top: 8px;
+  }
+  .kpi-card .kpi-label {
+    font-size: 11px;
+    line-height: 1.25;
+    color: #4A5568;
+    font-weight: 500;
+  }
+  .kpi-card .kpi-icon {
+    width: 30px; height: 30px; border-radius: 7px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .kpi-card .kpi-icon svg { width: 16px; height: 16px; }
+
+  @media (max-width: 900px) {
+    .kpi-overlay { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #dashMap { height: 560px; }
+  }
+  @media (max-width: 520px) {
+    .kpi-overlay { grid-template-columns: 1fr; bottom: 10px; left: 10px; right: 10px; gap: 8px; }
+    .kpi-card { padding: 10px 12px; }
+    .kpi-card .kpi-value { font-size: 22px; margin-top: 6px; }
+    #dashMap { height: 720px; }
+  }
+
+  .map-container .leaflet-bottom.leaflet-right { margin-bottom: 130px; }
+  @media (max-width: 900px) { .map-container .leaflet-bottom.leaflet-right { margin-bottom: 220px; } }
+  @media (max-width: 520px) { .map-container .leaflet-bottom.leaflet-right { margin-bottom: 400px; } }
+
+  /* ===== Action buttons inside map header ===== */
+  .action-btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px;
+    border-radius: 10px; font-size: 12px; font-weight: 700; color: #fff;
+    border: 1px solid transparent; box-shadow: 0 4px 12px rgba(11, 21, 85, 0.18);
+    transition: transform .12s, box-shadow .12s, filter .12s; cursor: pointer; white-space: nowrap;
+  }
+  .action-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(11, 21, 85, 0.22); filter: brightness(1.03); }
+  .action-btn:active { transform: translateY(0); }
+  .action-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+  .action-btn .count-badge {
+    margin-left: 2px; display: inline-flex; align-items: center; justify-content: center;
+    min-width: 22px; height: 20px; padding: 0 6px; border-radius: 999px;
+    font-size: 11px; font-weight: 800; background: rgba(255, 255, 255, 0.28);
+    color: #fff; font-variant-numeric: tabular-nums;
+  }
+  .action-btn--schedule { background: #1E6B4A; }
+  .action-btn--incidents { background: #A33B34; }
+  .action-btn--applications { background: #0D2E63; }
+
+  .map-style-btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px;
+    border-radius: 10px; font-size: 12px; font-weight: 700; background: #fff; color: #0D2E63;
+    border: 1px solid #DDE3EC; box-shadow: 0 2px 6px rgba(11, 21, 85, 0.08);
+    transition: transform .12s, box-shadow .12s, background .12s; cursor: pointer; white-space: nowrap;
+  }
+  .map-style-btn:hover { background: #F7F8FA; box-shadow: 0 4px 10px rgba(11, 21, 85, 0.12); transform: translateY(-1px); }
+  .map-style-btn svg { width: 15px; height: 15px; flex-shrink: 0; color: #0D2E63; }
+
+  .legend-pill {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600;
+    color: #4A5568; background: #F7F8FA; border: 1px solid #E2E8F0; padding: 4px 10px;
+    border-radius: 999px; white-space: nowrap;
+  }
+  .legend-pill .dot { width: 8px; height: 8px; border-radius: 999px; flex-shrink: 0; }
+  .action-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+  /* Chevron for the announcements toggle */
+  #toggleListBtn[aria-expanded="true"] .chev { transform: rotate(180deg); }
+  .chev { transition: transform .15s ease; }
+  .cat-tag { border-left: 3px solid #081D45; padding: 2px 10px 2px 8px; background: #F7F8FA; }
+  .area-tag { background: #FCEACB; color: #8A5A12; padding: 2px 8px; border-radius: 3px; }
+
+  /* Modern Map Pin Design */
+  .modern-pin {
+    width: 32px; height: 32px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
+    display: flex; align-items: center; justify-content: center; border: 2px solid white;
+    box-shadow: -2px 2px 6px rgba(0,0,0,0.3); transition: transform 0.15s ease;
+  }
+  .modern-pin:hover { transform: rotate(-45deg) scale(1.1); }
+  .modern-pin svg { transform: rotate(45deg); width: 16px; height: 16px; stroke: white; stroke-width: 2.5; fill: none; }
+
+  .leaflet-tooltip.custom-tooltip {
+    background: rgba(255, 255, 255, 0.98); border: 1px solid #DDE3EC; border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(11, 21, 85, 0.15); padding: 10px 14px; font-size: 12px;
+    color: #0D2E63; line-height: 1.5;
+  }
+  .leaflet-tooltip.custom-tooltip::before { border-top-color: rgba(255, 255, 255, 0.98); }
 </style>
 </head>
 <body class="bg-paper-50 text-ink-900 font-sans overflow-x-hidden">
@@ -52,154 +194,210 @@
     <main class="flex-1 overflow-y-auto p-6 lg:p-8">
       <div class="max-w-6xl mx-auto space-y-6">
 
-        <!-- 1. Numbers that need action -->
-        <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <a href="admin_application.html?filter=active" class="kpi bg-white border border-line rounded-lg p-5 block">
-            <div class="flex items-center gap-3">
-              <span class="kpi-icon bg-brand-50 text-brand-700">
-                <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
-              </span>
-              <span class="text-sm text-ink-700 leading-tight">Applications needing action</span>
+        <!-- Map section with KPI cards overlaid at the bottom -->
+        <section class="bg-white border border-line rounded-lg overflow-hidden">
+          <header class="px-5 py-3 border-b border-line flex justify-between items-center flex-wrap gap-3">
+            <div>
+              <h2 class="text-sm font-semibold text-ink-900 section-head">Activity map</h2>
+              <p class="text-xs text-ink-700 mt-0.5">Pins show scheduled work, recent incident reports, and recent applications</p>
             </div>
-            <div class="text-4xl font-semibold num text-ink-900 mt-3" id="kpiApplications">–</div>
-          </a>
 
-          <a href="admin_incidents.html" class="kpi bg-white border border-line rounded-lg p-5 block">
-            <div class="flex items-center gap-3">
-              <span class="kpi-icon bg-gold-100 text-gold-700">
-                <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L3 14h7l-1 8 11-14h-7l1-6z"/></svg>
-              </span>
-              <span class="text-sm text-ink-700 leading-tight">Open incident reports</span>
-            </div>
-            <div class="text-4xl font-semibold num text-ink-900 mt-3" id="kpiIncidents">–</div>
-          </a>
+            <div class="flex items-center gap-3 flex-wrap">
+              <div class="action-bar">
+                <button id="openScheduleBtn" class="action-btn action-btn--schedule" title="View the scheduled work (PMES, papers, inspections, installations)">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                  </svg>
+                  <span>Schedule</span>
+                  <span id="scheduleCount" class="count-badge">–</span>
+                </button>
 
-          <a href="admin_application.html?filter=flagged" class="kpi bg-white border border-line rounded-lg p-5 block">
-            <div class="flex items-center gap-3">
-              <span class="kpi-icon bg-danger-100 text-danger-600">
-                <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 21V4"/><path d="M4 4h12l-2 4 2 4H4"/></svg>
-              </span>
-              <span class="text-sm text-ink-700 leading-tight">Flagged for review</span>
-            </div>
-            <div class="text-4xl font-semibold num text-ink-900 mt-3" id="kpiFlagged">–</div>
-          </a>
+                <button id="openIncidentsBtn" class="action-btn action-btn--incidents" title="View recent incident reports from members">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span>Incidents</span>
+                  <span id="incidentsCount" class="count-badge">–</span>
+                </button>
 
-          <a href="admin_billing_upload.html?filter=unpaid" class="kpi bg-white border border-line rounded-lg p-5 block">
-            <div class="flex items-center gap-3">
-              <span class="kpi-icon bg-brand-50 text-brand-700">
-                <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 14h2"/><path d="M8 17h5"/></svg>
-              </span>
-              <span class="text-sm text-ink-700 leading-tight">Unpaid bills</span>
-            </div>
-            <div class="flex items-baseline gap-2 mt-3">
-              <span class="text-4xl font-semibold num text-ink-900" id="kpiUnpaid">–</span>
-              <span class="text-xs font-medium text-ink-700" id="kpiUnpaidTotal"></span>
-            </div>
-          </a>
-        </section>
-
-        <!-- 2 + 3. Schedule and grid status -->
-        <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-          <!-- Schedule -->
-          <div class="lg:col-span-2 bg-white border border-line rounded-lg overflow-hidden">
-            <header class="px-5 py-3 border-b border-line flex justify-between items-baseline">
-              <h2 class="text-sm font-semibold text-ink-900 section-head">Schedule</h2>
-              <span class="text-xs text-ink-700">PMES, papers, inspections and installations</span>
-            </header>
-            <div id="scheduleBody" class="divide-y divide-line">
-              <div class="px-5 py-8 text-center text-sm text-ink-700">Loading…</div>
-            </div>
-          </div>
-
-          <!-- Grid status + advisories -->
-          <div class="bg-white border border-line rounded-lg overflow-hidden">
-            <header class="px-5 py-3 border-b border-line flex justify-between items-baseline">
-              <h2 class="text-sm font-semibold text-ink-900 section-head">Grid status</h2>
-              <a href="admin_poles.html" class="text-xs font-medium text-brand-700 hover:text-brand-900">Grid & Poles →</a>
-            </header>
-            <div class="p-5">
-              <div class="grid grid-cols-2 gap-3">
-                <div class="bg-paper-50 rounded-md p-3">
-                  <div class="text-xs text-ink-700">Energized poles</div>
-                  <div class="text-2xl font-semibold num text-ok-600" id="gridEnergized">–</div>
-                </div>
-                <div class="bg-paper-50 rounded-md p-3">
-                  <div class="text-xs text-ink-700">Non-energized</div>
-                  <div class="text-2xl font-semibold num text-ink-700" id="gridOff">–</div>
-                </div>
-                <div class="bg-paper-50 rounded-md p-3">
-                  <div class="text-xs text-ink-700">Full (no slots)</div>
-                  <div class="text-2xl font-semibold num text-danger-600" id="gridFull">–</div>
-                </div>
-                <div class="bg-paper-50 rounded-md p-3">
-                  <div class="text-xs text-ink-700">Open slots</div>
-                  <div class="text-2xl font-semibold num text-brand-700" id="gridSlots">–</div>
-                </div>
+                <button id="openApplicationsBtn" class="action-btn action-btn--applications" title="View recent service applications">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span>Applications</span>
+                  <span id="applicationsCount" class="count-badge">–</span>
+                </button>
               </div>
 
-              <div class="mt-5">
-                <div class="flex justify-between items-baseline mb-2">
-                  <span class="group-label text-ink-700">Active advisories</span>
-                  <a href="admin_announcements.html?view=list" class="text-xs font-medium text-brand-700 hover:text-brand-900">All →</a>
-                </div>
-                <div id="advisoryList" class="space-y-2">
-                  <div class="text-sm text-ink-700">Loading…</div>
-                </div>
+              <div class="h-5 w-px bg-line hidden sm:block"></div>
+
+              <button id="toggleMapStyle" class="map-style-btn" title="Switch between street and satellite view">
+                <svg id="mapIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span id="mapStyleText">Satellite</span>
+              </button>
+            </div>
+          </header>
+
+          <div class="px-5 py-2 border-t border-line bg-paper-50 flex items-center gap-2 flex-wrap">
+            <span class="text-[11px] font-semibold uppercase tracking-wide text-ink-700 mr-1">Legend</span>
+            <span class="legend-pill"><span class="dot" style="background:#3F7857;"></span>Schedule</span>
+            <span class="legend-pill"><span class="dot" style="background:#A33B34;"></span>Incident</span>
+            <span class="legend-pill"><span class="dot" style="background:#0D2E63;"></span>Application</span>
+          </div>
+
+          <div class="p-3">
+            <div class="map-container">
+              <div id="dashMap"></div>
+
+              <!-- KPI cards overlaid at the bottom of the map -->
+              <div class="kpi-overlay">
+                <a href="admin_application.html?filter=active" class="kpi-card block">
+                  <div class="flex items-center gap-2.5">
+                    <span class="kpi-icon bg-brand-50 text-brand-700">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+                    </span>
+                    <span class="kpi-label">Applications needing action</span>
+                  </div>
+                  <div class="kpi-value" id="kpiApplications">–</div>
+                </a>
+
+                <a href="admin_incidents.html" class="kpi-card block">
+                  <div class="flex items-center gap-2.5">
+                    <span class="kpi-icon bg-gold-100 text-gold-700">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L3 14h7l-1 8 11-14h-7l1-6z"/></svg>
+                    </span>
+                    <span class="kpi-label">Open incident reports</span>
+                  </div>
+                  <div class="kpi-value" id="kpiIncidents">–</div>
+                </a>
+
+                <a href="admin_application.html?filter=flagged" class="kpi-card block">
+                  <div class="flex items-center gap-2.5">
+                    <span class="kpi-icon bg-danger-100 text-danger-600">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 21V4"/><path d="M4 4h12l-2 4 2 4H4"/></svg>
+                    </span>
+                    <span class="kpi-label">Flagged for review</span>
+                  </div>
+                  <div class="kpi-value" id="kpiFlagged">–</div>
+                </a>
+
+                <a href="admin_billing_upload.html?filter=unpaid" class="kpi-card block">
+                  <div class="flex items-center gap-2.5">
+                    <span class="kpi-icon bg-brand-50 text-brand-700">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 14h2"/><path d="M8 17h5"/></svg>
+                    </span>
+                    <span class="kpi-label">Unpaid bills</span>
+                  </div>
+                  <div class="flex items-baseline gap-2">
+                    <div class="kpi-value" id="kpiUnpaid">–</div>
+                    <span class="text-[11px] font-medium text-ink-700" id="kpiUnpaidTotal"></span>
+                  </div>
+                </a>
               </div>
+
             </div>
           </div>
         </section>
 
-        <!-- 5. Recent activity -->
-        <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div class="bg-white border border-line rounded-lg overflow-hidden">
-            <header class="px-5 py-3 border-b border-line flex justify-between items-baseline">
-              <h2 class="text-sm font-semibold text-ink-900 section-head">Recent incident reports</h2>
-              <a href="admin_incidents.html" class="text-xs font-medium text-brand-700 hover:text-brand-900">View all →</a>
-            </header>
-            <div class="overflow-x-auto">
-              <table class="w-full text-sm">
-                <thead>
-                  <tr class="text-left text-ink-700 bg-paper-50 border-b border-line">
-                    <th class="px-5 py-2 font-medium">Ref</th>
-                    <th class="px-3 py-2 font-medium">Details</th>
-                    <th class="px-3 py-2 font-medium">Date</th>
-                    <th class="px-5 py-2 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody id="recentIncidents" class="divide-y divide-line">
-                  <tr><td colspan="4" class="px-5 py-6 text-center text-ink-700">Loading…</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
 
-          <div class="bg-white border border-line rounded-lg overflow-hidden">
-            <header class="px-5 py-3 border-b border-line flex justify-between items-baseline">
-              <h2 class="text-sm font-semibold text-ink-900 section-head">Recent applications</h2>
-              <a href="admin_application.html" class="text-xs font-medium text-brand-700 hover:text-brand-900">View all →</a>
-            </header>
-            <div class="overflow-x-auto">
-              <table class="w-full text-sm">
-                <thead>
-                  <tr class="text-left text-ink-700 bg-paper-50 border-b border-line">
-                    <th class="px-5 py-2 font-medium">Applicant</th>
-                    <th class="px-3 py-2 font-medium">Type</th>
-                    <th class="px-3 py-2 font-medium">Date</th>
-                    <th class="px-5 py-2 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody id="recentApplications" class="divide-y divide-line">
-                  <tr><td colspan="4" class="px-5 py-6 text-center text-ink-700">Loading…</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
 
       </div>
     </main>
+  </div>
+
+  <!-- ================= Schedule Modal ================= -->
+  <div id="scheduleModal" class="hidden fixed inset-0 z-[600] items-center justify-center p-4" style="background:rgba(11,21,85,0.45)">
+    <div class="bg-white rounded-lg border border-line shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+      <div class="px-5 py-3 border-b border-line flex justify-between items-center flex-shrink-0">
+        <div>
+          <h3 class="text-sm font-semibold text-ink-900">Schedule</h3>
+          <p class="text-xs text-ink-700 mt-0.5">PMES, papers, inspections and installations</p>
+        </div>
+        <button id="closeScheduleBtn" class="text-ink-700 hover:text-navy-900 hover:bg-paper-100 rounded w-8 h-8 flex items-center justify-center transition" aria-label="Close">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div id="scheduleBody" class="scroll-box divide-y divide-line flex-1" style="max-height:none;">
+        <div class="px-5 py-8 text-center text-sm text-ink-700">Loading…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= Recent Incident Reports Modal ================= -->
+  <div id="incidentsModal" class="hidden fixed inset-0 z-[600] items-center justify-center p-4" style="background:rgba(11,21,85,0.45)">
+    <div class="bg-white rounded-lg border border-line shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+      <div class="px-5 py-3 border-b border-line flex justify-between items-center flex-shrink-0">
+        <div>
+          <h3 class="text-sm font-semibold text-ink-900">Recent incident reports</h3>
+          <p class="text-xs text-ink-700 mt-0.5">Latest reports from members · click a row to view all</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <a href="admin_incidents.html" class="text-xs font-medium text-brand-700 hover:text-brand-900">View all →</a>
+          <button id="closeIncidentsBtn" class="text-ink-700 hover:text-navy-900 hover:bg-paper-100 rounded w-8 h-8 flex items-center justify-center transition" aria-label="Close">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="overflow-auto flex-1">
+        <table class="w-full text-sm">
+          <thead class="sticky top-0 z-10">
+            <tr class="text-left text-ink-700 bg-paper-50 border-b border-line">
+              <th class="px-5 py-2 font-medium">Ref</th>
+              <th class="px-3 py-2 font-medium">Details</th>
+              <th class="px-3 py-2 font-medium">Date</th>
+              <th class="px-5 py-2 font-medium">Status</th>
+            </tr>
+          </thead>
+          <tbody id="recentIncidents" class="divide-y divide-line">
+            <tr><td colspan="4" class="px-5 py-6 text-center text-ink-700">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= Recent Applications Modal ================= -->
+  <div id="applicationsModal" class="hidden fixed inset-0 z-[600] items-center justify-center p-4" style="background:rgba(11,21,85,0.45)">
+    <div class="bg-white rounded-lg border border-line shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+      <div class="px-5 py-3 border-b border-line flex justify-between items-center flex-shrink-0">
+        <div>
+          <h3 class="text-sm font-semibold text-ink-900">Recent applications</h3>
+          <p class="text-xs text-ink-700 mt-0.5">Latest service applications · click a row to open it</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <a href="admin_application.html" class="text-xs font-medium text-brand-700 hover:text-brand-900">View all →</a>
+          <button id="closeApplicationsBtn" class="text-ink-700 hover:text-navy-900 hover:bg-paper-100 rounded w-8 h-8 flex items-center justify-center transition" aria-label="Close">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="overflow-auto flex-1">
+        <table class="w-full text-sm">
+          <thead class="sticky top-0 z-10">
+            <tr class="text-left text-ink-700 bg-paper-50 border-b border-line">
+              <th class="px-5 py-2 font-medium">Applicant</th>
+              <th class="px-3 py-2 font-medium">Type</th>
+              <th class="px-3 py-2 font-medium">Date</th>
+              <th class="px-5 py-2 font-medium">Status</th>
+            </tr>
+          </thead>
+          <tbody id="recentApplications" class="divide-y divide-line">
+            <tr><td colspan="4" class="px-5 py-6 text-center text-ink-700">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <script src="sidebar.js"></script>
@@ -208,7 +406,6 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_PUfegf_zyb5B_gVas_SLyw_mto9NFGF';
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // Same rules as the sidebar badges, so the numbers always match
     const APP_DONE = ['Energized', 'Reconnected', 'Rejected'];
     const INCIDENT_DONE = ['Resolved', 'Rejected', 'Closed'];
 
@@ -222,6 +419,10 @@
     }
     const fmtTime = (d) => d.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
     const fmtDay = (d) => d.toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric' });
+    const fmtDateTime = (v) => {
+      if (!v) return '';
+      return new Date(v).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+    };
     const peso = (n) => '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const notIn = (list) => `(${list.map(s => `"${s}"`).join(',')})`;
 
@@ -256,6 +457,90 @@
       } catch (e) { /* optional */ }
     })();
 
+    // ---------- Map ----------
+    const MAP_CENTER = [7.8018, 122.6155];
+    let dashMap = null;
+    let scheduleLayer = null;
+    let incidentLayer = null;
+    let applicationLayer = null;
+    let allBounds = [];
+
+    let streetLayer = null;
+    let satelliteLayer = null;
+    let isSatellite = false;
+
+    const ICONS = {
+      schedule: `<div class="modern-pin" style="background:#3F7857;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>`,
+      incident: `<div class="modern-pin" style="background:#A33B34;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg></div>`,
+      application: `<div class="modern-pin" style="background:#0D2E63;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg></div>`
+    };
+
+    function initDashMap() {
+      dashMap = L.map('dashMap', { zoomControl: true }).setView(MAP_CENTER, 13);
+
+      streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Tiles style by <a href="https://www.hotosm.org/" target="_blank">HOT</a>',
+        maxZoom: 19
+      });
+
+      satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri',
+        maxZoom: 22
+      });
+
+      streetLayer.addTo(dashMap);
+
+      scheduleLayer = L.layerGroup().addTo(dashMap);
+      incidentLayer = L.layerGroup().addTo(dashMap);
+      applicationLayer = L.layerGroup().addTo(dashMap);
+
+      setTimeout(() => dashMap.invalidateSize(), 200);
+      window.addEventListener('resize', () => dashMap && dashMap.invalidateSize());
+
+      document.getElementById('toggleMapStyle').addEventListener('click', () => {
+        isSatellite = !isSatellite;
+        const btnText = document.getElementById('mapStyleText');
+        const btnIcon = document.getElementById('mapIcon');
+
+        if (isSatellite) {
+          dashMap.removeLayer(streetLayer);
+          satelliteLayer.addTo(dashMap);
+          btnText.textContent = 'Street';
+          btnIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />';
+        } else {
+          dashMap.removeLayer(satelliteLayer);
+          streetLayer.addTo(dashMap);
+          btnText.textContent = 'Satellite';
+          btnIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />';
+        }
+      });
+    }
+
+    function addPin(layer, lat, lng, type, tooltipHtml, popupHtml, href) {
+      const customIcon = L.divIcon({
+        html: ICONS[type], className: '', iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -32]
+      });
+      const marker = L.marker([lat, lng], { icon: customIcon }).addTo(layer);
+      marker.bindTooltip(tooltipHtml, { direction: 'top', className: 'custom-tooltip', opacity: 1, offset: [0, -36] });
+      if (popupHtml) { marker.bindPopup(popupHtml); marker.on('click', () => marker.openPopup()); }
+      if (href) { marker.on('click', () => { window.location.href = href; }); }
+      allBounds.push([lat, lng]);
+    }
+
+    function fitAllBounds() {
+      if (!dashMap || !allBounds.length) return;
+      dashMap.fitBounds(allBounds, { padding: [40, 40], maxZoom: 16 });
+    }
+
+    function extractLatLng(row) {
+      const lat = row.latitude ?? row.lat ?? row.location_lat ?? row.geo_lat;
+      const lng = row.longitude ?? row.lng ?? row.lon ?? row.location_lng ?? row.geo_lng;
+      if (lat == null || lng == null) return null;
+      const nLat = Number(lat), nLng = Number(lng);
+      if (isNaN(nLat) || isNaN(nLng)) return null;
+      return { lat: nLat, lng: nLng };
+    }
+
     // ---------- 1. Numbers that need action ----------
     async function loadKpis() {
       const count = async (q) => {
@@ -266,20 +551,15 @@
       const show = (id, v) => setText(id, v === null ? 'N/A' : v.toLocaleString());
 
       const [apps, incidents, flagged] = await Promise.all([
-        count(_supabase.from('service_applications').select('*', { count: 'exact', head: true })
-          .not('status', 'in', notIn(APP_DONE))),
-        count(_supabase.from('incident_reports').select('*', { count: 'exact', head: true })
-          .not('status', 'in', notIn(INCIDENT_DONE))),
-        count(_supabase.from('service_applications').select('*', { count: 'exact', head: true })
-          .eq('is_flagged', true).not('status', 'in', notIn(APP_DONE))),
+        count(_supabase.from('service_applications').select('*', { count: 'exact', head: true }).not('status', 'in', notIn(APP_DONE))),
+        count(_supabase.from('incident_reports').select('*', { count: 'exact', head: true }).not('status', 'in', notIn(INCIDENT_DONE))),
+        count(_supabase.from('service_applications').select('*', { count: 'exact', head: true }).eq('is_flagged', true).not('status', 'in', notIn(APP_DONE))),
       ]);
       show('kpiApplications', apps);
       show('kpiIncidents', incidents);
       show('kpiFlagged', flagged);
 
-      // Unpaid bills: number of statements and total amount
-      const { data: bills, error } = await _supabase
-        .from('billing_statements').select('total_billed, status');
+      const { data: bills, error } = await _supabase.from('billing_statements').select('total_billed, status');
       if (error) { setText('kpiUnpaid', 'N/A'); return; }
       const unpaid = (bills || []).filter(b => String(b.status || '').toLowerCase() !== 'paid');
       setText('kpiUnpaid', unpaid.length.toLocaleString());
@@ -287,28 +567,23 @@
     }
 
     // ---------- 2. Schedule ----------
-    // Which date to show for each application step
     const STEP_EVENTS = {
-      'PMES Scheduled':         { field: 'pmes_schedule',         label: 'PMES',         extra: a => a.pmes_venue },
-      'Submission Scheduled':   { field: 'submission_schedule',   label: 'Papers',       extra: () => 'Bring requirements to the office' },
-      'For Inspection':         { field: 'inspection_schedule',   label: 'Inspection',   extra: a => a.inspector_name ? `Engr. ${a.inspector_name.replace(/^engr\.?\s*/i, '')}` : null },
+      'PMES Scheduled': { field: 'pmes_schedule', label: 'PMES', extra: a => a.pmes_venue },
+      'Submission Scheduled': { field: 'submission_schedule', label: 'Papers', extra: () => 'Bring requirements to the office' },
+      'For Inspection': { field: 'inspection_schedule', label: 'Inspection', extra: a => a.inspector_name ? `Engr. ${a.inspector_name.replace(/^engr\.?\s*/i, '')}` : null },
       'Installation Scheduled': { field: 'installation_schedule', label: 'Installation', extra: a => a.nearest_pole ? `Pole ${a.nearest_pole}` : null },
       'Reconnection Scheduled': { field: 'reconnection_schedule', label: 'Reconnection', extra: a => a.assigned_crew || null },
     };
     const EVENT_STYLE = {
-      'PMES':         'bg-brand-50 text-brand-700',
-      'Papers':       'bg-paper-100 text-ink-800',
-      'Inspection':   'bg-gold-100 text-gold-700',
-      'Installation': 'bg-ok-100 text-ok-600',
-      'Reconnection': 'bg-brand-100 text-brand-800',
-      'Disconnection': 'bg-danger-100 text-danger-600',
+      'PMES': 'bg-brand-50 text-brand-700', 'Papers': 'bg-paper-100 text-ink-800',
+      'Inspection': 'bg-gold-100 text-gold-700', 'Installation': 'bg-ok-100 text-ok-600',
+      'Reconnection': 'bg-brand-100 text-brand-800', 'Disconnection': 'bg-danger-100 text-danger-600',
     };
 
     async function loadSchedule() {
       const body = document.getElementById('scheduleBody');
-      const { data, error } = await _supabase
-        .from('service_applications')
-        .select('id, consumer_name, status, pmes_schedule, pmes_venue, submission_schedule, inspection_schedule, inspector_name, installation_schedule, nearest_pole, reconnection_schedule, assigned_crew')
+      const { data, error } = await _supabase.from('service_applications')
+        .select('id, consumer_name, status, pmes_schedule, pmes_venue, submission_schedule, inspection_schedule, inspector_name, installation_schedule, nearest_pole, reconnection_schedule, assigned_crew, latitude, longitude')
         .in('status', Object.keys(STEP_EVENTS));
 
       if (error) {
@@ -327,15 +602,14 @@
         return when ? { app: a, step, when, href: `admin_application.html?open=${encodeURIComponent(a.id)}` } : null;
       }).filter(Boolean);
 
-      // Disconnection orders (from Billing Statements)
-      const { data: orders } = await _supabase
-        .from('account_status')
-        .select('acct_no, disconnection_schedule, assigned_crew')
+      const { data: orders } = await _supabase.from('account_status')
+        .select('acct_no, disconnection_schedule, assigned_crew, latitude, longitude')
         .eq('status', 'Disconnection Scheduled');
+      
       (orders || []).forEach(o => {
         if (!o.disconnection_schedule) return;
         events.push({
-          app: { consumer_name: 'Acct ' + o.acct_no, assigned_crew: o.assigned_crew },
+          app: { consumer_name: 'Acct ' + o.acct_no, assigned_crew: o.assigned_crew, latitude: o.latitude, longitude: o.longitude },
           step: { label: 'Disconnection', extra: a => a.assigned_crew || null },
           when: new Date(o.disconnection_schedule),
           href: 'admin_billing_upload.html?filter=disconnection',
@@ -343,53 +617,63 @@
       });
       events.sort((x, y) => x.when - y.when);
 
+      setText('scheduleCount', String(events.length));
+
+      if (scheduleLayer) scheduleLayer.clearLayers();
+      events.forEach(e => {
+        const loc = extractLatLng(e.app);
+        if (!loc) return;
+        const timeStr = `${fmtDay(e.when)}, ${fmtTime(e.when)}`;
+        const tooltip = `<b>${esc(e.step.label)}</b><br>${esc(e.app.consumer_name || '')}<br>${timeStr}<br><span style="color:#4A5568;font-size:11px;">📍 ${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}</span>`;
+        addPin(scheduleLayer, loc.lat, loc.lng, 'schedule', tooltip, null, e.href);
+      });
+
       const groups = [
-        { title: 'Needs update', note: 'Date has passed but the step was not updated', color: 'text-danger-600',
-          items: events.filter(e => e.when < startToday) },
-        { title: 'Today', color: 'text-brand-700',
-          items: events.filter(e => e.when >= startToday && e.when < startTomorrow) },
-        { title: 'Next 7 days', color: 'text-ink-700',
-          items: events.filter(e => e.when >= startTomorrow && e.when < endWeek) },
+        { title: 'Needs update', note: 'Date has passed but the step was not updated', color: 'text-danger-600', items: events.filter(e => e.when < startToday) },
+        { title: 'Today', color: 'text-brand-700', items: events.filter(e => e.when >= startToday && e.when < startTomorrow) },
+        { title: 'Next 7 days', color: 'text-ink-700', items: events.filter(e => e.when >= startTomorrow && e.when < endWeek) },
       ].filter(g => g.items.length);
 
       const later = events.filter(e => e.when >= endWeek).length;
 
       if (!groups.length) {
-        body.innerHTML = `<div class="px-5 py-10 text-center">
-            <div class="text-sm font-medium text-ink-900">Nothing scheduled for the next 7 days</div>
-            ${later ? `<div class="text-xs text-ink-700 mt-1">${later} more scheduled later</div>` : ''}
-          </div>`;
+        body.innerHTML = `<div class="px-5 py-10 text-center"><div class="text-sm font-medium text-ink-900">Nothing scheduled for the next 7 days</div>${later ? `<div class="text-xs text-ink-700 mt-1">${later} more scheduled later</div>` : ''}</div>`;
         return;
       }
 
-      body.innerHTML = groups.map(g => `
-        <div>
-          <div class="px-5 pt-3 pb-1 flex items-baseline gap-2">
-            <span class="group-label ${g.color}">${g.title}</span>
-            <span class="text-xs text-ink-700">${g.items.length}${g.note ? ' · ' + g.note : ''}</span>
-          </div>
-          ${g.items.map(e => {
-            const extra = e.step.extra(e.app);
-            const isToday = g.title === 'Today';
-            return `
-              <a href="${e.href}" class="sched-row flex items-center gap-4 px-5 py-2.5">
-                <div class="w-24 flex-shrink-0">
-                  <div class="text-sm font-semibold num text-ink-900">${fmtTime(e.when)}</div>
-                  ${isToday ? '' : `<div class="text-xs text-ink-700">${fmtDay(e.when)}</div>`}
-                </div>
-                <span class="text-xs font-medium px-2 py-0.5 rounded ${EVENT_STYLE[e.step.label]} w-28 text-center flex-shrink-0">${e.step.label}</span>
-                <div class="min-w-0 flex-1">
-                  <div class="text-sm font-medium text-ink-900 truncate">${esc(e.app.consumer_name || '—')}</div>
-                  ${extra ? `<div class="text-xs text-ink-700 truncate">${esc(extra)}</div>` : ''}
-                </div>
-                <span class="text-brand-700 text-sm">›</span>
-              </a>`;
-          }).join('')}
-        </div>`).join('') +
-        (later ? `<div class="px-5 py-2.5 text-xs text-ink-700">${later} more scheduled after the next 7 days</div>` : '');
+      let html = '';
+      groups.forEach(g => {
+        html += `
+          <div>
+            <div class="px-5 pt-3 pb-1 flex items-baseline gap-2">
+              <span class="group-label ${g.color}">${g.title}</span>
+              <span class="text-xs text-ink-700">${g.items.length}${g.note ? ' · ' + g.note : ''}</span>
+            </div>
+            ${g.items.map(e => {
+              const extra = e.step.extra(e.app);
+              const isToday = g.title === 'Today';
+              return `
+                <a href="${e.href}" class="sched-row flex items-center gap-4 px-5 py-2.5">
+                  <div class="w-24 flex-shrink-0">
+                    <div class="text-sm font-semibold num text-ink-900">${fmtTime(e.when)}</div>
+                    ${isToday ? '' : `<div class="text-xs text-ink-700">${fmtDay(e.when)}</div>`}
+                  </div>
+                  <span class="text-xs font-medium px-2 py-0.5 rounded ${EVENT_STYLE[e.step.label] || 'bg-brand-50 text-brand-700'} w-28 text-center flex-shrink-0">${e.step.label}</span>
+                  <div class="min-w-0 flex-1">
+                    <div class="text-sm font-medium text-ink-900 truncate">${esc(e.app.consumer_name || '—')}</div>
+                    ${extra ? `<div class="text-xs text-ink-700 truncate">${esc(extra)}</div>` : ''}
+                  </div>
+                  <span class="text-brand-700 text-sm">›</span>
+                </a>`;
+            }).join('')}
+          </div>`;
+      });
+      if (later) html += `<div class="px-5 py-2.5 text-xs text-ink-700">${later} more scheduled after the next 7 days</div>`;
+      body.innerHTML = html;
+      fitAllBounds();
     }
 
-    // ---------- 3. Grid status + advisories ----------
+    // ---------- 3. Grid status + advisories (FIXED) ----------
     async function loadGrid() {
       const { data: poles, error } = await _supabase.from('poles').select('is_energized, available_slots');
       if (error) {
@@ -402,59 +686,114 @@
         setText('gridFull', on.filter(p => Number(p.available_slots || 0) === 0).length);
         setText('gridSlots', on.reduce((s, p) => s + Number(p.available_slots || 0), 0));
       }
+    }
 
-      const box = document.getElementById('advisoryList');
-      const { data: adv, error: advErr } = await _supabase
+    let advisoriesLoaded = false;
+
+    async function toggleAdvisoryList() {
+      const wrap = document.getElementById('advisoryListWrap');
+      const btn = document.getElementById('toggleAdvisoryBtn');
+      const label = document.getElementById('toggleAdvisoryLabel');
+      const isHidden = wrap.classList.contains('hidden');
+
+      if (isHidden) {
+        wrap.classList.remove('hidden');
+        btn.setAttribute('aria-expanded', 'true');
+        label.textContent = 'Hide advisories';
+        if (!advisoriesLoaded) await fetchAdvisories();
+      } else {
+        wrap.classList.add('hidden');
+        btn.setAttribute('aria-expanded', 'false');
+        label.textContent = 'View advisories';
+      }
+    }
+
+    async function fetchAdvisories() {
+      const tbody = document.getElementById('advisoryTableBody');
+      tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-ink-700 font-medium">Loading advisories...</td></tr>`;
+
+      // Removed the .not('affected_pole_codes', 'is', null) filter
+      // so it fetches all announcements without failing if the column is missing or null
+      const { data, error } = await _supabase
         .from('announcements')
-        .select('title, start_time, end_time, affected_pole_codes')
-        .not('affected_pole_codes', 'is', null)
-        .order('start_time', { ascending: true });
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10);
 
-      if (advErr) { box.innerHTML = `<div class="text-sm text-ink-700">Unable to load advisories.</div>`; return; }
+      advisoriesLoaded = true;
 
-      const now = new Date();
-      const active = (adv || []).filter(a => !a.end_time || new Date(a.end_time) > now);
-
-      if (!active.length) {
-        box.innerHTML = `<div class="flex items-center gap-2 text-sm text-ok-600">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
-            No scheduled interruptions
-          </div>`;
+      if (error) {
+        tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-danger-600 font-medium">Unable to load advisories.</td></tr>`;
         return;
       }
 
-      box.innerHTML = active.slice(0, 3).map(a => {
-        const start = a.start_time ? new Date(a.start_time) : null;
-        const ongoing = start && start <= now;
-        const poles = Array.isArray(a.affected_pole_codes) ? a.affected_pole_codes.length : 0;
-        return `
-          <div class="border border-line rounded-md p-3 ${ongoing ? 'bg-danger-100/40' : 'bg-gold-50'}">
-            <div class="flex items-center justify-between gap-2">
-              <span class="text-sm font-medium text-ink-900 truncate">${esc(a.title || 'Advisory')}</span>
-              <span class="text-[10px] font-semibold uppercase tracking-wide ${ongoing ? 'text-danger-600' : 'text-gold-700'}">${ongoing ? 'Ongoing' : 'Upcoming'}</span>
-            </div>
-            <div class="text-xs text-ink-700 mt-1 num">
-              ${start ? `${fmtDay(start)}, ${fmtTime(start)}` : ''}${poles ? ` · ${poles} pole${poles === 1 ? '' : 's'}` : ''}
-            </div>
-          </div>`;
-      }).join('') + (active.length > 3 ? `<div class="text-xs text-ink-700">+${active.length - 3} more</div>` : '');
+      const list = data || [];
+      document.getElementById('advisoryCount').textContent = `${list.length} posted · most recent first`;
+
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-ink-700 font-medium">No announcements found.</td></tr>`;
+        return;
+      }
+
+      const now = new Date();
+      tbody.innerHTML = list.map(item => {
+        const poles = Array.isArray(item.affected_pole_codes) ? item.affected_pole_codes : [];
+        let scheduleHtml = `<span class="text-xs text-ink-700/50 italic">General</span>`;
+        
+        if (poles.length || item.start_time || item.end_time) {
+          const ended = item.end_time && new Date(item.end_time) < now;
+          const status = ended
+            ? `<span class="text-xs text-ink-700/50">Ended</span>`
+            : `<span class="text-xs font-semibold text-ok-600">Active on map</span>`;
+          scheduleHtml = `
+            <div class="space-y-1">
+              ${item.start_time ? `<div class="text-xs num">${esc(fmtDateTime(item.start_time))}</div>` : ''}
+              ${item.end_time ? `<div class="text-xs num text-ink-700/70">to ${esc(fmtDateTime(item.end_time))}</div>` : ''}
+              ${poles.length ? `<span class="area-tag text-xs font-medium inline-block" title="${esc(poles.join(', '))}">${poles.length} pole${poles.length === 1 ? '' : 's'}</span>` : ''}
+              <div>${status}</div>
+            </div>`;
+        }
+
+        return `<tr class="hover:bg-paper-100/60 transition">
+          <td class="p-3 font-semibold text-navy-900">${esc(item.title)}</td>
+          <td class="p-3"><span class="cat-tag text-xs font-medium text-navy-800 inline-block">${esc(item.category)}</span></td>
+          <td class="p-3">${scheduleHtml}</td>
+          <td class="p-3 text-xs text-ink-700/70 num">${esc(fmtDateTime(item.created_at))}</td>
+        </tr>`;
+      }).join('');
     }
 
-    // ---------- 5. Recent activity ----------
-    async function loadRecent(table, bodyId, rowFn) {
+    // ---------- 4. Recent activity ----------
+    async function loadRecent(table, bodyId, rowFn, pinLayer, pinType, pinLabel, countId) {
       const body = document.getElementById(bodyId);
-      const { data, error } = await _supabase
-        .from(table).select('*').order('created_at', { ascending: false }).limit(5);
+      const { data, error } = await _supabase.from(table).select('*').order('created_at', { ascending: false }).limit(20);
 
       if (error) {
         body.innerHTML = `<tr><td colspan="4" class="px-5 py-6 text-center text-ink-700">Unable to load data.</td></tr>`;
+        if (countId) setText(countId, '–');
         return;
       }
       if (!data || data.length === 0) {
         body.innerHTML = `<tr><td colspan="4" class="px-5 py-6 text-center text-ink-700">No records yet.</td></tr>`;
+        if (countId) setText(countId, '0');
         return;
       }
       body.innerHTML = data.map(rowFn).join('');
+      if (countId) setText(countId, String(data.length));
+
+      if (pinLayer) {
+        pinLayer.clearLayers();
+        data.forEach(r => {
+          const loc = extractLatLng(r);
+          if (!loc) return;
+          const name = r.consumer_name || r.full_name || r.name || r.applicant_name || r.title || r.type || r.reference_no || r.ticket_id || 'Record';
+          const tooltip = `<b>${esc(pinLabel)}</b><br>${esc(name)}<br>${fmtDate(r.created_at)}<br><span style="color:#4A5568;font-size:11px;">📍 ${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}</span>`;
+          let href = null;
+          if (table === 'service_applications' && r.id) href = `admin_application.html?open=${encodeURIComponent(r.id)}`;
+          if (table === 'incident_reports') href = 'admin_incidents.html';
+          addPin(pinLayer, loc.lat, loc.lng, pinType, tooltip, null, href);
+        });
+      }
     }
 
     const incidentRow = (r) => `
@@ -473,11 +812,43 @@
         <td class="px-5 py-3">${badge(r.status)}</td>
       </tr>`;
 
+    // ---------- Modal open/close helpers ----------
+    const scheduleModal = document.getElementById('scheduleModal');
+    const incidentsModal = document.getElementById('incidentsModal');
+    const applicationsModal = document.getElementById('applicationsModal');
+
+    function openModal(m) { m.classList.remove('hidden'); m.classList.add('flex'); }
+    function closeModal(m) { m.classList.add('hidden'); m.classList.remove('flex'); }
+
+    document.getElementById('openScheduleBtn').addEventListener('click', () => openModal(scheduleModal));
+    document.getElementById('closeScheduleBtn').addEventListener('click', () => closeModal(scheduleModal));
+
+    document.getElementById('openIncidentsBtn').addEventListener('click', () => openModal(incidentsModal));
+    document.getElementById('closeIncidentsBtn').addEventListener('click', () => closeModal(incidentsModal));
+
+    document.getElementById('openApplicationsBtn').addEventListener('click', () => openModal(applicationsModal));
+    document.getElementById('closeApplicationsBtn').addEventListener('click', () => closeModal(applicationsModal));
+
+    scheduleModal.addEventListener('click', (e) => { if (e.target === scheduleModal) closeModal(scheduleModal); });
+    incidentsModal.addEventListener('click', (e) => { if (e.target === incidentsModal) closeModal(incidentsModal); });
+    applicationsModal.addEventListener('click', (e) => { if (e.target === applicationsModal) closeModal(applicationsModal); });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      if (!scheduleModal.classList.contains('hidden')) closeModal(scheduleModal);
+      if (!incidentsModal.classList.contains('hidden')) closeModal(incidentsModal);
+      if (!applicationsModal.classList.contains('hidden')) closeModal(applicationsModal);
+    });
+
+    // ---------- Boot ----------
+    initDashMap();
     loadKpis();
-    loadSchedule();
+    loadSchedule().then(() => fitAllBounds());
     loadGrid();
-    loadRecent('incident_reports', 'recentIncidents', incidentRow);
-    loadRecent('service_applications', 'recentApplications', applicationRow);
+    loadRecent('incident_reports', 'recentIncidents', incidentRow, incidentLayer, 'incident', 'Incident', 'incidentsCount')
+      .then(() => fitAllBounds());
+    loadRecent('service_applications', 'recentApplications', applicationRow, applicationLayer, 'application', 'Application', 'applicationsCount')
+      .then(() => fitAllBounds());
   </script>
 </body>
 </html>
