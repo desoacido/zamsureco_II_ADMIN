@@ -18,13 +18,127 @@
     100%{box-shadow:0 0 0 0 rgba(63,120,87,0);}
   }
   .section-head { border-left: 3px solid #F2A93B; padding-left: 12px; }
-  #gridMap { height: 480px; z-index: 0; }
+  #gridMap { width: 100%; height: 100%; z-index: 0; }
   #gridMap.picking { cursor: crosshair; }
   .cell-input { width: 100%; padding: 6px 8px; background: #F7F8FA; border: 1px solid #DDE3EC; border-radius: 3px; font-size: 13px; }
   .cell-input:focus { outline: none; box-shadow: 0 0 0 2px #0D2E63; }
   .row-flash { animation: flash 1.6s ease; }
   @keyframes flash { 0% { background: #FCEACB; } 100% { background: transparent; } }
   .legend-dot { width: 10px; height: 10px; border-radius: 9999px; display: inline-block; border: 2px solid #fff; box-shadow: 0 0 0 1px #DDE3EC; }
+
+  /* Make the map section fill remaining viewport height */
+  .map-fill {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .map-fill .map-canvas-wrap {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  /* --- Map overlay card --- */
+  .map-overlay-card {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    z-index: 400;
+    pointer-events: none;
+  }
+  .map-overlay-card .card-inner {
+    pointer-events: auto;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(6px);
+    border: 1px solid #DDE3EC;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(11, 21, 85, 0.12);
+    padding: 12px 16px;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+  .map-overlay-card .card-inner:hover {
+    box-shadow: 0 12px 32px rgba(11, 21, 85, 0.18);
+    transform: translateY(-1px);
+  }
+  .stat-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .stat-pill .pill-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 9999px;
+    flex-shrink: 0;
+  }
+  .stat-pill .pill-label {
+    font-size: 11px;
+    color: #4A5568;
+    letter-spacing: 0.01em;
+  }
+  .stat-pill .pill-value {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0D2E63;
+    font-variant-numeric: tabular-nums;
+  }
+  .overlay-divider {
+    width: 1px;
+    height: 22px;
+    background: #E2E8F0;
+    flex-shrink: 0;
+  }
+  @media (max-width: 640px) {
+    .map-overlay-card .card-inner { padding: 10px 12px; }
+    .stat-pill .pill-label { font-size: 10px; }
+    .stat-pill .pill-value { font-size: 12px; }
+    .overlay-divider { display: none; }
+    .stat-pill { gap: 4px; }
+    .map-overlay-card { bottom: 8px; left: 8px; right: 8px; }
+  }
+
+  /* ---- Icon-based pole markers ---- */
+  .pole-icon-wrap {
+    background: transparent;
+    border: none;
+  }
+  .pole-marker {
+    position: relative;
+    width: 32px;
+    height: 40px;
+    filter: drop-shadow(0 1px 2px rgba(11, 21, 85, 0.35));
+    transition: transform 0.15s ease, filter 0.15s ease;
+    transform-origin: 50% 95%;
+    cursor: pointer;
+  }
+  .pole-marker:hover {
+    transform: scale(1.15) translateY(-2px);
+    filter: drop-shadow(0 3px 5px rgba(11, 21, 85, 0.4));
+  }
+  .pole-marker svg {
+    display: block;
+    overflow: visible;
+  }
+  .pole-badge {
+    position: absolute;
+    top: -2px;
+    right: -4px;
+    min-width: 14px;
+    height: 14px;
+    padding: 0 3px;
+    border-radius: 9999px;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 14px;
+    text-align: center;
+    border: 1.5px solid #fff;
+    box-shadow: 0 1px 2px rgba(11, 21, 85, 0.25);
+    font-family: system-ui, sans-serif;
+  }
 </style>
 </head>
 <body class="bg-paper-50 text-navy-900 font-sans overflow-x-hidden">
@@ -50,123 +164,172 @@
       </div>
     </nav>
 
-    <main class="flex-1 overflow-y-auto p-8">
-      <div class="max-w-6xl mx-auto space-y-8">
+    <!-- Map area takes remaining height -->
+    <div class="flex-1 flex flex-col min-h-0 p-4 md:p-6">
+      <section class="map-fill bg-white border border-line rounded overflow-hidden">
+        <header class="px-5 pt-4 pb-3 flex items-center justify-between gap-4 flex-wrap flex-shrink-0">
+          <div class="flex items-center gap-4 text-xs text-navy-700">
+            <span class="flex items-center gap-1.5"><span class="legend-dot" style="background:#3F7857"></span>Energized</span>
+            <span class="flex items-center gap-1.5"><span class="legend-dot" style="background:#A33B34"></span>Full</span>
+            <span class="flex items-center gap-1.5"><span class="legend-dot" style="background:#9CA3AF"></span>Non-energized</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="openManagePolesBtn" class="bg-white border border-line hover:bg-paper-100 text-navy-800 px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+              All poles
+            </button>
+            <button id="openAddModalBtn" class="bg-yellow-500 hover:bg-yellow-400 text-navy-900 px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              Add new pole
+            </button>
+          </div>
+        </header>
 
-        <section class="grid grid-cols-2 md:grid-cols-5 bg-white border border-line rounded divide-x divide-line">
-          <div class="p-5">
-            <p class="text-xs text-ink-700">Total poles</p>
-            <p id="statTotal" class="text-3xl font-semibold num mt-1">–</p>
-          </div>
-          <div class="p-5">
-            <p class="text-xs text-ink-700">Energized</p>
-            <p id="statEnergized" class="text-3xl font-semibold num mt-1 text-ok-600">–</p>
-          </div>
-          <div class="p-5">
-            <p class="text-xs text-ink-700">Non-energized</p>
-            <p id="statOff" class="text-3xl font-semibold num mt-1 text-ink-700">–</p>
-          </div>
-          <div class="p-5">
-            <p class="text-xs text-ink-700">Full (no slots)</p>
-            <p id="statFull" class="text-3xl font-semibold num mt-1 text-danger-600">–</p>
-          </div>
-          <div class="p-5">
-            <p class="text-xs text-ink-700">Open service slots</p>
-            <p id="statSlots" class="text-3xl font-semibold num mt-1 text-info-600">–</p>
-          </div>
-        </section>
+        <!-- Map canvas fills the rest -->
+        <div class="map-canvas-wrap border-t border-line">
+          <div id="gridMap"></div>
 
-        <section class="bg-white border border-line rounded">
-          <header class="section-head px-5 pt-5 pb-4 flex items-start justify-between gap-4 flex-wrap">
-            <div>
-              <h2 class="text-base font-semibold text-navy-900">Grid map</h2>
-              <p class="text-xs text-ink-700 mt-0.5">Same data the member app shows. Click a pole to jump to its row.</p>
-            </div>
-            <div class="flex items-center gap-4 text-xs text-navy-700">
-              <span class="flex items-center gap-1.5"><span class="legend-dot" style="background:#3F7857"></span>Energized</span>
-              <span class="flex items-center gap-1.5"><span class="legend-dot" style="background:#A33B34"></span>Full</span>
-              <span class="flex items-center gap-1.5"><span class="legend-dot" style="background:#9CA3AF"></span>Non-energized</span>
-            </div>
-          </header>
-          <div id="gridMap" class="border-t border-line"></div>
-        </section>
+          <!-- Overlay card – compact stats over the map bottom -->
+          <div class="map-overlay-card">
+            <div class="card-inner">
+              <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                  <div class="stat-pill">
+                    <span class="pill-dot" style="background:#0D2E63"></span>
+                    <span class="pill-label">Poles</span>
+                    <span class="pill-value" id="overlayTotal">–</span>
+                  </div>
+                  <div class="overlay-divider"></div>
+                  <div class="stat-pill">
+                    <span class="pill-dot" style="background:#3F7857"></span>
+                    <span class="pill-label">Energized</span>
+                    <span class="pill-value" id="overlayEnergized">–</span>
+                  </div>
+                  <div class="stat-pill">
+                    <span class="pill-dot" style="background:#9CA3AF"></span>
+                    <span class="pill-label">Off</span>
+                    <span class="pill-value" id="overlayOff">–</span>
+                  </div>
+                </div>
 
-        <section class="bg-white border border-line rounded p-8">
-          <div class="section-head mb-6">
-            <h2 class="text-base font-semibold text-navy-900">Add new pole</h2>
-            <p class="text-xs text-ink-700 mt-0.5">Click "Pick location on map," then click the pole's spot on the map above.</p>
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                  <div class="overlay-divider"></div>
+                  <div class="stat-pill">
+                    <span class="pill-dot" style="background:#A33B34"></span>
+                    <span class="pill-label">Full</span>
+                    <span class="pill-value" id="overlayFull">–</span>
+                  </div>
+                  <div class="stat-pill">
+                    <span class="pill-dot" style="background:#2F5D8A"></span>
+                    <span class="pill-label">Open slots</span>
+                    <span class="pill-value" id="overlayOpenSlots">–</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-
-          <form id="addPoleForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label class="block text-xs font-medium text-navy-700 mb-1.5">Pole code</label>
-              <input type="text" id="newCode" placeholder="e.g. POLE-019" required class="cell-input num">
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-navy-700 mb-1.5">Type</label>
-              <select id="newType" class="cell-input">
-                <option value="Main Line">Main Line</option>
-                <option value="Sub-line" selected>Sub-line</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-navy-700 mb-1.5">Available slots</label>
-              <input type="number" id="newSlots" min="0" value="5" required class="cell-input num">
-            </div>
-            <div class="flex items-end">
-              <label class="flex items-center gap-2 text-sm text-navy-800 pb-2 cursor-pointer">
-                <input type="checkbox" id="newEnergized" checked class="w-4 h-4 accent-green-700">
-                Energized
-              </label>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-navy-700 mb-1.5">Latitude</label>
-              <input type="number" step="any" id="newLat" required class="cell-input num" placeholder="Pick on map">
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-navy-700 mb-1.5">Longitude</label>
-              <input type="number" step="any" id="newLng" required class="cell-input num" placeholder="Pick on map">
-            </div>
-            <div class="md:col-span-4 flex items-center gap-3 flex-wrap">
-              <button type="button" id="pickLocationBtn" class="bg-paper-100 hover:bg-line text-navy-800 px-4 py-2.5 rounded text-sm font-semibold transition border border-line">Pick location on map</button>
-              <button type="submit" id="addPoleBtn" class="bg-navy-900 hover:bg-navy-800 text-white px-5 py-2.5 rounded text-sm font-semibold transition">Add pole</button>
-              <span id="addMsg" class="text-xs font-semibold"></span>
-            </div>
-          </form>
-        </section>
-
-        <section class="bg-white border border-line rounded">
-          <header class="section-head px-5 pt-5 pb-4 flex items-start justify-between gap-4 flex-wrap">
-            <div>
-              <h2 class="text-base font-semibold text-navy-900">All poles</h2>
-              <p class="text-xs text-ink-700 mt-0.5">Edit a row, then click Save. Changes appear on the member app right away.</p>
-            </div>
-            <input type="search" id="searchInput" placeholder="Search pole code or type..." class="cell-input max-w-xs">
-          </header>
-          <div class="overflow-x-auto border-t border-line">
-            <table class="w-full text-left border-collapse">
-              <thead>
-                <tr class="bg-paper-100 text-navy-700 text-xs font-medium border-b border-line">
-                  <th class="p-3">Pole code</th>
-                  <th class="p-3">Type</th>
-                  <th class="p-3 text-center">Energized</th>
-                  <th class="p-3 w-28">Available slots</th>
-                  <th class="p-3">Location</th>
-                  <th class="p-3 text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody id="polesTableBody" class="divide-y divide-line text-sm">
-                <tr><td colspan="6" class="p-8 text-center text-ink-700 font-medium">Loading poles...</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-      </div>
-    </main>
+        </div>
+      </section>
+    </div>
   </div>
 
-  <div id="confirmModal" class="hidden fixed inset-0 z-[550] items-center justify-center p-4" style="background:rgba(11,21,85,0.45)">
+  <!-- Add Pole Modal -->
+  <div id="addPoleModal" class="hidden fixed inset-0 z-[600] items-center justify-center p-4" style="background:rgba(11,21,85,0.45)">
+    <div class="bg-white rounded-lg border border-line shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div class="px-6 pt-6 pb-4 border-b border-line flex items-start justify-between">
+        <div>
+          <h3 class="text-base font-semibold text-navy-900">Add new pole</h3>
+          <p class="text-xs text-ink-700 mt-0.5">Click "Pick location on map," then click the pole's spot on the map.</p>
+        </div>
+        <button id="closeAddModalBtn" class="text-ink-700 hover:text-navy-900 hover:bg-paper-100 rounded w-8 h-8 flex items-center justify-center transition -mt-1 -mr-1" aria-label="Close">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <form id="addPoleForm" class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-medium text-navy-700 mb-1.5">Pole code</label>
+          <input type="text" id="newCode" placeholder="e.g. POLE-019" required class="cell-input num">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-navy-700 mb-1.5">Type</label>
+          <select id="newType" class="cell-input">
+            <option value="Main Line">Main Line</option>
+            <option value="Sub-line" selected>Sub-line</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-navy-700 mb-1.5">Available slots</label>
+          <input type="number" id="newSlots" min="0" value="5" required class="cell-input num">
+        </div>
+        <div class="flex items-end">
+          <label class="flex items-center gap-2 text-sm text-navy-800 pb-2 cursor-pointer">
+            <input type="checkbox" id="newEnergized" checked class="w-4 h-4 accent-green-700">
+            Energized
+          </label>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-navy-700 mb-1.5">Latitude</label>
+          <input type="number" step="any" id="newLat" required class="cell-input num" placeholder="Pick on map">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-navy-700 mb-1.5">Longitude</label>
+          <input type="number" step="any" id="newLng" required class="cell-input num" placeholder="Pick on map">
+        </div>
+
+        <div class="md:col-span-2 flex items-center gap-3 flex-wrap pt-2 border-t border-line">
+          <button type="button" id="pickLocationBtn" class="bg-paper-100 hover:bg-line text-navy-800 px-4 py-2.5 rounded text-sm font-semibold transition border border-line">Pick location on map</button>
+          <button type="submit" id="addPoleBtn" class="bg-yellow-500 hover:bg-yellow-400 text-navy-900 px-5 py-2.5 rounded text-sm font-semibold transition">Add pole</button>
+          <span id="addMsg" class="text-xs font-semibold"></span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- All Poles Modal -->
+  <div id="managePolesModal" class="hidden fixed inset-0 z-[600] items-center justify-center p-4" style="background:rgba(11,21,85,0.45)">
+    <div class="bg-white rounded-lg border border-line shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col">
+      <div class="px-6 pt-6 pb-4 border-b border-line flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h3 class="text-base font-semibold text-navy-900">All poles</h3>
+          <p class="text-xs text-ink-700 mt-0.5">Edit a row, then click Save. Changes appear on the member app right away.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <input type="search" id="searchInput" placeholder="Search pole code or type..." class="cell-input max-w-xs">
+          <button id="closeManageModalBtn" class="text-ink-700 hover:text-navy-900 hover:bg-paper-100 rounded w-8 h-8 flex items-center justify-center transition flex-shrink-0" aria-label="Close">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="overflow-auto flex-1">
+        <table class="w-full text-left border-collapse">
+          <thead class="sticky top-0 z-10">
+            <tr class="bg-paper-100 text-navy-700 text-xs font-medium border-b border-line">
+              <th class="p-3">Pole code</th>
+              <th class="p-3">Type</th>
+              <th class="p-3 text-center">Energized</th>
+              <th class="p-3 w-28">Available slots</th>
+              <th class="p-3">Location</th>
+              <th class="p-3 text-center">Action</th>
+            </tr>
+          </thead>
+          <tbody id="polesTableBody" class="divide-y divide-line text-sm">
+            <tr><td colspan="6" class="p-8 text-center text-ink-700 font-medium">Loading poles...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="confirmModal" class="hidden fixed inset-0 z-[650] items-center justify-center p-4" style="background:rgba(11,21,85,0.45)">
     <div class="bg-white rounded-lg border border-line shadow-2xl w-full max-w-sm">
       <div class="px-6 pt-6 pb-4">
         <h3 class="text-base font-semibold">Delete this pole?</h3>
@@ -239,7 +402,7 @@
     }
 
     function initMap() {
-      map = L.map('gridMap').setView([7.8018, 122.6155], 16);
+      map = L.map('gridMap', { zoomControl: true }).setView([7.8018, 122.6155], 16);
       addBaseLayers(map);
       lineLayer = L.layerGroup().addTo(map);
       poleLayer = L.layerGroup().addTo(map);
@@ -249,6 +412,10 @@
         setNewPoleLocation(e.latlng.lat, e.latlng.lng);
         stopPicking();
       });
+
+      // Ensure map resizes to fill container
+      setTimeout(() => map.invalidateSize(), 200);
+      window.addEventListener('resize', () => map && map.invalidateSize());
     }
 
     const MAX_SPAN_M = 250;
@@ -282,38 +449,95 @@
       return edges;
     }
 
+    /* ---------- Pole icon helper ---------- */
+    function poleIcon(p) {
+      const color = poleColor(p);
+      const energized = !!p.is_energized;
+      const full = energized && (p.available_slots ?? 0) === 0;
+
+      // Small badge shown on the top-right of the icon
+      let badge = '';
+      if (!energized) {
+        badge = `<span class="pole-badge" style="background:#6B7280">&#x2715;</span>`;
+      } else if (full) {
+        badge = `<span class="pole-badge" style="background:#A33B34">!</span>`;
+      } else {
+        badge = `<span class="pole-badge" style="background:#3F7857">&#x2713;</span>`;
+      }
+
+      const html = `
+        <div class="pole-marker" style="--pole-color:${color}">
+          <svg viewBox="0 0 32 40" width="32" height="40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <!-- ground shadow -->
+            <ellipse cx="16" cy="37" rx="7" ry="2.2" fill="rgba(11,21,85,0.18)"/>
+            <!-- pole body -->
+            <rect x="14.2" y="8" width="3.6" height="28" rx="1" fill="${color}" stroke="#ffffff" stroke-width="1.4"/>
+            <!-- cross arms -->
+            <rect x="6" y="10" width="20" height="3" rx="1.2" fill="${color}" stroke="#ffffff" stroke-width="1.2"/>
+            <rect x="8.5" y="17" width="15" height="2.6" rx="1" fill="${color}" stroke="#ffffff" stroke-width="1.2"/>
+            <!-- insulators -->
+            <circle cx="7.6" cy="11.5" r="1.6" fill="#ffffff" stroke="${color}" stroke-width="1.4"/>
+            <circle cx="24.4" cy="11.5" r="1.6" fill="#ffffff" stroke="${color}" stroke-width="1.4"/>
+            <circle cx="10.5" cy="18.3" r="1.4" fill="#ffffff" stroke="${color}" stroke-width="1.3"/>
+            <circle cx="21.5" cy="18.3" r="1.4" fill="#ffffff" stroke="${color}" stroke-width="1.3"/>
+            <!-- top cap -->
+            <circle cx="16" cy="7" r="2.2" fill="${color}" stroke="#ffffff" stroke-width="1.3"/>
+          </svg>
+          ${badge}
+        </div>`;
+
+      return L.divIcon({
+        html,
+        className: 'pole-icon-wrap',
+        iconSize: [32, 40],
+        iconAnchor: [16, 38],   // tip of the pole = geographic point
+        tooltipAnchor: [0, -30],
+        popupAnchor: [0, -32],
+      });
+    }
+
+    /* ---------- Render map (icon markers) ---------- */
     function renderMap() {
       poleLayer.clearLayers();
       lineLayer.clearLayers();
 
       distributionLines(poles).forEach(([a, b]) => {
         const energized = a.is_energized && b.is_energized;
-        const isMain = (a.pole_type || '').toLowerCase().includes('main') && (b.pole_type || '').toLowerCase().includes('main');
+        const isMain = (a.pole_type || '').toLowerCase().includes('main') &&
+                       (b.pole_type || '').toLowerCase().includes('main');
         L.polyline(
           [[a.latitude, a.longitude], [b.latitude, b.longitude]],
-          { color: energized ? '#2F5D8A' : '#9CA3AF', weight: isMain ? 5 : 3, opacity: 0.9, dashArray: energized ? null : '6 6' }
+          {
+            color: energized ? '#2F5D8A' : '#9CA3AF',
+            weight: isMain ? 5 : 3,
+            opacity: 0.9,
+            dashArray: energized ? null : '6 6'
+          }
         ).addTo(lineLayer);
       });
 
       const bounds = [];
       poles.forEach(p => {
         const lat = Number(p.latitude), lng = Number(p.longitude);
-        const marker = L.circleMarker([lat, lng], {
-          radius: 8,
-          color: '#FFFFFF',
-          weight: 2,
-          fillColor: poleColor(p),
-          fillOpacity: 1,
+        const marker = L.marker([lat, lng], {
+          icon: poleIcon(p),
+          riseOnHover: true,
+          keyboard: true,
+          title: p.pole_code,
         }).addTo(poleLayer);
+
         marker.bindTooltip(
           `<b>${escapeHtml(p.pole_code)}</b><br>${escapeHtml(p.pole_type || '')}<br>` +
           `${p.is_energized ? 'Energized' : 'Non-energized'} · ${p.available_slots ?? 0} slot(s)`,
-          { direction: 'top' }
+          { direction: 'top', offset: [0, -8] }
         );
+
         marker.on('click', () => {
           if (pickingLocation) return;
+          openManageModal();
           focusRow(p.id);
         });
+
         bounds.push([lat, lng]);
       });
 
@@ -349,6 +573,53 @@
       else startPicking();
     });
 
+    // --- Add Pole Modal open/close ---
+    const addModal = document.getElementById('addPoleModal');
+
+    function openAddModal() {
+      addModal.classList.remove('hidden');
+      addModal.classList.add('flex');
+    }
+
+    function closeAddModal() {
+      addModal.classList.add('hidden');
+      addModal.classList.remove('flex');
+      if (pickingLocation) stopPicking();
+    }
+
+    document.getElementById('openAddModalBtn').addEventListener('click', openAddModal);
+    document.getElementById('closeAddModalBtn').addEventListener('click', closeAddModal);
+
+    addModal.addEventListener('click', (e) => {
+      if (e.target === addModal) closeAddModal();
+    });
+
+    // --- All Poles Modal open/close ---
+    const manageModal = document.getElementById('managePolesModal');
+
+    function openManageModal() {
+      manageModal.classList.remove('hidden');
+      manageModal.classList.add('flex');
+    }
+
+    function closeManageModal() {
+      manageModal.classList.add('hidden');
+      manageModal.classList.remove('flex');
+    }
+
+    document.getElementById('openManagePolesBtn').addEventListener('click', openManageModal);
+    document.getElementById('closeManageModalBtn').addEventListener('click', closeManageModal);
+
+    manageModal.addEventListener('click', (e) => {
+      if (e.target === manageModal) closeManageModal();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      if (!addModal.classList.contains('hidden')) closeAddModal();
+      if (!manageModal.classList.contains('hidden')) closeManageModal();
+    });
+
     async function loadPoles() {
       const { data, error } = await _supabase.from('poles').select('*').order('pole_code', { ascending: true });
       const tbody = document.getElementById('polesTableBody');
@@ -368,6 +639,7 @@
       renderStats();
       renderMap();
       renderTable();
+      if (map) setTimeout(() => map.invalidateSize(), 100);
     }
 
     function renderStats() {
@@ -375,11 +647,12 @@
       const energized = poles.filter(p => p.is_energized).length;
       const full = poles.filter(p => p.is_energized && p.available_slots === 0).length;
       const openSlots = poles.filter(p => p.is_energized).reduce((sum, p) => sum + (p.available_slots || 0), 0);
-      document.getElementById('statTotal').textContent = total;
-      document.getElementById('statEnergized').textContent = energized;
-      document.getElementById('statOff').textContent = total - energized;
-      document.getElementById('statFull').textContent = full;
-      document.getElementById('statSlots').textContent = openSlots;
+
+      document.getElementById('overlayTotal').textContent = total;
+      document.getElementById('overlayEnergized').textContent = energized;
+      document.getElementById('overlayOff').textContent = total - energized;
+      document.getElementById('overlayFull').textContent = full;
+      document.getElementById('overlayOpenSlots').textContent = openSlots;
     }
 
     function renderTable() {
@@ -392,7 +665,7 @@
       );
 
       if (rows.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-ink-700 font-medium">${poles.length ? 'No poles match your search.' : 'No poles yet. Add one above.'}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-ink-700 font-medium">${poles.length ? 'No poles match your search.' : 'No poles yet. Add one using the "Add new pole" button.'}</td></tr>`;
         return;
       }
 
@@ -528,6 +801,7 @@
       document.getElementById('newEnergized').checked = true;
       if (newPoleMarker) { newPoleMarker.remove(); newPoleMarker = null; }
       loadPoles();
+      closeAddModal();
     });
   </script>
 
