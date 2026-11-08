@@ -19,11 +19,91 @@
   .field:focus { outline: none; box-shadow: 0 0 0 2px #1A2B9E; background: #fff; }
   .field:disabled { color: #6B7490; cursor: not-allowed; }
 
-  .stat-card { text-align: left; background: #fff; border: 1px solid #DFE3EE; border-radius: 8px; padding: 16px 20px; transition: border-color .15s, box-shadow .15s, background .15s; }
-  .stat-card:hover { border-color: #94A2EA; }
-  .stat-card.active { border-color: var(--accent); box-shadow: inset 0 3px 0 var(--accent), 0 1px 6px rgba(17,31,120,.08); background: var(--tint); }
-  .stat-card .hint { font-size: 11px; color: #6B7490; margin-top: 2px; }
+  /* ===== Modern Stat Cards ===== */
+  .stat-card {
+    display: flex; flex-direction: column; justify-content: center;
+    background: #fff; border: 1px solid #DFE3EE; border-radius: 8px;
+    padding: 14px 16px; position: relative; overflow: hidden;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+    cursor: pointer; text-align: left; min-height: 74px;
+  }
+  .stat-card:hover { border-color: #94A2EA; box-shadow: 0 4px 14px rgba(17,31,120,.08); }
+  .stat-card.active { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent), 0 4px 14px rgba(17,31,120,.08); background: var(--tint); }
+  .stat-card .indicator {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--accent);
+    border-radius: 4px 0 0 4px;
+  }
+  .stat-card .lbl { font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #6B7490; padding-left: 8px; }
+  .stat-card .num { font-size: 24px; line-height: 1; font-weight: 700; color: #0B1555; font-variant-numeric: tabular-nums; margin-top: 4px; padding-left: 8px; }
 
+  /* ===== Filter chips ===== */
+  .filter-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 600;
+    background: #fff; color: #4A5568; border: 1px solid #E2E8F0;
+    transition: background .12s, border-color .12s, color .12s;
+    cursor: pointer; white-space: nowrap;
+  }
+  .filter-chip:hover { background: #F7F8FA; }
+  .filter-chip.is-on { background: #0D2E63; color: #fff; border-color: #0D2E63; }
+
+  /* ===== Map style/action buttons ===== */
+  .map-style-btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px;
+    border-radius: 10px; font-size: 12px; font-weight: 700; background: #fff; color: #0D2E63;
+    border: 1px solid #DDE3EC; box-shadow: 0 2px 6px rgba(11, 21, 85, 0.06);
+    transition: transform .12s, box-shadow .12s, background .12s; cursor: pointer; white-space: nowrap;
+  }
+  .map-style-btn:hover { background: #F7F8FA; box-shadow: 0 4px 10px rgba(11, 21, 85, 0.12); transform: translateY(-1px); }
+  .map-style-btn svg { width: 15px; height: 15px; flex-shrink: 0; color: #0D2E63; }
+  .map-style-btn.is-on { background: #0D2E63; color: #fff; border-color: #0D2E63; }
+  .map-style-btn.is-on svg { color: #fff; }
+
+  .legend-pill {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600;
+    color: #4A5568; background: #F7F8FA; border: 1px solid #E2E8F0; padding: 4px 10px;
+    border-radius: 999px; white-space: nowrap;
+  }
+  .legend-pill .dot { width: 8px; height: 8px; border-radius: 999px; flex-shrink: 0; }
+
+  /* ===== Map container — fills available space ===== */
+  #overviewMap { height: 100%; width: 100%; z-index: 0; isolation: isolate; }
+  #modalMap { height: 260px; width: 100%; border-radius: 6px; z-index: 0; isolation: isolate; }
+
+  /* ===== Modern teardrop pin ===== */
+  .modern-pin {
+    width: 32px; height: 32px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
+    display: flex; align-items: center; justify-content: center; border: 2px solid white;
+    box-shadow: -2px 2px 6px rgba(0,0,0,0.32); transition: transform 0.15s ease;
+  }
+  .modern-pin:hover { transform: rotate(-45deg) scale(1.1); }
+  .modern-pin svg { transform: rotate(45deg); width: 16px; height: 16px; stroke: white; stroke-width: 2.5; fill: none; }
+
+  /* ===== Pole marker ===== */
+  .pole-icon-wrap { background: transparent; border: none; }
+  .pole-marker {
+    position: relative; width: 32px; height: 40px;
+    filter: drop-shadow(0 1px 2px rgba(11, 21, 85, 0.35));
+    transition: transform 0.15s ease, filter 0.15s ease;
+    transform-origin: 50% 95%; cursor: pointer;
+  }
+  .pole-marker:hover { transform: scale(1.15) translateY(-2px); filter: drop-shadow(0 3px 5px rgba(11, 21, 85, 0.4)); }
+  .pole-marker svg { display: block; overflow: visible; }
+  .pole-badge {
+    position: absolute; top: -2px; right: -4px; min-width: 14px; height: 14px; padding: 0 3px;
+    border-radius: 9999px; color: #fff; font-size: 9px; font-weight: 700; line-height: 14px;
+    text-align: center; border: 1.5px solid #fff; box-shadow: 0 1px 2px rgba(11, 21, 85, 0.25);
+    font-family: system-ui, sans-serif;
+  }
+
+  .leaflet-tooltip.custom-tooltip {
+    background: rgba(255, 255, 255, 0.98); border: 1px solid #DDE3EC; border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(11, 21, 85, 0.15); padding: 10px 14px; font-size: 12px;
+    color: #0D2E63; line-height: 1.5;
+  }
+  .leaflet-tooltip.custom-tooltip::before { border-top-color: rgba(255, 255, 255, 0.98); }
+
+  /* ===== Steps ===== */
   .steps { display: flex; align-items: flex-start; }
   .step { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; position: relative; text-align: center; }
   .step::before { content: ''; position: absolute; top: 13px; left: -50%; width: 100%; height: 2px; background: #DFE3EE; z-index: 0; }
@@ -37,124 +117,328 @@
   .step.current .dot { background: #1A2B9E; border-color: #1A2B9E; color: #fff; box-shadow: 0 0 0 4px #E2E6FA; }
   .step.current .lbl { color: #1A2B9E; }
 
-  #overviewMap { height: 340px; }
-  #modalMap { height: 260px; }
-  #overviewMap, #modalMap { position: relative; z-index: 0; isolation: isolate; }
-  .pin { width: 16px; height: 16px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.45); }
-  .leaflet-control-layers { font-size: 12px; }
+  /* ===== Row quick-action buttons ===== */
+  .row-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 10px; border-radius: 7px; font-size: 11.5px; font-weight: 700;
+    border: 1px solid transparent; cursor: pointer; white-space: nowrap;
+    transition: transform .1s, background .12s, box-shadow .12s;
+  }
+  .row-btn:hover { transform: translateY(-1px); box-shadow: 0 2px 6px rgba(11,21,85,.12); }
+  .row-btn--primary { background: #1A2B9E; color: #fff; }
+  .row-btn--primary:hover { background: #111F78; }
+  .row-btn--ok { background: #2E7D4F; color: #fff; }
+  .row-btn--ok:hover { background: #256b43; }
+  .row-btn--danger { background: #fff; color: #B3261E; border-color: rgba(179,38,30,.35); }
+  .row-btn--danger:hover { background: #FDF3F2; }
+  .row-btn--ghost { background: #fff; color: #374151; border-color: #DFE3EE; }
+  .row-btn--ghost:hover { background: #F5F6FA; }
+
+  /* ===== Scrollbars ===== */
+  .thin-scroll { scrollbar-width: thin; scrollbar-color: #C5CCDA #F3F5FD; }
+  .thin-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+  .thin-scroll::-webkit-scrollbar-track { background: transparent; border-radius: 4px; }
+  .thin-scroll::-webkit-scrollbar-thumb { background: #C5CCDA; border-radius: 4px; border: 2px solid transparent; background-clip: padding-box; }
+  .thin-scroll::-webkit-scrollbar-thumb:hover { background: #A9B3C6; background-clip: padding-box; }
+
+  /* ===== Map overlay card ===== */
+  .map-overlay-card {
+    position: absolute;
+    top: 12px; right: 12px;
+    width: 360px;
+    max-height: calc(100% - 24px);
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(8px);
+    border: 1px solid #DDE3EC;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(11, 21, 85, 0.18);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 10;
+    transition: transform .25s cubic-bezier(.4,0,.2,1), opacity .25s;
+  }
+  @media (max-width: 1023px) {
+    .map-overlay-card {
+      position: fixed;
+      top: auto; bottom: 0; left: 0; right: 0;
+      width: 100%;
+      max-height: 60vh;
+      border-radius: 16px 16px 0 0;
+      transform: translateY(calc(100% - 56px));
+      transition: transform .3s cubic-bezier(.4,0,.2,1);
+      z-index: 50;
+    }
+    .map-overlay-card.expanded {
+      transform: translateY(0);
+    }
+    .map-overlay-card .overlay-handle {
+      display: flex !important;
+    }
+  }
+  @media (min-width: 1024px) {
+    .map-overlay-card .overlay-handle {
+      display: none;
+    }
+  }
+
+  .overlay-handle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 0 4px;
+    cursor: grab;
+    flex-shrink: 0;
+  }
+  .overlay-handle:active { cursor: grabbing; }
+  .overlay-handle .bar {
+    width: 40px; height: 4px; border-radius: 999px;
+    background: #C5CCDA;
+  }
+
+  .overlay-header {
+    padding: 12px 16px 10px;
+    border-bottom: 1px solid #EEF0F5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .overlay-filters {
+    padding: 10px 14px;
+    border-bottom: 1px solid #EEF0F5;
+    background: #FAFBFD;
+    flex-shrink: 0;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .overlay-list {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+  }
+
+  .overlay-row {
+    padding: 10px 16px;
+    border-bottom: 1px solid #F1F3F8;
+    cursor: pointer;
+    transition: background .12s;
+  }
+  .overlay-row:hover { background: #F0F4FF; }
+  .overlay-row:last-child { border-bottom: none; }
+
+  .overlay-toggle-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border-radius: 8px;
+    background: #F5F6FA; border: 1px solid #E2E8F0;
+    color: #4A5568; transition: background .12s, transform .12s;
+    cursor: pointer; flex-shrink: 0;
+  }
+  .overlay-toggle-btn:hover { background: #EEF0F5; }
+
+  /* ===== Map controls repositioning ===== */
+  .leaflet-control-zoom {
+    margin-top: 12px !important;
+    margin-left: 12px !important;
+  }
+  @media (max-width: 1023px) {
+    .leaflet-control-zoom {
+      margin-bottom: 70px !important;
+    }
+  }
+
+  /* ===== Search input compact ===== */
+  .search-compact {
+    width: 100%;
+    padding: 7px 12px 7px 32px;
+    background: #fff;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    font-size: 12.5px;
+    transition: border-color .12s, box-shadow .12s;
+  }
+  .search-compact:focus {
+    outline: none;
+    border-color: #1A2B9E;
+    box-shadow: 0 0 0 3px rgba(26,43,158,.1);
+  }
+
+  /* ===== Map section relative container — fills remaining space ===== */
+  .map-container-relative {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
 </style>
 </head>
 <body class="bg-paper-50 text-ink-900 font-sans overflow-x-hidden">
   <div id="sidebar-root"></div>
 
   <div class="main-content !p-0 flex-1 flex flex-col h-screen overflow-hidden">
-    <nav class="bg-white border-b border-line px-6 h-16 flex justify-between items-center flex-shrink-0">
-      <div class="flex items-center gap-4">
+    <!-- Header -->
+    <nav class="bg-white border-b border-line px-4 md:px-6 h-16 flex justify-between items-center flex-shrink-0">
+      <div class="flex items-center gap-3 md:gap-4">
         <button class="hamburger-btn" id="sidebarToggle" aria-label="Toggle navigation menu">
           <span class="bar"></span><span class="bar"></span><span class="bar"></span>
         </button>
         <div>
-          <h1 class="text-lg font-semibold text-ink-900 leading-tight">Incident Reports</h1>
-          <p class="text-xs text-ink-700">Review reports from members and dispatch line crews</p>
+          <h1 class="text-base md:text-lg font-semibold text-ink-900 leading-tight">Incident Reports</h1>
+          <p class="text-[11px] md:text-xs text-ink-700 hidden sm:block">Command center · review, dispatch, and resolve in one place</p>
         </div>
       </div>
-      <button id="refreshBtn" class="bg-white border border-line hover:bg-paper-100 text-ink-800 px-4 py-2 rounded-md text-sm font-semibold">Refresh</button>
+      <div class="flex items-center gap-2">
+        <button id="refreshBtn" class="map-style-btn" title="Refresh list">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          <span class="hidden sm:inline">Refresh</span>
+        </button>
+      </div>
     </nav>
 
-    <main class="flex-1 overflow-y-auto p-6 lg:p-8">
-      <div class="max-w-6xl mx-auto space-y-5">
+    <!-- Main becomes a flex column; the map section stretches to fill -->
+    <main class="flex-1 min-h-0 p-3 md:p-4 lg:p-6 flex flex-col">
+      <div class="flex-1 min-h-0 flex flex-col space-y-3 md:space-y-4">
 
-        <div id="diagBanner" class="hidden bg-danger-100 border border-danger-600/30 text-danger-600 text-sm rounded-lg p-4"></div>
+        <div id="diagBanner" class="hidden bg-danger-100 border border-danger-600/30 text-danger-600 text-sm rounded-lg p-4 flex-shrink-0"></div>
 
-        <div id="statCards" class="grid grid-cols-2 lg:grid-cols-5 gap-3">
-          <button class="stat-card" data-tab="Pending" style="--accent:#C9A800;--tint:#FFFBE6">
-            <div class="text-xs font-semibold uppercase tracking-wide text-gold-700">Waiting for review</div>
-            <div id="statPending" class="text-2xl font-semibold num mt-1">0</div>
+        <!-- KPI Stat Cards (4 statuses only) -->
+        <div id="statCards" class="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3 flex-shrink-0">
+          <button class="stat-card" data-tab="Pending" style="--accent:#C9A800;--tint:#FFFAE0">
+            <div class="indicator"></div>
+            <div class="lbl">Waiting for review</div>
+            <div id="statPending" class="num">0</div>
           </button>
-          <button class="stat-card" data-tab="In Progress" style="--accent:#1A2B9E;--tint:#F3F5FD">
-            <div class="text-xs font-semibold uppercase tracking-wide text-brand-700">Crew dispatched</div>
-            <div id="statProgress" class="text-2xl font-semibold num mt-1">0</div>
+          <button class="stat-card" data-tab="In Progress" style="--accent:#1A2B9E;--tint:#EEF1FB">
+            <div class="indicator"></div>
+            <div class="lbl">Crew dispatched</div>
+            <div id="statProgress" class="num">0</div>
           </button>
-          <button class="stat-card" data-tab="Resolved" style="--accent:#2E7D4F;--tint:#F1F8F3">
-            <div class="text-xs font-semibold uppercase tracking-wide text-ok-600">Resolved</div>
-            <div id="statResolved" class="text-2xl font-semibold num mt-1">0</div>
+          <button class="stat-card" data-tab="Resolved" style="--accent:#2E7D4F;--tint:#EEF7F1">
+            <div class="indicator"></div>
+            <div class="lbl">Resolved</div>
+            <div id="statResolved" class="num">0</div>
           </button>
-          <button class="stat-card" data-tab="Rejected" style="--accent:#B3261E;--tint:#FDF3F2">
-            <div class="text-xs font-semibold uppercase tracking-wide text-danger-600">Rejected</div>
-            <div id="statRejected" class="text-2xl font-semibold num mt-1">0</div>
-          </button>
-          <button class="stat-card col-span-2 lg:col-span-1" data-tab="all" style="--accent:#111F78;--tint:#F3F5FD">
-            <div class="text-xs font-semibold uppercase tracking-wide text-ink-700">All reports</div>
-            <div id="statAll" class="text-2xl font-semibold num mt-1">0</div>
+          <button class="stat-card" data-tab="Rejected" style="--accent:#B3261E;--tint:#FBEBE9">
+            <div class="indicator"></div>
+            <div class="lbl">Rejected</div>
+            <div id="statRejected" class="num">0</div>
           </button>
         </div>
 
-        <section class="bg-white border border-line rounded-lg overflow-hidden">
-          <div class="px-5 py-3 border-b border-line flex flex-wrap items-center justify-between gap-2">
+        <!-- Map with overlaid incident list — fills remaining height -->
+        <section class="bg-white border border-line rounded-lg overflow-hidden flex-1 flex flex-col min-h-0 shadow-sm">
+          <header class="px-4 md:px-5 py-3 border-b border-line flex justify-between items-center flex-wrap gap-2 md:gap-3 flex-shrink-0">
             <div>
-              <h2 class="text-sm font-semibold">Open incidents map</h2>
-              <p class="text-xs text-ink-700">Reports waiting for review or with a crew on the way. Click a pin to review.</p>
+              <h2 class="text-sm font-semibold text-ink-900">Incident map</h2>
+              <p class="text-[11px] md:text-xs text-ink-700 mt-0.5">Open reports + pole network · click a pin to review</p>
             </div>
-            <div class="flex items-center gap-4 text-xs text-ink-700">
-              <span class="flex items-center gap-1.5"><span class="pin" style="background:#C9A800"></span>Waiting for review</span>
-              <span class="flex items-center gap-1.5"><span class="pin" style="background:#1A2B9E"></span>Crew dispatched</span>
+            <div class="flex items-center gap-1.5 md:gap-2 flex-wrap">
+              <button id="togglePolesBtn" class="map-style-btn is-on" title="Show/hide poles">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 2v20M5 8l7-4 7 4M5 16l7-4 7 4"/>
+                </svg>
+                <span class="hidden sm:inline">Poles</span>
+              </button>
+              <button id="toggleMapStyle" class="map-style-btn" title="Switch to satellite">
+                <svg id="mapIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span id="mapStyleText" class="hidden sm:inline">Satellite</span>
+              </button>
+              <button id="fitMapBtn" class="map-style-btn" title="Fit all open incidents">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                </svg>
+                <span class="hidden sm:inline">Fit</span>
+              </button>
+            </div>
+          </header>
+
+          <div class="px-4 md:px-5 py-2 border-b border-line bg-paper-50 flex items-center gap-1.5 md:gap-2 flex-wrap flex-shrink-0">
+            <span class="text-[10px] font-semibold uppercase tracking-wide text-ink-700 mr-1 hidden sm:inline">Legend</span>
+            <span class="legend-pill"><span class="dot" style="background:#C9A800;"></span>Waiting</span>
+            <span class="legend-pill"><span class="dot" style="background:#1A2B9E;"></span>Dispatched</span>
+            <span class="legend-pill hidden sm:inline-flex"><span class="dot" style="background:#2E7D4F;"></span>Pole OK</span>
+            <span class="legend-pill hidden sm:inline-flex"><span class="dot" style="background:#A33B34;"></span>Pole full</span>
+            <span class="legend-pill hidden sm:inline-flex"><span class="dot" style="background:#9CA3AF;"></span>Pole off</span>
+          </div>
+
+          <div class="map-container-relative">
+            <div id="overviewMap"></div>
+
+            <!-- Overlay incident list card -->
+            <div id="mapOverlay" class="map-overlay-card">
+              <div class="overlay-handle" id="overlayHandle">
+                <div class="bar"></div>
+              </div>
+
+              <div class="overlay-header">
+                <div class="min-w-0">
+                  <h3 id="overlayTitle" class="text-sm font-semibold text-ink-900 truncate">Open incidents</h3>
+                  <p id="overlayCount" class="text-[11px] text-ink-700"></p>
+                </div>
+                <button id="overlayToggleBtn" class="overlay-toggle-btn" title="Toggle list">
+                  <svg id="overlayChevron" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                  </svg>
+                </button>
+              </div>
+
+              <div class="overlay-filters">
+                <button class="filter-chip is-on" data-filter="open">Open</button>
+                <button class="filter-chip" data-filter="Pending">Waiting</button>
+                <button class="filter-chip" data-filter="In Progress">Dispatched</button>
+                <button class="filter-chip" data-filter="Resolved">Resolved</button>
+                <button class="filter-chip" data-filter="Rejected">Rejected</button>
+                <button class="filter-chip" data-filter="all">All</button>
+              </div>
+
+              <div class="px-3 pt-2.5 pb-1.5 flex-shrink-0">
+                <div class="relative">
+                  <svg class="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-700/50" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+                  </svg>
+                  <input id="searchInput" type="text" class="search-compact" placeholder="Search ticket, category, location… (press /)">
+                </div>
+              </div>
+
+              <div id="incidentRows" class="overlay-list thin-scroll">
+                <div class="px-5 py-10 text-center text-ink-700 text-sm">Loading reports…</div>
+              </div>
             </div>
           </div>
-          <div id="overviewMap"></div>
         </section>
 
-        <div class="flex flex-wrap items-end gap-3">
-          <div>
-            <h2 id="listTitle" class="text-base font-semibold">Open incidents</h2>
-            <p id="listHint" class="text-xs text-ink-700"></p>
-          </div>
-          <div class="w-full sm:w-72 sm:ml-auto"><input id="searchInput" type="text" class="field" placeholder="Search ticket, category, location…"></div>
-        </div>
-
-        <section class="bg-white border border-line rounded-lg overflow-hidden">
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm">
-              <thead>
-                <tr class="bg-paper-50 border-b border-line text-xs font-semibold text-ink-700 uppercase tracking-wide">
-                  <th class="px-5 py-3">Ticket</th>
-                  <th class="px-3 py-3">Incident</th>
-                  <th class="px-3 py-3">Location</th>
-                  <th class="px-3 py-3">Status</th>
-                  <th class="px-3 py-3">Crew</th>
-                  <th class="px-3 py-3">Reported</th>
-                  <th class="px-5 py-3 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody id="incidentRows" class="divide-y divide-line">
-                <tr><td colspan="7" class="px-5 py-10 text-center text-ink-700">Loading reports…</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
       </div>
     </main>
   </div>
 
-  <div id="reviewModal" class="hidden fixed inset-0 z-[500] items-center justify-center p-4" style="background:rgba(11,21,85,0.45)">
+  <!-- ============ Review / Dispatch modal ============ -->
+  <div id="reviewModal" class="hidden fixed inset-0 z-[500] items-center justify-center p-3 md:p-4" style="background:rgba(11,21,85,0.45)">
     <div class="bg-white rounded-lg border border-line shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col">
-      <div class="px-6 py-4 border-b border-line flex items-start justify-between gap-4">
-        <div>
-          <p id="mTicket" class="text-xs num text-ink-700"></p>
-          <h3 id="mTitle" class="text-base font-semibold mt-0.5"></h3>
+      <div class="px-4 md:px-6 py-3 border-b border-line flex items-start justify-between gap-4 flex-shrink-0">
+        <div class="min-w-0">
+          <p id="mTicket" class="text-[11px] num text-ink-700 font-semibold tracking-wide"></p>
+          <h3 id="mTitle" class="text-base font-semibold mt-0.5 flex items-center gap-2 flex-wrap"></h3>
         </div>
-        <button id="mClose" class="icon-close text-ink-700 hover:text-ink-900 p-1" aria-label="Close">
+        <button id="mClose" class="text-ink-700 hover:text-ink-900 hover:bg-paper-100 rounded w-8 h-8 flex items-center justify-center transition flex-shrink-0" aria-label="Close">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
 
-      <div class="overflow-y-auto px-6 py-5 space-y-5">
+      <div class="overflow-y-auto thin-scroll px-4 md:px-6 py-4 md:py-5 space-y-4 md:space-y-5 flex-1">
         <div id="mSteps"></div>
         <div id="mRejected" class="hidden bg-danger-100 border border-danger-600/30 rounded-md p-4">
           <p class="text-xs font-semibold uppercase tracking-wide text-danger-600">Report rejected</p>
           <p id="mRejectedText" class="text-sm text-danger-600 mt-1"></p>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5">
           <div class="space-y-4">
             <div id="mDetails" class="space-y-3 text-sm"></div>
             <div id="mPhoto"></div>
@@ -169,7 +453,7 @@
           </div>
         </div>
 
-        <div id="mDispatch" class="border-t border-line pt-5">
+        <div id="mDispatch" class="border-t border-line pt-4 md:pt-5">
           <h4 class="text-sm font-semibold mb-3">Dispatch</h4>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
@@ -189,7 +473,7 @@
         </div>
       </div>
 
-      <div id="mActions" class="px-6 py-4 bg-paper-50 border-t border-line flex flex-wrap justify-end gap-2 rounded-b-lg"></div>
+      <div id="mActions" class="px-4 md:px-6 py-3 bg-paper-50 border-t border-line flex flex-wrap justify-end gap-2 rounded-b-lg flex-shrink-0"></div>
     </div>
   </div>
 
@@ -222,8 +506,12 @@
     let activeTab = 'open';
     let current = null;
     let rejecting = false;
-    let overviewMap = null, overviewLayer = null;
+    let overviewMap = null, overviewLayer = null, overviewPoleLayer = null;
     let modalMap = null, modalLayer = null;
+
+    let streetLayer = null, satelliteLayer = null;
+    let isSatellite = false, polesVisible = true;
+    let overlayExpanded = false;
 
     function escapeHtml(str) {
       if (str === null || str === undefined) return '';
@@ -263,7 +551,7 @@
 
     function badge(r) {
       const s = STATUS[statusOf(r)];
-      return `<span class="px-2.5 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap ${s.badge}">${s.label}</span>`;
+      return `<span class="px-2 py-0.5 rounded-full text-[10.5px] font-semibold border whitespace-nowrap ${s.badge}">${s.label}</span>`;
     }
 
     function metersBetween(a, b) {
@@ -285,8 +573,43 @@
       return best;
     }
 
-    function pinIcon(color) {
-      return L.divIcon({ className: '', html: `<div class="pin" style="background:${color}"></div>`, iconSize: [16, 16], iconAnchor: [8, 8] });
+    /* ---- Modern teardrop pin ---- */
+    function incidentPin(status) {
+      const color = STATUS[status].pin;
+      const html = `<div class="modern-pin" style="background:${color};"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></div>`;
+      return L.divIcon({ html, className: '', iconSize: [32, 32], iconAnchor: [16, 32], tooltipAnchor: [0, -36], popupAnchor: [0, -32] });
+    }
+
+    /* ---- Pole icon ---- */
+    function poleColor(p) {
+      if (!p.is_energized) return '#9CA3AF';
+      if ((Number(p.available_slots) || 0) === 0) return '#A33B34';
+      return '#3F7857';
+    }
+    function poleIcon(p) {
+      const color = poleColor(p);
+      const energized = !!p.is_energized;
+      const full = energized && (Number(p.available_slots) || 0) === 0;
+      let badge = '';
+      if (!energized) badge = `<span class="pole-badge" style="background:#6B7280">&#x2715;</span>`;
+      else if (full) badge = `<span class="pole-badge" style="background:#A33B34">!</span>`;
+      else badge = `<span class="pole-badge" style="background:#3F7857">&#x2713;</span>`;
+      const html = `
+        <div class="pole-marker" style="--pole-color:${color}">
+          <svg viewBox="0 0 32 40" width="32" height="40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <ellipse cx="16" cy="37" rx="7" ry="2.2" fill="rgba(11,21,85,0.18)"/>
+            <rect x="14.2" y="8" width="3.6" height="28" rx="1" fill="${color}" stroke="#ffffff" stroke-width="1.4"/>
+            <rect x="6" y="10" width="20" height="3" rx="1.2" fill="${color}" stroke="#ffffff" stroke-width="1.2"/>
+            <rect x="8.5" y="17" width="15" height="2.6" rx="1" fill="${color}" stroke="#ffffff" stroke-width="1.2"/>
+            <circle cx="7.6" cy="11.5" r="1.6" fill="#ffffff" stroke="${color}" stroke-width="1.4"/>
+            <circle cx="24.4" cy="11.5" r="1.6" fill="#ffffff" stroke="${color}" stroke-width="1.4"/>
+            <circle cx="10.5" cy="18.3" r="1.4" fill="#ffffff" stroke="${color}" stroke-width="1.3"/>
+            <circle cx="21.5" cy="18.3" r="1.4" fill="#ffffff" stroke="${color}" stroke-width="1.3"/>
+            <circle cx="16" cy="7" r="2.2" fill="${color}" stroke="#ffffff" stroke-width="1.3"/>
+          </svg>
+          ${badge}
+        </div>`;
+      return L.divIcon({ html, className: 'pole-icon-wrap', iconSize: [32, 40], iconAnchor: [16, 38], tooltipAnchor: [0, -30], popupAnchor: [0, -32] });
     }
 
     async function checkAuth() {
@@ -302,7 +625,6 @@
     }
 
     let office = null;
-
     async function loadOffice() {
       try {
         const { data } = await supabaseClient.from('system_settings').select('value').eq('key', 'office_location').maybeSingle();
@@ -312,8 +634,9 @@
     }
 
     async function loadPoles() {
-      const { data } = await supabaseClient.from('poles').select('pole_code, latitude, longitude, is_energized');
+      const { data } = await supabaseClient.from('poles').select('*');
       poles = data || [];
+      if (overviewPoleLayer) renderOverviewPoles();
     }
 
     async function loadReporters(list) {
@@ -331,7 +654,7 @@
 
       if (error) {
         showBanner('Could not load incident reports: ' + error.message);
-        document.getElementById('incidentRows').innerHTML = `<tr><td colspan="7" class="px-5 py-10 text-center text-danger-600">${escapeHtml(error.message)}</td></tr>`;
+        document.getElementById('incidentRows').innerHTML = `<div class="px-5 py-10 text-center text-danger-600 text-sm">${escapeHtml(error.message)}</div>`;
         return;
       }
       reports = data || [];
@@ -348,7 +671,6 @@
       document.getElementById('statProgress').textContent = count('In Progress');
       document.getElementById('statResolved').textContent = count('Resolved');
       document.getElementById('statRejected').textContent = count('Rejected');
-      document.getElementById('statAll').textContent = reports.length;
     }
 
     function inTab(r, key) {
@@ -359,14 +681,12 @@
 
     function renderTabs() {
       document.querySelectorAll('#statCards .stat-card').forEach(card => {
-        const key = card.dataset.tab;
-        const on = activeTab === key || (activeTab === 'open' && (key === 'Pending' || key === 'In Progress'));
-        card.classList.toggle('active', on);
+        card.classList.toggle('active', activeTab === card.dataset.tab);
       });
-      document.getElementById('listTitle').textContent = LIST_TITLES[activeTab] || 'Reports';
-      document.getElementById('listHint').innerHTML = activeTab === 'open'
-        ? 'Waiting for review and crew dispatched. Click a card above to see other reports.'
-        : 'Click the card again to go back to open incidents.';
+      document.querySelectorAll('.filter-chip').forEach(chip => {
+        chip.classList.toggle('is-on', chip.dataset.filter === activeTab);
+      });
+      document.getElementById('overlayTitle').textContent = LIST_TITLES[activeTab] || 'Reports';
     }
 
     document.querySelectorAll('#statCards .stat-card').forEach(card => card.addEventListener('click', () => {
@@ -374,7 +694,12 @@
       activeTab = activeTab === key ? 'open' : key;
       renderTabs();
       renderRows();
-      document.getElementById('listTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }));
+
+    document.querySelectorAll('.filter-chip').forEach(chip => chip.addEventListener('click', () => {
+      activeTab = chip.dataset.filter;
+      renderTabs();
+      renderRows();
     }));
 
     function renderRows() {
@@ -383,51 +708,215 @@
         if (!q) return true;
         return [ticketRef(r), r.category, r.location, r.description, r.assigned_to].join(' ').toLowerCase().includes(q);
       });
-      const tbody = document.getElementById('incidentRows');
+
+      const countEl = document.getElementById('overlayCount');
+      if (countEl) countEl.textContent = `${list.length} ${list.length === 1 ? 'report' : 'reports'}`;
+
+      const wrap = document.getElementById('incidentRows');
       if (!list.length) {
-        tbody.innerHTML = `<tr><td colspan="7" class="px-5 py-10 text-center text-ink-700">No reports here.</td></tr>`;
+        wrap.innerHTML = `<div class="px-5 py-10 text-center text-ink-700 text-sm">No reports here.</div>`;
         return;
       }
-      tbody.innerHTML = list.map(r => `
-        <tr class="hover:bg-paper-50">
-          <td class="px-5 py-3 num text-xs text-ink-700 whitespace-nowrap">${ticketRef(r)}</td>
-          <td class="px-3 py-3">
-            <div class="font-medium">${escapeHtml(r.category || 'General issue')}</div>
-            <div class="text-xs text-ink-700 truncate max-w-[200px]">${escapeHtml(r.description || '')}</div>
-          </td>
-          <td class="px-3 py-3 text-ink-700 max-w-[180px]"><div class="truncate">${escapeHtml(r.location || '')}</div></td>
-          <td class="px-3 py-3">${badge(r)}</td>
-          <td class="px-3 py-3 text-ink-700 whitespace-nowrap">${r.assigned_to ? escapeHtml(r.assigned_to) : '<span class="text-ink-700/60">Not assigned</span>'}</td>
-          <td class="px-3 py-3 text-xs text-ink-700 whitespace-nowrap">${new Date(r.created_at).toLocaleDateString('en-PH', { dateStyle: 'medium' })}<div class="text-ink-700/70">${new Date(r.created_at).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}</div></td>
-          <td class="px-5 py-3 text-right">
-            <button class="review-btn ${isOpen(r) ? 'bg-brand-800 hover:bg-brand-900 text-white' : 'bg-white border border-line hover:bg-paper-100 text-ink-800'} px-3 py-1.5 rounded-md text-xs font-semibold" data-id="${r.id}">${statusOf(r) === 'Pending' ? 'Review' : 'View'}</button>
-          </td>
-        </tr>`).join('');
-      tbody.querySelectorAll('.review-btn').forEach(b => b.addEventListener('click', () => openReview(b.dataset.id)));
+
+      wrap.innerHTML = list.map(r => {
+        const st = statusOf(r);
+        const who = reporters[r.user_id];
+        const reporterName = who ? `${who.first_name || ''} ${who.last_name || ''}`.trim() : '';
+        const created = new Date(r.created_at);
+        const quickActions = [];
+        if (st === 'Pending') {
+          quickActions.push(`<button class="row-btn row-btn--primary" data-act="dispatch" data-id="${r.id}">Dispatch</button>`);
+          quickActions.push(`<button class="row-btn row-btn--danger" data-act="reject" data-id="${r.id}">Reject</button>`);
+        } else if (st === 'In Progress') {
+          quickActions.push(`<button class="row-btn row-btn--ok" data-act="resolve" data-id="${r.id}">Resolve</button>`);
+        }
+        quickActions.push(`<button class="row-btn row-btn--ghost" data-act="view" data-id="${r.id}">View</button>`);
+
+        return `
+          <div class="overlay-row" data-act="view" data-id="${r.id}">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-[10.5px] num font-semibold text-ink-700 tracking-wide">${ticketRef(r)}</span>
+              ${badge(r)}
+            </div>
+            <div class="mt-1 font-semibold text-[13px] text-ink-900 truncate">${escapeHtml(r.category || 'General issue')}</div>
+            <div class="text-[11.5px] text-ink-700 truncate">${escapeHtml(r.location || 'Location not provided')}</div>
+            <div class="text-[10.5px] text-ink-700/80 mt-0.5 flex items-center gap-1.5 flex-wrap">
+              <span>${created.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })} · ${created.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}</span>
+              ${reporterName ? `<span>·</span><span class="truncate max-w-[100px]">${escapeHtml(reporterName)}</span>` : ''}
+              ${r.assigned_to ? `<span>·</span><span class="truncate max-w-[100px]">👷 ${escapeHtml(r.assigned_to)}</span>` : ''}
+            </div>
+            <div class="mt-2 flex items-center gap-1.5 flex-wrap justify-end">${quickActions.join('')}</div>
+          </div>`;
+      }).join('');
+
+      wrap.querySelectorAll('[data-act]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openReview(btn.dataset.id);
+        });
+      });
     }
 
+    /* ===== Overview map ===== */
     function initOverviewMap() {
-      overviewMap = L.map('overviewMap', { scrollWheelZoom: false }).setView(DEFAULT_CENTER, 13);
-      addBaseLayers(overviewMap);
+      overviewMap = L.map('overviewMap', { zoomControl: true, scrollWheelZoom: true }).setView(DEFAULT_CENTER, 13);
+
+      streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors · style by HOT',
+        maxZoom: 19
+      });
+      satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri',
+        maxZoom: 22
+      });
+
+      streetLayer.addTo(overviewMap);
+
+      overviewPoleLayer = L.layerGroup().addTo(overviewMap);
       overviewLayer = L.layerGroup().addTo(overviewMap);
+
+      window.addEventListener('resize', () => {
+        overviewMap && overviewMap.invalidateSize();
+      });
+
+      document.getElementById('toggleMapStyle').addEventListener('click', () => {
+        isSatellite = !isSatellite;
+        const btnText = document.getElementById('mapStyleText');
+        const btnIcon = document.getElementById('mapIcon');
+        if (isSatellite) {
+          if (overviewMap.hasLayer(streetLayer)) overviewMap.removeLayer(streetLayer);
+          satelliteLayer.addTo(overviewMap);
+          btnText.textContent = 'Street';
+          btnIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />';
+        } else {
+          if (overviewMap.hasLayer(satelliteLayer)) overviewMap.removeLayer(satelliteLayer);
+          streetLayer.addTo(overviewMap);
+          btnText.textContent = 'Satellite';
+          btnIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />';
+        }
+      });
+
+      document.getElementById('togglePolesBtn').addEventListener('click', (e) => {
+        polesVisible = !polesVisible;
+        e.currentTarget.classList.toggle('is-on', polesVisible);
+        if (polesVisible) overviewPoleLayer.addTo(overviewMap);
+        else overviewMap.removeLayer(overviewPoleLayer);
+      });
+
+      document.getElementById('fitMapBtn').addEventListener('click', fitOverview);
+
+      // Overlay toggle logic
+      const overlay = document.getElementById('mapOverlay');
+      const handle = document.getElementById('overlayHandle');
+      const toggleBtn = document.getElementById('overlayToggleBtn');
+      const chevron = document.getElementById('overlayChevron');
+
+      function toggleOverlay() {
+        if (window.innerWidth < 1024) {
+          overlayExpanded = !overlayExpanded;
+          overlay.classList.toggle('expanded', overlayExpanded);
+          chevron.style.transform = overlayExpanded ? 'rotate(180deg)' : '';
+        } else {
+          // On desktop, just collapse/expand height
+          const list = document.getElementById('incidentRows');
+          const filters = overlay.querySelector('.overlay-filters');
+          const search = overlay.querySelector('.px-3.pt-2\\.5');
+          const collapsed = overlay.dataset.collapsed === 'true';
+          if (collapsed) {
+            overlay.dataset.collapsed = 'false';
+            list.style.display = '';
+            if (filters) filters.style.display = '';
+            if (search) search.style.display = '';
+            chevron.style.transform = '';
+          } else {
+            overlay.dataset.collapsed = 'true';
+            list.style.display = 'none';
+            if (filters) filters.style.display = 'none';
+            if (search) search.style.display = 'none';
+            chevron.style.transform = 'rotate(180deg)';
+          }
+        }
+      }
+
+      toggleBtn.addEventListener('click', toggleOverlay);
+      handle.addEventListener('click', toggleOverlay);
+
+      // Touch swipe for mobile
+      let touchStartY = 0;
+      handle.addEventListener('touchstart', (e) => {
+        touchStartY = e.touches[0].clientY;
+      }, { passive: true });
+      handle.addEventListener('touchend', (e) => {
+        const dy = e.changedTouches[0].clientY - touchStartY;
+        if (dy > 30 && overlayExpanded) {
+          overlayExpanded = false;
+          overlay.classList.remove('expanded');
+          chevron.style.transform = '';
+        } else if (dy < -30 && !overlayExpanded) {
+          overlayExpanded = true;
+          overlay.classList.add('expanded');
+          chevron.style.transform = 'rotate(180deg)';
+        }
+      }, { passive: true });
+
+      // On mobile, auto-expand when there are incidents
+      if (window.innerWidth < 1024) {
+        setTimeout(() => {
+          const count = document.getElementById('overlayCount').textContent;
+          if (count && !count.startsWith('0')) {
+            overlayExpanded = true;
+            overlay.classList.add('expanded');
+            chevron.style.transform = 'rotate(180deg)';
+          }
+        }, 800);
+      }
+
+      // Ensure map resizes correctly after layout settling
+      setTimeout(() => overviewMap && overviewMap.invalidateSize(), 250);
+    }
+
+    function renderOverviewPoles() {
+      if (!overviewPoleLayer) return;
+      overviewPoleLayer.clearLayers();
+      poles.forEach(p => {
+        const lat = Number(p.latitude), lng = Number(p.longitude);
+        if (isNaN(lat) || isNaN(lng)) return;
+        L.marker([lat, lng], { icon: poleIcon(p), keyboard: true, title: p.pole_code })
+          .bindTooltip(
+            `<b>${escapeHtml(p.pole_code || '')}</b><br>${escapeHtml(p.pole_type || '')}<br>${p.is_energized ? 'Energized' : 'Non-energized'} · ${p.available_slots ?? 0} slot(s)`,
+            { direction: 'top', offset: [0, -8] }
+          )
+          .addTo(overviewPoleLayer);
+      });
+    }
+
+    function fitOverview() {
+      if (!overviewMap) return;
+      const open = reports.filter(r => isOpen(r) && hasPoint(r));
+      const pts = open.map(r => [Number(r.latitude), Number(r.longitude)]);
+      if (pts.length === 1) overviewMap.setView(pts[0], 16);
+      else if (pts.length > 1) overviewMap.fitBounds(pts, { padding: [50, 50], maxZoom: 16 });
     }
 
     function renderOverview() {
+      if (!overviewLayer) return;
       overviewLayer.clearLayers();
       const open = reports.filter(r => isOpen(r) && hasPoint(r));
-      const pts = [];
       open.forEach(r => {
         const ll = [Number(r.latitude), Number(r.longitude)];
-        pts.push(ll);
-        L.marker(ll, { icon: pinIcon(STATUS[statusOf(r)].pin) })
-          .bindTooltip(`<b>${escapeHtml(r.category || 'Incident')}</b><br>${escapeHtml(STATUS[statusOf(r)].label)}`)
+        L.marker(ll, { icon: incidentPin(statusOf(r)) })
+          .bindTooltip(
+            `<b>${escapeHtml(r.category || 'Incident')}</b><br>${escapeHtml(STATUS[statusOf(r)].label)}<br><span style="color:#4A5568;font-size:11px;">${ticketRef(r)}</span>`,
+            { direction: 'top', className: 'custom-tooltip', opacity: 1, offset: [0, -36] }
+          )
           .on('click', () => openReview(r.id))
           .addTo(overviewLayer);
       });
-      if (pts.length === 1) overviewMap.setView(pts[0], 16);
-      else if (pts.length > 1) overviewMap.fitBounds(pts, { padding: [40, 40], maxZoom: 17 });
+      renderOverviewPoles();
+      fitOverview();
     }
 
+    /* ===== Modal ===== */
     function stepsHtml(r) {
       const s = statusOf(r);
       const idx = s === 'Resolved' ? 2 : s === 'In Progress' ? 1 : 0;
@@ -455,7 +944,7 @@
       const s = statusOf(r);
 
       document.getElementById('mTicket').textContent = ticketRef(r);
-      document.getElementById('mTitle').innerHTML = `${escapeHtml(r.category || 'General issue')} <span class="ml-2 align-middle">${badge(r)}</span>`;
+      document.getElementById('mTitle').innerHTML = `${escapeHtml(r.category || 'General issue')} ${badge(r)}`;
       document.getElementById('mError').classList.add('hidden');
 
       const rejected = s === 'Rejected';
@@ -483,7 +972,7 @@
       const crew = document.getElementById('crewInput');
       const etr = document.getElementById('etrInput');
       crew.dataset.current = r.assigned_to || '';
-      fillPersonnel(supabaseClient, crew.parentElement);
+      if (typeof fillPersonnel === 'function') fillPersonnel(supabaseClient, crew.parentElement);
       etr.value = r.etr ? String(r.etr).slice(0, 16) : '';
       const locked = !isOpen(r);
       crew.disabled = locked;
@@ -503,7 +992,7 @@
     function showOnModalMap(r) {
       if (!modalMap) {
         modalMap = L.map('modalMap');
-        addBaseLayers(modalMap);
+        streetLayer.addTo(modalMap);
         modalLayer = L.layerGroup().addTo(modalMap);
       }
       modalMap.invalidateSize();
@@ -519,13 +1008,12 @@
       }
 
       const here = [Number(r.latitude), Number(r.longitude)];
-      L.marker(here, { icon: pinIcon(STATUS[statusOf(r)].pin) }).addTo(modalLayer);
+      L.marker(here, { icon: incidentPin(statusOf(r)) }).addTo(modalLayer);
 
       const near = nearestPole(r);
       if (near) {
         const pp = [Number(near.pole.latitude), Number(near.pole.longitude)];
-        L.circleMarker(pp, { radius: 7, color: '#fff', weight: 2, fillColor: near.pole.is_energized ? '#2E7D4F' : '#98A1B8', fillOpacity: 1 })
-          .bindTooltip(near.pole.pole_code || 'Pole').addTo(modalLayer);
+        L.marker(pp, { icon: poleIcon(near.pole) }).addTo(modalLayer);
         L.polyline([here, pp], { color: '#F7E21A', weight: 2, dashArray: '5 5' }).addTo(modalLayer);
         modalMap.fitBounds([here, pp], { padding: [40, 40], maxZoom: 18 });
         nearestBox.innerHTML = `<span class="text-ink-700">Nearest pole:</span> <b class="num">${escapeHtml(near.pole.pole_code || '')}</b> <span class="text-ink-700">· ${Math.round(near.d)} m away · ${near.pole.is_energized ? 'Energized' : 'Not energized'}</span>`;
@@ -642,11 +1130,18 @@
       if (r) { activeTab = inTab(r, 'open') ? 'open' : 'all'; renderTabs(); renderRows(); openReview(id); }
     }
 
+    /* ===== Events ===== */
     document.getElementById('searchInput').addEventListener('input', renderRows);
     document.getElementById('refreshBtn').addEventListener('click', () => fetchIncidents().then(() => toast('List updated.')));
     document.getElementById('mClose').addEventListener('click', closeReview);
     document.getElementById('reviewModal').addEventListener('click', (e) => { if (e.target.id === 'reviewModal') closeReview(); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && current) closeReview(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && current) closeReview();
+      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        document.getElementById('searchInput')?.focus();
+      }
+    });
     document.addEventListener('click', async (e) => {
       if (e.target.closest('#logoutBtn')) {
         await supabaseClient.auth.signOut();
