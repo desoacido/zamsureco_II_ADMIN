@@ -535,8 +535,15 @@
           }
         }
 
-        window.location.href = "admin_login.html";
+        window.location.replace("admin_login.html");
       });
+    }
+  });
+
+  // Kapag bumalik gamit ang Back arrow (galing sa cache), i-reload para ma-check ulit ang session
+  window.addEventListener("pageshow", function (e) {
+    if (e.persisted) {
+      window.location.reload();
     }
   });
 
