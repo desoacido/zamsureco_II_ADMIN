@@ -83,7 +83,7 @@
 
     <!-- Main Scrollable Area -->
     <main class="flex-1 overflow-y-auto p-8">
-      <div class="max-w-4xl mx-auto space-y-8">
+      <div class="max-w-7xl mx-auto space-y-8">
 
         <section class="bg-white border border-line rounded p-8">
           <div class="section-head mb-6">
@@ -91,7 +91,8 @@
             <p class="text-xs text-navy-700/60 mt-0.5">This will appear immediately on the member-facing app.</p>
           </div>
 
-          <form id="announcementForm" class="space-y-4 max-w-2xl">
+          <form id="announcementForm" class="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-4">
+          <div class="space-y-4">
             <div>
               <label class="block text-xs font-medium text-navy-700 mb-1.5">Title</label>
               <input type="text" id="title" placeholder="e.g. Scheduled Power Interruption" required class="w-full px-4 py-2.5 bg-paper-50 border border-line rounded text-sm focus:outline-none focus:ring-2 focus:ring-navy-800 transition">
@@ -117,6 +118,9 @@
               </div>
             </div>
 
+          </div>
+
+          <div class="space-y-4">
             <!-- ADDED: Affected poles picker -->
             <div>
               <label class="block text-xs font-medium text-navy-700 mb-1.5">Affected poles <span class="text-navy-700/50">(optional)</span></label>
@@ -131,11 +135,13 @@
               </div>
             </div>
 
-            <div>
+          </div>
+
+            <div class="lg:col-span-2">
               <label class="block text-xs font-medium text-navy-700 mb-1.5">Attachment image (optional)</label>
               <input type="file" id="imageFile" accept="image/*" class="w-full text-sm text-navy-700 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-paper-100 file:text-navy-800 hover:file:bg-paper-100/70 cursor-pointer border border-line rounded bg-paper-50">
             </div>
-            <div>
+            <div class="lg:col-span-2">
               <button type="submit" id="submitBtn" class="bg-navy-900 hover:bg-navy-800 text-white px-5 py-2.5 rounded text-sm font-semibold transition">Publish announcement</button>
             </div>
           </form>
