@@ -12,6 +12,7 @@
 <script src="personnel.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="theme.js"></script>
 <script>
   tailwind.config = {
     theme: {
@@ -24,6 +25,9 @@
           ok:     { 600:'#3F7857', 100:'#E1EBE3' },
           danger: { 600:'#A33B34', 100:'#F2E1DF' },
           info:   { 600:'#2F5D8A', 100:'#DEE7EF' },
+          brand:  { 50:'#EEF1FB', 100:'#DDE3F7', 200:'#C5CCDA', 700:'#1A2B9E', 800:'#0D2E63', 900:'#0B1555' },
+          navy:   { 900:'#0B1555' },
+          gold:   { 100:'#FCEACB', 500:'#C28A1A', 700:'#8A5A12' },
         },
         fontFamily: {
           sans: ['"IBM Plex Sans"','system-ui','sans-serif'],
@@ -35,122 +39,315 @@
   }
 </script>
 <style>
-  .type-tab { padding: 10px 2px; font-size: 14px; font-weight: 500; color: #4A5372; border-bottom: 3px solid transparent; display: inline-flex; align-items: center; gap: 8px; }
-  .type-tab:hover { color: #1A2B9E; }
-  .type-tab.active { color: #141B3D; font-weight: 600; border-bottom-color: #EBCB00; }
-  .type-tab .count { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: #E2E6FA; color: #1A2B9E; }
-  .type-tab .count.zero { background: #EEF0F5; color: #8A93AD; }
+  /* ===== Page-level ===== */
   body { font-family: 'IBM Plex Sans', system-ui, sans-serif; }
   .num { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
-  .pulse-dot{animation:pulse 2s infinite;}
-  @keyframes pulse{
-    0%{box-shadow:0 0 0 0 rgba(63,120,87,0.45);}
-    70%{box-shadow:0 0 0 6px rgba(63,120,87,0);}
-    100%{box-shadow:0 0 0 0 rgba(63,120,87,0);}
+  .pulse-dot { animation: pulse 2s infinite; }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(63,120,87,0.45); }
+    70%  { box-shadow: 0 0 0 6px rgba(63,120,87,0); }
+    100% { box-shadow: 0 0 0 0 rgba(63,120,87,0); }
   }
   .section-head { border-left: 3px solid #B9722E; padding-left: 12px; }
+  .group-label {
+    font-size: 11px; font-weight: 600; letter-spacing: .8px; text-transform: uppercase;
+  }
 
-  .field { width: 100%; padding: 8px 10px; background: #F5F3EE; border: 1px solid #DBD8CF; border-radius: 3px; font-size: 13px; }
-  .field:focus { outline: none; box-shadow: 0 0 0 2px #1B2E4F; }
-  .btn-primary { background: #12203A; color: #fff; padding: 8px 14px; border-radius: 3px; font-size: 13px; font-weight: 600; }
-  .btn-primary:hover { background: #1B2E4F; }
-  .btn-primary:disabled { background: #9AA3B2; cursor: not-allowed; }
-  .btn-ok { background: #3F7857; color: #fff; padding: 8px 14px; border-radius: 3px; font-size: 13px; font-weight: 600; }
-  .btn-danger { background: #A33B34; color: #fff; padding: 8px 14px; border-radius: 3px; font-size: 13px; font-weight: 600; }
-  .btn-ghost { background: #EFEDE6; color: #1B2E4F; padding: 8px 14px; border-radius: 3px; font-size: 13px; font-weight: 600; border: 1px solid #DBD8CF; }
+  /* ===== Form fields (dashboard-aligned) ===== */
+  .field {
+    width: 100%; padding: 8px 10px; background: #F5F3EE; border: 1px solid #DBD8CF;
+    border-radius: 6px; font-size: 13px; transition: box-shadow .12s, border-color .12s;
+  }
+  .field:focus { outline: none; border-color: #0D2E63; box-shadow: 0 0 0 2px rgba(13,46,99,0.18); }
+  .field:disabled { opacity: .55; cursor: not-allowed; }
 
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  /* ===== Buttons ===== */
+  .btn-primary, .btn-ok, .btn-danger, .btn-ghost {
+    display: inline-flex; align-items: center; gap: 6px; justify-content: center;
+    padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    border: 1px solid transparent; transition: transform .12s, box-shadow .12s, filter .12s;
+    cursor: pointer; white-space: nowrap;
+  }
+  .btn-primary { background: #0D2E63; color: #fff; box-shadow: 0 2px 8px rgba(13,46,99,.18); }
+  .btn-primary:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(13,46,99,.22); }
+  .btn-primary:disabled { background: #9AA3B2; cursor: not-allowed; box-shadow: none; }
 
-  /* Drawer */
-  #drawerBackdrop { background: rgba(18, 32, 58, 0.35); }
-  #drawer { width: min(720px, 100vw); transform: translateX(100%); transition: transform .22s ease; }
+  .btn-ok { background: #3F7857; color: #fff; box-shadow: 0 2px 8px rgba(63,120,87,.18); }
+  .btn-ok:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); }
+
+  .btn-danger { background: #A33B34; color: #fff; box-shadow: 0 2px 8px rgba(163,59,52,.18); }
+  .btn-danger:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); }
+
+  .btn-ghost { background: #fff; color: #0D2E63; border: 1px solid #DBD8CF; box-shadow: 0 1px 3px rgba(11,21,85,.06); }
+  .btn-ghost:hover:not(:disabled) { background: #F7F8FA; transform: translateY(-1px); box-shadow: 0 2px 6px rgba(11,21,85,.1); }
+
+  /* ===== Badge ===== */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+
+  /* ===== Shared scroll box (dashboard) ===== */
+  .scroll-box { overflow-y: auto; scrollbar-width: thin; scrollbar-color: #C5CCDA #F3F5FD; }
+  .scroll-box::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scroll-box::-webkit-scrollbar-track { background: #F3F5FD; border-radius: 4px; }
+  .scroll-box::-webkit-scrollbar-thumb { background: #C5CCDA; border-radius: 4px; border: 2px solid #F3F5FD; }
+  .scroll-box::-webkit-scrollbar-thumb:hover { background: #A9B3C6; }
+
+  /* Table wrapper fills remaining height in the card */
+  #tableWrapper.scroll-box { max-height: none; min-height: 280px; }
+  @media (max-height: 640px) { #tableWrapper.scroll-box { min-height: 200px; } }
+
+  /* ===== Header hamburger (dashboard style) ===== */
+  .hamburger-btn {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: #fff; border: 1px solid #DBD8CF;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    cursor: pointer; flex-shrink: 0; transition: background .12s;
+  }
+  .hamburger-btn:hover { background: #F5F3EE; }
+  .hamburger-btn .bar { display: block; width: 16px; height: 2px; background: #2A4166; border-radius: 999px; }
+
+  /* ===== Type tabs ===== */
+  .type-tab {
+    padding: 10px 4px; font-size: 14px; font-weight: 500; color: #4A5372;
+    border-bottom: 3px solid transparent; display: inline-flex; align-items: center; gap: 8px;
+    transition: color .12s, border-color .12s;
+  }
+  .type-tab:hover { color: #0D2E63; }
+  .type-tab.active { color: #0B1555; font-weight: 600; border-bottom-color: #C28A1A; }
+  .type-tab .count {
+    font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px;
+    background: #DDE3F7; color: #1A2B9E; transition: background .12s;
+  }
+  .type-tab .count.zero { background: #EEF0F5; color: #8A93AD; }
+
+  /* ===== KPI cards (mirrors dashboard .kpi-card) ===== */
+  .kpi-card {
+    position: relative; display: flex; align-items: center; gap: 12px;
+    background: #fff; border: 1px solid #DDE3EC; border-left: 3px solid var(--accent, #0D2E63);
+    border-radius: 10px; box-shadow: 0 2px 6px rgba(11,21,85,.05);
+    padding: 14px 16px; min-height: 72px; cursor: pointer; text-align: left; width: 100%;
+    transition: border-color .15s, box-shadow .15s, transform .15s, background .15s;
+    overflow: hidden;
+  }
+  .kpi-card:hover {
+    background: #FCFCFD; box-shadow: 0 6px 18px rgba(11,21,85,.10);
+    transform: translateY(-2px);
+  }
+  .kpi-card::after {
+    content: "›"; position: absolute; right: 12px; top: 50%;
+    transform: translateY(-50%) translateX(4px);
+    font-size: 20px; font-weight: 700; color: var(--accent, #0D2E63);
+    opacity: 0; transition: opacity .15s, transform .15s; pointer-events: none;
+  }
+  .kpi-card:hover::after { opacity: 1; transform: translateY(-50%) translateX(0); }
+  .kpi-card[aria-pressed="true"] { box-shadow: inset 0 -3px 0 #C28A1A, 0 2px 6px rgba(11,21,85,.05); }
+
+  .kpi-card .kpi-icon {
+    width: 38px; height: 38px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .kpi-card .kpi-icon svg { width: 18px; height: 18px; }
+  .kpi-card .kpi-label {
+    font-size: 10px; line-height: 1.2; font-weight: 600; letter-spacing: .02em;
+    text-transform: uppercase; color: #6B7280; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .kpi-card .kpi-value {
+    font-size: 22px; line-height: 1.1; font-weight: 700; color: #0B1555;
+    font-variant-numeric: tabular-nums; margin-top: 2px;
+    display: flex; align-items: baseline; gap: 6px;
+  }
+  .kpi-card .kpi-sub { font-size: 11px; font-weight: 500; color: #6B7280; font-variant-numeric: tabular-nums; }
+
+  /* ===== Table ===== */
+  .app-table thead th {
+    position: sticky; top: 0; z-index: 1;
+    background: #F7F8FA; color: #4A5372;
+    font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+    padding: 10px 16px; border-bottom: 1px solid #DDE3EC;
+    white-space: nowrap;
+  }
+  .app-table tbody tr { transition: background .12s; }
+  .app-table tbody tr:hover { background: #F8FAFF; }
+
+  /* ===== Drawer ===== */
+  #drawerBackdrop { background: rgba(11,21,85,0.45); }
+  #drawer { width: min(760px, 100vw); transform: translateX(100%); transition: transform .22s ease; }
   #drawer.open { transform: translateX(0); }
-  #appMap { height: 220px; z-index: 0; }
+  #appMap { height: 240px; z-index: 0; border-radius: 8px; }
 
-  /* Stepper */
-  .step-dot { width: 22px; height: 22px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+  /* ===== Stepper ===== */
+  .step-dot {
+    width: 22px; height: 22px; border-radius: 9999px; display: flex; align-items: center;
+    justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0;
+  }
   .step-line { flex: 1; height: 2px; min-width: 8px; }
 
-  /* Folded panels */
+  /* ===== Modern pin (dashboard) ===== */
+  .modern-pin {
+    width: 32px; height: 32px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
+    display: flex; align-items: center; justify-content: center; border: 2px solid white;
+    box-shadow: -2px 2px 6px rgba(0,0,0,0.3); transition: transform 0.15s ease;
+  }
+  .modern-pin:hover { transform: rotate(-45deg) scale(1.1); }
+  .modern-pin svg { transform: rotate(45deg); width: 16px; height: 16px; stroke: white; stroke-width: 2.5; fill: none; }
+
+  .leaflet-tooltip.custom-tooltip {
+    background: rgba(255,255,255,0.98); border: 1px solid #DDE3EC; border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(11,21,85,0.15); padding: 10px 14px; font-size: 12px;
+    color: #0D2E63; line-height: 1.5;
+  }
+  .leaflet-tooltip.custom-tooltip::before { border-top-color: rgba(255,255,255,0.98); }
+
+  /* ===== Map style / action pill buttons ===== */
+  .map-style-btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px;
+    border-radius: 10px; font-size: 12px; font-weight: 700; background: #fff; color: #0D2E63;
+    border: 1px solid #DDE3EC; box-shadow: 0 2px 6px rgba(11,21,85,.08);
+    transition: transform .12s, box-shadow .12s, background .12s; cursor: pointer; white-space: nowrap;
+  }
+  .map-style-btn:hover { background: #F7F8FA; box-shadow: 0 4px 10px rgba(11,21,85,.12); transform: translateY(-1px); }
+  .map-style-btn svg { width: 15px; height: 15px; flex-shrink: 0; color: #0D2E63; }
+  .map-style-btn.is-on { background: #0D2E63; color: #fff; border-color: #0D2E63; }
+  .map-style-btn.is-on svg { color: #fff; }
+
+  .action-btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px;
+    border-radius: 10px; font-size: 12px; font-weight: 700; color: #fff;
+    border: 1px solid transparent; box-shadow: 0 4px 12px rgba(11,21,85,0.18);
+    transition: transform .12s, box-shadow .12s, filter .12s; cursor: pointer; white-space: nowrap;
+  }
+  .action-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(11,21,85,0.22); filter: brightness(1.03); }
+  .action-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+  .action-btn--schedule { background: #1E6B4A; }
+  .action-btn--applications { background: #0D2E63; }
+  .action-btn .count-badge {
+    margin-left: 2px; display: inline-flex; align-items: center; justify-content: center;
+    min-width: 22px; height: 20px; padding: 0 6px; border-radius: 999px;
+    font-size: 11px; font-weight: 800; background: rgba(255,255,255,0.28);
+    color: #fff; font-variant-numeric: tabular-nums;
+  }
+
+  .legend-pill {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600;
+    color: #4A5568; background: #F7F8FA; border: 1px solid #E2E8F0; padding: 4px 10px;
+    border-radius: 999px; white-space: nowrap;
+  }
+  .legend-pill .dot { width: 8px; height: 8px; border-radius: 999px; flex-shrink: 0; }
+
+  /* ===== Folded panels ===== */
   summary::-webkit-details-marker { display: none; }
+  details[data-panel] summary { list-style: none; }
 </style>
 </head>
 <body class="bg-paper-50 text-ink-900 font-sans overflow-x-hidden">
 
-  <!-- Dito i-i-inject ng sidebar.js ang shared sidebar at hamburger menu -->
+  <!-- Sidebar (injected by sidebar.js) -->
   <div id="sidebar-root"></div>
 
   <!-- Main Content Wrapper -->
-  <div class="main-content flex-1 flex flex-col h-screen overflow-hidden">
-    <!-- Navbar -->
-    <nav class="bg-paper-50 border-b border-line px-6 py-4 flex justify-between items-center flex-shrink-0">
-      <div class="flex items-center space-x-4">
-        <button class="hamburger-btn bg-white hover:bg-paper-100 border border-line text-ink-700 rounded w-10 h-10 flex flex-col items-center justify-center gap-1 cursor-pointer transition flex-shrink-0" id="sidebarToggle" aria-label="Toggle navigation menu">
-          <span class="block w-4 h-0.5 bg-ink-700 rounded-full"></span>
-          <span class="block w-4 h-0.5 bg-ink-700 rounded-full"></span>
-          <span class="block w-4 h-0.5 bg-ink-700 rounded-full"></span>
+  <div class="main-content !p-0 flex-1 flex flex-col h-screen overflow-hidden">
+
+    <!-- ===== Navbar (dashboard-aligned) ===== -->
+    <nav class="bg-white border-b border-line px-6 h-16 flex justify-between items-center flex-shrink-0">
+      <div class="flex items-center gap-4">
+        <button class="hamburger-btn" id="sidebarToggle" aria-label="Toggle navigation menu">
+          <span class="bar"></span>
+          <span class="bar"></span>
+          <span class="bar"></span>
         </button>
         <div>
           <h1 class="text-lg font-semibold text-ink-900 leading-tight">Service Applications</h1>
-          <p class="text-xs text-ink-700 mt-0.5">New connection, reconnection, and transfer requests</p>
+          <p class="text-xs text-ink-700">New connection, reconnection, and transfer requests — ZAMSURECO II</p>
         </div>
       </div>
-      <div class="flex items-center space-x-2">
-        <span class="h-2.5 w-2.5 rounded-full bg-ok-600 pulse-dot"></span>
-        <span class="text-xs bg-white text-ink-700 px-3 py-1.5 rounded font-medium border border-line num">Ipil Grid Connected</span>
+      <div class="flex items-center gap-4">
+        <span class="hidden sm:inline-flex items-center gap-2">
+          <span class="h-2.5 w-2.5 rounded-full bg-ok-600 pulse-dot"></span>
+          <span class="text-xs bg-paper-50 text-ink-700 px-3 py-1.5 rounded-full font-medium border border-line num">Ipil Grid Connected</span>
+        </span>
+        <span class="h-4 w-px bg-line hidden sm:inline-block"></span>
+        <span id="adminEmail" class="hidden sm:inline text-sm font-medium text-ink-700"></span>
+        <span class="h-4 w-px bg-line hidden sm:inline-block"></span>
+        <span id="clockText" class="hidden sm:inline num text-[13px] text-ink-700">—</span>
       </div>
     </nav>
 
-    <!-- Main Scrollable Area -->
-    <main class="flex-1 overflow-y-auto p-8">
-      <div class="max-w-6xl mx-auto space-y-6">
+    <!-- ===== Main (flex column that fills all remaining height) ===== -->
+    <main class="flex-1 min-h-0 p-4 lg:p-6 flex flex-col">
+      <div class="flex-1 min-h-0 flex flex-col gap-4 lg:gap-5">
 
-        <div id="typeTabs" class="border-b border-line flex items-end gap-6"></div>
+        <!-- Type tabs + legend -->
+        <div class="flex items-end justify-between gap-4 flex-wrap flex-shrink-0">
+          <div id="typeTabs" class="border-b border-line flex items-end gap-6"></div>
+          <div class="flex items-center gap-2 pb-2 flex-wrap">
+            <span class="text-[11px] font-semibold uppercase tracking-wide text-ink-700">Legend</span>
+            <span class="legend-pill"><span class="dot" style="background:#0D2E63;"></span>New connection</span>
+            <span class="legend-pill"><span class="dot" style="background:#C28A1A;"></span>Reconnection</span>
+            <span class="legend-pill"><span class="dot" style="background:#3F7857;"></span>Transfer</span>
+          </div>
+        </div>
 
-        <section id="statTiles" class="grid grid-cols-2 md:grid-cols-4 bg-white border border-line rounded divide-x divide-line"></section>
+        <!-- KPI cards -->
+        <section id="statTiles" class="grid grid-cols-2 md:grid-cols-4 gap-3 flex-shrink-0"></section>
 
-        <section class="bg-white border border-line rounded">
-          <header class="section-head px-5 pt-5 pb-4 flex items-end justify-between gap-4 flex-wrap">
+        <!-- Applications table card (fills remaining space) -->
+        <section class="bg-white border border-line rounded-lg overflow-hidden flex-1 flex flex-col min-h-0">
+          <header class="px-5 py-4 border-b border-line flex items-end justify-between gap-4 flex-wrap flex-shrink-0">
             <div>
-              <h2 id="listTitle" class="text-base font-semibold text-ink-900">Applications</h2>
-              <p class="text-xs text-ink-700 mt-0.5">Click Manage to schedule the next step. Applicants see every change in the app.</p>
+              <h2 id="listTitle" class="text-sm font-semibold text-ink-900 section-head">Applications</h2>
+              <p class="text-xs text-ink-700 mt-1">Click Manage to schedule the next step. Applicants see every change in the app.</p>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
-              <select id="statusFilter" class="field" style="width:auto"></select>
-              <input id="searchInput" type="search" placeholder="Search name or contact..." class="field" style="width:220px">
+              <select id="statusFilter" class="field" style="width:auto;min-width:140px"></select>
+              <div class="relative">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-700/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <input id="searchInput" type="search" placeholder="Search name or contact..."
+                       class="field pl-9" style="width:240px">
+              </div>
             </div>
           </header>
-          <div id="applicationsContainer">
-            <div class="text-center py-12 text-ink-700/50" id="emptyState" style="display:none;">
-              <svg class="w-12 h-12 mx-auto mb-3 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
-              <p class="text-sm font-medium" id="emptyText">No applications at the moment.</p>
+
+          <div id="applicationsContainer" class="flex-1 min-h-0 flex flex-col">
+            <!-- Empty state (vertically centered in card) -->
+            <div class="text-center py-16 flex-1 flex flex-col items-center justify-center" id="emptyState" style="display:none;">
+              <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-brand-50 text-brand-700 mb-3">
+                <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <rect x="4" y="3" width="16" height="18" rx="2"/>
+                  <path d="M8 8h8M8 12h8M8 16h5"/>
+                </svg>
+              </div>
+              <p class="text-sm font-semibold text-ink-900" id="emptyText">No applications at the moment.</p>
+              <p class="text-xs text-ink-700 mt-1">New submissions will appear here.</p>
             </div>
-            <div id="tableWrapper" class="overflow-x-auto border-t border-line">
-              <table class="w-full text-left border-collapse">
+
+            <!-- Table wrapper fills and scrolls internally -->
+            <div id="tableWrapper" class="scroll-box flex-1 min-h-0">
+              <table class="app-table w-full text-left border-collapse">
                 <thead id="tableHead"></thead>
                 <tbody id="applicationTableBody" class="divide-y divide-line text-sm">
-                  <tr><td colspan="7" class="p-8 text-center text-ink-700/60">Loading applications...</td></tr>
+                  <tr><td colspan="7" class="p-10 text-center text-ink-700/60">Loading applications...</td></tr>
                 </tbody>
               </table>
             </div>
           </div>
         </section>
+
       </div>
     </main>
   </div>
 
-  <!-- Manage drawer -->
+  <!-- ===== Manage drawer ===== -->
   <div id="drawerBackdrop" class="hidden fixed inset-0 z-[300]" onclick="closeDrawer()"></div>
   <aside id="drawer" class="fixed top-0 right-0 bottom-0 bg-paper-50 border-l border-line z-[310] overflow-y-auto shadow-2xl">
     <div id="drawerContent"></div>
   </aside>
 
-  <!-- Toast -->
-  <div id="toast" class="hidden fixed bottom-6 right-6 px-4 py-3 rounded text-sm font-semibold shadow-lg z-[400]"></div>
+  <!-- ===== Toast ===== -->
+  <div id="toast" class="hidden fixed bottom-6 right-6 px-4 py-3 rounded-lg text-sm font-semibold shadow-lg z-[400]"></div>
 
-  <!-- Confirmation dialog (replaces the browser's confirm pop-up) -->
-  <div id="confirmModal" class="hidden fixed inset-0 z-[500] flex items-center justify-center p-4" style="background:rgba(18,32,58,0.45)">
-    <div class="bg-white rounded border border-line shadow-2xl w-full max-w-md">
+  <!-- ===== Confirm modal ===== -->
+  <div id="confirmModal" class="hidden fixed inset-0 z-[500] items-center justify-center p-4" style="background:rgba(11,21,85,0.45)">
+    <div class="bg-white rounded-lg border border-line shadow-2xl w-full max-w-md">
       <div class="px-6 pt-6 pb-4">
         <div class="flex items-start gap-3">
           <div id="confirmIcon" class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"></div>
@@ -160,7 +357,7 @@
           </div>
         </div>
       </div>
-      <div class="px-6 py-4 bg-paper-50 border-t border-line flex justify-end gap-2 rounded-b">
+      <div class="px-6 py-4 bg-paper-50 border-t border-line flex justify-end gap-2 rounded-b-lg">
         <button id="confirmCancel" class="btn-ghost">Cancel</button>
         <button id="confirmOk" class="btn-primary">OK</button>
       </div>
@@ -168,11 +365,13 @@
   </div>
 
   <script>
+    // ============================================================
+    // Supabase + constants
+    // ============================================================
     const SUPABASE_URL = 'https://zrnvivattocqvxlxzsld.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_PUfegf_zyb5B_gVas_SLyw_mto9NFGF';
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // The order an application moves through
     const STEPS = [
       { status: 'Pending',                label: 'Applied' },
       { status: 'PMES Scheduled',         label: 'PMES scheduled' },
@@ -185,7 +384,6 @@
       { status: 'Energized',              label: 'Energized' },
     ];
 
-    // Reconnection requests have their own, shorter steps
     const RECON_STEPS = [
       { status: 'Pending',                label: 'Requested' },
       { status: 'Payment Verified',       label: 'Payment verified' },
@@ -199,6 +397,7 @@
       'Reconnected':            'Completed',
       'Rejected':               '—',
     };
+
     const TRANSFER_STEPS = [
       { status: 'Pending',            label: 'Requested' },
       { status: 'For Inspection',     label: 'Inspection' },
@@ -217,6 +416,7 @@
       'Transferred':        'Completed',
       'Rejected':           '—',
     };
+
     const isRecon = (a) => (a && a.application_type) === 'Reconnection';
     const isTransfer = (a) => (a && a.application_type) === 'Transfer of Connection';
     const nextLabel = (a) => (isRecon(a) ? RECON_NEXT : (isTransfer(a) ? TRANSFER_NEXT : NEXT_STEP))[a.status || 'Pending'] || '—';
@@ -260,6 +460,9 @@
         tab: 'New Connection',
         title: 'New connection applications',
         match: (a) => !isRecon(a) && !isTransfer(a),
+        accent: '#0D2E63',
+        iconColor: 'bg-brand-50 text-brand-700',
+        iconSvg: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
         tiles: [
           ['active', 'Needs action', ''],
           ['For Inspection', 'For inspection', 'text-info-600'],
@@ -273,6 +476,9 @@
         tab: 'Reconnection',
         title: 'Reconnection requests',
         match: (a) => isRecon(a),
+        accent: '#C28A1A',
+        iconColor: 'bg-gold-100 text-gold-700',
+        iconSvg: '<path d="M13 2L3 14h7l-1 8 11-14h-7l1-6z"/>',
         tiles: [
           ['active', 'Needs action', ''],
           ['Pending', 'Awaiting payment', 'text-copper-500'],
@@ -285,6 +491,9 @@
         tab: 'Transfer of Connection',
         title: 'Transfer requests',
         match: (a) => isTransfer(a),
+        accent: '#3F7857',
+        iconColor: 'bg-ok-100 text-ok-600',
+        iconSvg: '<path d="M4 7h11l-3-3M20 17H9l3 3"/>',
         tiles: [
           ['active', 'Needs action', ''],
           ['For Inspection', 'For inspection', 'text-info-600'],
@@ -295,24 +504,30 @@
                    'Transfer Scheduled', 'Transferred', 'Rejected'],
       },
     };
+
     const typeOf = (a) => isRecon(a) ? 'reconnection' : (isTransfer(a) ? 'transfer' : 'new');
     let currentType = 'new';
 
     let applications = [];
-    let pmesHints = {};        // connection_type -> PMES schedule text
-    let current = null;        // application open in the drawer
+    let pmesHints = {};
+    let current = null;
     let currentReqs = [];
-    let currentRecon = null;   // for reconnection: unpaid bills, fee, account status
+    let currentRecon = null;
     let appMap = null;
-    const openPanels = new Set();   // folded panels the admin opened in this application
+    const openPanels = new Set();
 
+    // ============================================================
+    // Auth + boot
+    // ============================================================
     async function checkAuth() {
       const { data: { session } } = await _supabase.auth.getSession();
       if (!session) { window.location.href = 'admin_login.html'; return; }
+      setText('adminEmail', session.user.email || '');
+      tickClock();
+      setInterval(tickClock, 30000);
       loadPmesHints();
       await fetchApplications();
 
-      // From the Dashboard schedule: open that application's Manage panel right away
       const openId = new URLSearchParams(window.location.search).get('open');
       if (openId) {
         const target = applications.find(a => String(a.id) === String(openId));
@@ -324,6 +539,13 @@
         openDrawer(openId);
       }
     }
+
+    function tickClock() {
+      const el = document.getElementById('clockText');
+      if (el) el.textContent = new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+    }
+
+    function setText(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
 
     document.addEventListener('click', async (e) => {
       if (e.target.closest('#logoutBtn')) {
@@ -339,50 +561,31 @@
 
     checkAuth();
 
-    // ------------------------------------------------------------------
-    // HELPERS
-    // ------------------------------------------------------------------
+    // ============================================================
+    // Helpers
+    // ============================================================
     function escapeHtml(str) {
       if (str === null || str === undefined) return '';
       return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
     }
-
     function fmtDate(v) {
       if (!v) return '';
       return new Date(v).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
     }
-
     function fmtPeso(v) {
       if (v === null || v === undefined || v === '') return '';
       return '₱' + Number(v).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
-
-    // ISO timestamp -> value for <input type="datetime-local">
     function toLocalInput(v) {
       if (!v) return '';
       const d = new Date(v);
       const pad = n => String(n).padStart(2, '0');
       return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     }
-
-    function fromLocalInput(v) {
-      return v ? new Date(v).toISOString() : null;
-    }
-
-    // Current date/time in <input type="datetime-local"> format, used as the minimum
-    function nowLocalInput() {
-      return toLocalInput(new Date().toISOString());
-    }
-
-    // Schedules must be in the future
-    function isPast(v) {
-      return v && new Date(v) < new Date();
-    }
-
-    function val(id) {
-      const el = document.getElementById(id);
-      return el ? el.value.trim() : '';
-    }
+    function fromLocalInput(v) { return v ? new Date(v).toISOString() : null; }
+    function nowLocalInput() { return toLocalInput(new Date().toISOString()); }
+    function isPast(v) { return v && new Date(v) < new Date(); }
+    function val(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
 
     function statusBadge(status) {
       const s = status || 'Pending';
@@ -391,19 +594,16 @@
 
     function toast(text, ok = true) {
       const t = document.getElementById('toast');
-      t.className = 'fixed bottom-6 right-6 px-4 py-3 rounded text-sm font-semibold shadow-lg z-[400] ' +
+      t.className = 'fixed bottom-6 right-6 px-4 py-3 rounded-lg text-sm font-semibold shadow-lg z-[400] ' +
         (ok ? 'bg-ok-100 text-ok-600 border border-ok-600/30' : 'bg-danger-100 text-danger-600 border border-danger-600/30');
       t.textContent = text;
+      t.classList.remove('hidden');
       clearTimeout(t._timer);
       t._timer = setTimeout(() => t.classList.add('hidden'), 3200);
     }
 
-    function isActive(a) {
-      return !FINISHED.includes(a.status || 'Pending');
-    }
+    function isActive(a) { return !FINISHED.includes(a.status || 'Pending'); }
 
-    // Styled confirmation box. Resolves true when OK is pressed.
-    // tone: 'ok' (green), 'danger' (red), or 'primary' (navy)
     function confirmDialog({ title, message, okText = 'OK', tone = 'primary' }) {
       return new Promise(resolve => {
         const modal = document.getElementById('confirmModal');
@@ -414,7 +614,7 @@
         const tones = {
           ok:      { btn: 'btn-ok',      bg: '#E1EBE3', color: '#3F7857', svg: '<path d="M13 2L3 14h7l-1 8 11-14h-7l1-6z"/>' },
           danger:  { btn: 'btn-danger',  bg: '#F2E1DF', color: '#A33B34', svg: '<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/>' },
-          primary: { btn: 'btn-primary', bg: '#DEE7EF', color: '#2F5D8A', svg: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/>' },
+          primary: { btn: 'btn-primary', bg: '#DDE3F7', color: '#0D2E63', svg: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/>' },
         };
         const t = tones[tone] || tones.primary;
 
@@ -426,10 +626,12 @@
         icon.innerHTML = `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="${t.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${t.svg}</svg>`;
 
         modal.classList.remove('hidden');
+        modal.classList.add('flex');
         okBtn.focus();
 
         const close = (result) => {
           modal.classList.add('hidden');
+          modal.classList.remove('flex');
           okBtn.onclick = cancelBtn.onclick = modal.onclick = document.onkeydown = null;
           resolve(result);
         };
@@ -440,7 +642,6 @@
       });
     }
 
-    // PMES schedule text per connection type, taken from the requirement list
     async function loadPmesHints() {
       const { data } = await _supabase
         .from('requirement_templates')
@@ -449,9 +650,9 @@
       (data || []).forEach(r => { pmesHints[r.connection_type] = r.details; });
     }
 
-    // ------------------------------------------------------------------
-    // LIST
-    // ------------------------------------------------------------------
+    // ============================================================
+    // List
+    // ============================================================
     async function fetchApplications() {
       const { data, error } = await _supabase
         .from('service_applications')
@@ -460,7 +661,7 @@
 
       if (error) {
         document.getElementById('applicationTableBody').innerHTML =
-          `<tr><td colspan="7" class="p-8 text-center text-danger-600 font-medium">Error: ${escapeHtml(error.message)}</td></tr>`;
+          `<tr><td colspan="7" class="p-10 text-center text-danger-600 font-medium">Error: ${escapeHtml(error.message)}</td></tr>`;
         return;
       }
 
@@ -490,12 +691,25 @@
       renderTypeTabs();
       const t = TYPES[currentType];
       const mine = applications.filter(t.match);
-      document.getElementById('statTiles').innerHTML = t.tiles.map(([filter, label, color]) => `
-        <button type="button" data-filter="${escapeHtml(filter)}" class="stat-tile p-5 text-left hover:bg-paper-50 transition">
-          <p class="text-xs text-ink-700">${label}</p>
-          <p class="text-3xl font-semibold num mt-1 ${color}">${mine.filter(a => matchesFilter(a, filter)).length}</p>
-        </button>`).join('');
 
+      // KPI-style tiles (dashboard aesthetic)
+      document.getElementById('statTiles').innerHTML = t.tiles.map(([filter, label, color]) => {
+        const n = mine.filter(a => matchesFilter(a, filter)).length;
+        const active = document.getElementById('statusFilter')?.value === filter;
+        return `
+          <button type="button" class="kpi-card stat-tile" data-filter="${escapeHtml(filter)}"
+                  style="--accent:${t.accent};" aria-pressed="${active ? 'true' : 'false'}">
+            <span class="kpi-icon ${t.iconColor}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">${t.iconSvg}</svg>
+            </span>
+            <div class="kpi-text min-w-0">
+              <span class="kpi-label">${escapeHtml(label)}</span>
+              <span class="kpi-value ${color}">${n}</span>
+            </div>
+          </button>`;
+      }).join('');
+
+      // Status filter
       const select = document.getElementById('statusFilter');
       const keep = select.value || 'all';
       const options = [['all', 'All'], ['active', 'Needs action'], ['flagged', 'Flagged (needs review)'],
@@ -509,13 +723,13 @@
 
     function tableHead() {
       const cols = currentType === 'new'
-        ? ['Applicant', 'Connection type', 'Eligibility', 'Status', 'Next step', 'Date applied', 'Action']
+        ? ['Applicant', 'Connection type', 'Eligibility', 'Status', 'Next step', 'Date applied', '']
         : currentType === 'reconnection'
-          ? ['Member', 'Account no.', 'Address', 'Status', 'Next step', 'Date requested', 'Action']
-          : ['Member', 'Account no.', 'New location', 'Status', 'Next step', 'Date requested', 'Action'];
+          ? ['Member', 'Account no.', 'Address', 'Status', 'Next step', 'Date requested', '']
+          : ['Member', 'Account no.', 'New location', 'Status', 'Next step', 'Date requested', ''];
       document.getElementById('tableHead').innerHTML =
-        `<tr class="bg-paper-100 text-ink-700 text-xs font-medium border-b border-line">${cols.map((c, i) =>
-          `<th class="p-4 ${i === cols.length - 1 ? 'text-center' : ''}">${c}</th>`).join('')}</tr>`;
+        `<tr>${cols.map((c, i) =>
+          `<th class="${i === cols.length - 1 ? 'text-center' : ''}">${c}</th>`).join('')}</tr>`;
     }
 
     function renderTable() {
@@ -538,7 +752,7 @@
       const tableWrapper = document.getElementById('tableWrapper');
 
       if (rows.length === 0) {
-        emptyState.style.display = 'block';
+        emptyState.style.display = 'flex';
         tableWrapper.style.display = 'none';
         document.getElementById('emptyText').textContent =
           applications.some(TYPES[currentType].match) ? 'Nothing matches this filter.' : `No ${TYPES[currentType].title.toLowerCase()} yet.`;
@@ -546,7 +760,7 @@
       }
 
       emptyState.style.display = 'none';
-      tableWrapper.style.display = 'block';
+      tableWrapper.style.display = 'flex';
 
       tbody.innerHTML = rows.map(a => {
         const elig = a.eligibility_status || '—';
@@ -555,31 +769,30 @@
         const poleInfo = a.nearest_pole
           ? `<div class="text-xs text-ink-700/70 num">${escapeHtml(a.nearest_pole)} · ${Number(a.distance || 0).toFixed(1)} m</div>`
           : '';
-        return `<tr class="hover:bg-paper-100/60 transition">
-          <td class="p-4">
+        return `<tr>
+          <td class="px-4 py-3">
             <div class="font-semibold text-ink-900">${escapeHtml(a.consumer_name || 'N/A')}${flagged}</div>
-            <div class="text-xs text-ink-700 num">${escapeHtml(a.contact_number || '—')}</div>
+            <div class="text-xs text-ink-700 num mt-0.5">${escapeHtml(a.contact_number || '—')}</div>
           </td>
           ${currentType === 'new'
-            ? `<td class="p-4 text-ink-700">${escapeHtml(a.connection_type || '—')}</td>
-               <td class="p-4"><div class="text-xs font-semibold ${eligColor}">${escapeHtml(elig)}</div>${poleInfo}</td>`
-            : `<td class="p-4 text-sm font-semibold num text-ink-900 whitespace-nowrap">${escapeHtml(a.account_number || '—')}</td>
-               <td class="p-4 max-w-[260px]">
+            ? `<td class="px-4 py-3 text-ink-700">${escapeHtml(a.connection_type || '—')}</td>
+               <td class="px-4 py-3"><div class="text-xs font-semibold ${eligColor}">${escapeHtml(elig)}</div>${poleInfo}</td>`
+            : `<td class="px-4 py-3 text-sm font-semibold num text-ink-900 whitespace-nowrap">${escapeHtml(a.account_number || '—')}</td>
+               <td class="px-4 py-3 max-w-[260px]">
                  <div class="text-xs text-ink-800 truncate" title="${escapeHtml(a.address || '')}">${escapeHtml(a.address || '—')}</div>
                  ${currentType === 'transfer' ? `<div class="text-xs font-semibold ${eligColor}">${escapeHtml(elig)}</div>${poleInfo}` : ''}
                </td>`}
-          <td class="p-4">${statusBadge(a.status)}</td>
-          <td class="p-4 text-xs text-ink-700">${escapeHtml(nextLabel(a))}</td>
-          <td class="p-4 text-xs text-ink-700 num">${a.created_at ? escapeHtml(fmtDate(a.created_at)) : 'N/A'}</td>
-          <td class="p-4 text-center">
+          <td class="px-4 py-3">${statusBadge(a.status)}</td>
+          <td class="px-4 py-3 text-xs text-ink-700">${escapeHtml(nextLabel(a))}</td>
+          <td class="px-4 py-3 text-xs text-ink-700 num">${a.created_at ? escapeHtml(fmtDate(a.created_at)) : 'N/A'}</td>
+          <td class="px-4 py-3 text-center">
             <button class="btn-primary" data-manage="${a.id}">Manage</button>
           </td>
         </tr>`;
       }).join('');
     }
 
-    // Start with the filter from the link (e.g. ?filter=active from the dashboard).
-    // Opening the page from the sidebar shows all applications.
+    // Apply URL filters before first render
     (function applyFilterFromUrl() {
       const params = new URLSearchParams(window.location.search);
       let type = params.get('type');
@@ -603,12 +816,6 @@
       renderTable();
     }
 
-    document.getElementById('typeTabs').addEventListener('click', (e) => {
-      const tab = e.target.closest('[data-type]');
-      if (tab) setType(tab.dataset.type);
-    });
-
-    // Keep the URL in step with the filter, so refresh or sharing keeps the same view
     function setFilter(value) {
       const select = document.getElementById('statusFilter');
       select.value = value;
@@ -620,18 +827,19 @@
       renderTable();
     }
 
-    // Underline the summary number that matches the current filter
     function highlightActiveTile() {
       const current = document.getElementById('statusFilter').value;
       document.querySelectorAll('.stat-tile').forEach(t => {
         const on = t.dataset.filter === current;
-        t.style.boxShadow = on ? 'inset 0 -3px 0 #EBCB00' : 'none';
         t.setAttribute('aria-pressed', on ? 'true' : 'false');
       });
     }
 
+    document.getElementById('typeTabs').addEventListener('click', (e) => {
+      const tab = e.target.closest('[data-type]');
+      if (tab) setType(tab.dataset.type);
+    });
     document.getElementById('statusFilter').addEventListener('change', (e) => setFilter(e.target.value));
-
     document.getElementById('statTiles').addEventListener('click', (e) => {
       const tile = e.target.closest('.stat-tile');
       if (!tile) return;
@@ -644,9 +852,9 @@
       if (btn) openDrawer(btn.dataset.manage);
     });
 
-    // ------------------------------------------------------------------
-    // DRAWER
-    // ------------------------------------------------------------------
+    // ============================================================
+    // Drawer
+    // ============================================================
     async function openDrawer(id) {
       openPanels.clear();
       document.getElementById('drawerBackdrop').classList.remove('hidden');
@@ -693,7 +901,6 @@
       if (document.getElementById('acctNo') && !document.getElementById('acctNo').value) fillNextAccountNumber(false);
     }
 
-    // For a reconnection request: the account's unpaid bills, its status, and the fee
     async function loadReconDetails(app) {
       const acct = app.account_number;
       const [bills, status, fee] = await Promise.all([
@@ -720,17 +927,17 @@
       if (failed) idx = steps.findIndex(s => s.status === 'For Inspection');
       if (idx < 0) idx = 0;
 
-      return `<div class="flex items-center gap-1 overflow-x-auto pb-1">` + steps.map((s, i) => {
+      return `<div class="flex items-center gap-1 overflow-x-auto pb-2 pt-1">` + steps.map((s, i) => {
         const done = i < idx || status === finalStatus;
         const now = i === idx && status !== finalStatus;
-        const color = done ? '#3F7857' : (now ? (failed ? '#A33B34' : '#B9722E') : '#DBD8CF');
+        const color = done ? '#3F7857' : (now ? (failed ? '#A33B34' : '#C28A1A') : '#DBD8CF');
         const textColor = done || now ? '#fff' : '#2A4166';
-        const dot = `<div class="flex flex-col items-center gap-1" style="min-width:58px">
+        const dot = `<div class="flex flex-col items-center gap-1.5" style="min-width:64px">
             <div class="step-dot" style="background:${color};color:${textColor}">${done ? '✓' : i + 1}</div>
             <div class="text-[10px] text-center leading-tight ${now ? 'font-semibold text-ink-900' : 'text-ink-700/70'}">${s.label}</div>
           </div>`;
         const line = i < steps.length - 1
-          ? `<div class="step-line" style="background:${i < idx || status === finalStatus ? '#3F7857' : '#DBD8CF'};margin-bottom:16px"></div>`
+          ? `<div class="step-line" style="background:${i < idx || status === finalStatus ? '#3F7857' : '#DBD8CF'};margin-bottom:18px"></div>`
           : '';
         return dot + line;
       }).join('') + `</div>`;
@@ -740,7 +947,6 @@
       return currentReqs.length === 0 || currentReqs.every(r => r.is_received);
     }
 
-    // Short "what to do next" text for the drawer header
     function nextStepText(app) {
       const status = app.status || 'Pending';
       if (isRecon(app)) return nextLabel(app);
@@ -760,7 +966,6 @@
       return nextLabel(app);
     }
 
-    // The card that shows the ONE thing the admin should do next
     function renderNextAction(app) {
       const status = app.status || 'Pending';
       if (isRecon(app)) return renderReconAction(app);
@@ -789,8 +994,6 @@
             <p class="text-xs text-ink-700/70 mt-2">Marking attendance also checks off the PMES requirement automatically.</p>`);
 
         case 'PMES Completed':
-          // Papers may be handed in before a submission date is set.
-          // If they are already complete, go straight to the inspection.
           if (currentReqs.length > 0 && allPapersReceived()) {
             return actionCard('All papers received: schedule the inspection', `
               <p class="text-xs text-ok-600 font-semibold mb-3">The applicant already handed in all papers, so no submission schedule is needed.</p>
@@ -871,7 +1074,6 @@
       }
     }
 
-    // Reconnection: verify payment → schedule → reconnected
     function renderReconAction(app) {
       const status = app.status || 'Pending';
       const r = currentRecon || { unpaid: [], unpaidTotal: 0, accountStatus: 'Active', fee: 150 };
@@ -895,7 +1097,7 @@
               : `<p class="text-xs text-ok-600 font-semibold mb-3">All bills are paid. Record the reconnection fee to continue.</p>`}
             <label class="text-xs font-medium text-ink-700">OR number of the reconnection fee (paid at the cashier)</label>
             <input id="reconOr" type="text" class="field mt-1 num" placeholder="e.g. 0012345" ${hasUnpaid ? 'disabled' : ''}>
-            <button class="btn-ok mt-3" onclick="actReconVerify()" ${hasUnpaid ? 'disabled style="opacity:.5;cursor:not-allowed"' : ''}>Save OR number</button>`);
+            <button class="btn-ok mt-3" onclick="actReconVerify()" ${hasUnpaid ? 'disabled' : ''}>Save OR number</button>`);
         }
         case 'Payment Verified':
           return actionCard('Schedule the reconnection', `
@@ -970,7 +1172,7 @@
     }
 
     function actionCard(title, body, done = false) {
-      return `<section id="nextStepCard" class="bg-white border ${done ? 'border-ok-600/40' : 'border-copper-500/50'} rounded p-5 scroll-mt-28">
+      return `<section id="nextStepCard" class="bg-white border ${done ? 'border-ok-600/40' : 'border-copper-500/50'} rounded-lg p-5 scroll-mt-28 shadow-sm">
           <p class="text-[11px] font-semibold tracking-wide ${done ? 'text-ok-600' : 'text-copper-500'} mb-1">${done ? 'STATUS' : 'NEXT STEP'}</p>
           <h3 class="text-base font-semibold text-ink-900 mb-3">${title}</h3>
           ${body}
@@ -978,8 +1180,6 @@
     }
 
     function renderChecklist() {
-      // Per ZAMSURECO II: the applicant may know the requirements anytime,
-      // but papers can only be SUBMITTED after attending the PMES.
       const locked = !current?.pmes_attended;
       if (currentReqs.length === 0) {
         return `<p class="text-xs text-ink-700/70">No checklist for this application (it was submitted before connection types were added).</p>`;
@@ -992,8 +1192,8 @@
           <span class="text-xs font-semibold text-ink-800">${received} of ${currentReqs.length} received</span>
           <span class="text-xs num text-ink-700">${pct}%</span>
         </div>
-        <div class="h-1.5 bg-paper-100 rounded mb-3"><div class="h-1.5 rounded" style="width:${pct}%;background:${pct === 100 ? '#3F7857' : '#B9722E'}"></div></div>
-        <div class="divide-y divide-line border border-line rounded bg-white ${locked ? 'opacity-60' : ''}">
+        <div class="h-1.5 bg-paper-100 rounded mb-3"><div class="h-1.5 rounded" style="width:${pct}%;background:${pct === 100 ? '#3F7857' : '#C28A1A'}"></div></div>
+        <div class="divide-y divide-line border border-line rounded-lg bg-white ${locked ? 'opacity-60' : ''}">
           ${currentReqs.map(r => `
             <label class="flex items-start gap-3 p-3 ${locked ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-paper-50'}">
               <input type="checkbox" class="mt-0.5 w-4 h-4 accent-green-700" data-req="${r.id}" ${r.is_received ? 'checked' : ''} ${locked ? 'disabled' : ''}>
@@ -1019,7 +1219,7 @@
       ].filter(r => r[1]);
 
       document.getElementById('drawerContent').innerHTML = `
-        <div class="sticky top-0 bg-paper-50 border-b border-line px-6 py-4 flex items-start justify-between gap-4 z-10">
+        <div class="sticky top-0 bg-white border-b border-line px-6 py-4 flex items-start justify-between gap-4 z-10">
           <div>
             <div class="flex items-center gap-2 flex-wrap">
               <h2 class="text-lg font-semibold text-ink-900">${escapeHtml(app.consumer_name || 'N/A')}</h2>
@@ -1029,22 +1229,20 @@
             <p class="text-xs text-ink-700 mt-1 num">${escapeHtml(app.contact_number || '—')} · Applied ${escapeHtml(fmtDate(app.created_at))}</p>
             ${!FINISHED.includes(status) ? `
             <button onclick="document.getElementById('nextStepCard')?.scrollIntoView({behavior:'smooth', block:'start'})"
-              class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-copper-500 bg-copper-100 px-2.5 py-1 rounded hover:opacity-80">
+              class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-copper-500 bg-copper-100 px-2.5 py-1 rounded-full hover:opacity-80">
               Next: ${escapeHtml(nextStepText(app))} ↑
             </button>` : ''}
           </div>
-          <button onclick="closeDrawer()" class="text-ink-700 hover:text-ink-900 text-2xl leading-none px-2" aria-label="Close">&times;</button>
+          <button onclick="closeDrawer()" class="text-ink-700 hover:text-ink-900 hover:bg-paper-100 rounded-lg w-8 h-8 flex items-center justify-center transition" aria-label="Close">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
         </div>
 
         <div class="p-6 space-y-5">
           ${renderStepper(app)}
-
           ${renderNextAction(app)}
-
-          <!-- Papers: open only while papers are being received -->
           ${renderPapersSection(app)}
 
-          <!-- Everything else is folded away until needed -->
           <div class="space-y-3">
             ${isRecon(app) ? foldPanel('panelDetails', 'Account details', `
               <div class="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
@@ -1066,7 +1264,7 @@
                 <div><p class="text-xs text-ink-700">Eligibility</p><p class="font-semibold">${escapeHtml(app.eligibility_status || '—')}</p></div>
                 <div><p class="text-xs text-ink-700">Nearest pole</p><p class="font-semibold num">${escapeHtml(app.nearest_pole || '—')}${app.distance ? ` · ${Number(app.distance).toFixed(1)} m` : ''}${pole ? ` · ${pole.available_slots} slot(s) left` : ''}${app.slot_reserved ? ' · slot reserved' : ''}</p></div>
               </div>
-              ${app.latitude && app.longitude ? `<div id="appMap" class="border border-line rounded mt-4"></div>` : ''}`)}
+              ${app.latitude && app.longitude ? `<div id="appMap" class="border border-line rounded-lg mt-4"></div>` : ''}`)}
 
             ${scheduleRows.length ? foldPanel('panelHistory', `Schedule history <span class="text-ink-700/60 font-normal">(${scheduleRows.length})</span>`, `
               <dl class="text-sm space-y-2">
@@ -1087,12 +1285,10 @@
 
       fillPersonnel(_supabase, document.getElementById('drawerContent'));
 
-      // Checklist toggles
       document.querySelectorAll('[data-req]').forEach(cb => {
         cb.addEventListener('change', () => toggleRequirement(cb.dataset.req, cb.checked));
       });
 
-      // Remember which folded panels are open, and draw the map when its panel opens
       if (appMap) { appMap.remove(); appMap = null; }
       document.querySelectorAll('details[data-panel]').forEach(d => {
         d.addEventListener('toggle', () => {
@@ -1103,31 +1299,28 @@
       if (openPanels.has('panelDetails')) drawAppMap(app, pole);
     }
 
-    // Folded section (closed unless the admin opened it before)
     function foldPanel(id, title, body) {
-      return `<details data-panel="${id}" class="group bg-white border border-line rounded" ${openPanels.has(id) ? 'open' : ''}>
+      return `<details data-panel="${id}" class="group bg-white border border-line rounded-lg overflow-hidden" ${openPanels.has(id) ? 'open' : ''}>
           <summary class="flex items-center justify-between cursor-pointer select-none px-5 py-3 text-sm font-semibold text-ink-900 list-none">
             <span>${title}</span>
             <svg class="w-4 h-4 text-ink-700 transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
           </summary>
-          <div class="px-5 pb-5 pt-1 border-t border-line">${body}</div>
+          <div class="px-5 pb-5 pt-2 border-t border-line">${body}</div>
         </details>`;
     }
 
-    // Papers checklist: hidden before PMES, open while receiving papers, folded afterwards
     function renderPapersSection(app) {
       const status = app.status || 'Pending';
       if (!app.pmes_attended || currentReqs.length === 0) return '';
-
       const received = currentReqs.filter(r => r.is_received).length;
       const receivingNow = isTransfer(app)
         ? status === 'Pending'
         : ['PMES Completed', 'Submission Scheduled'].includes(status);
 
       if (receivingNow) {
-        return `<section class="bg-white border border-line rounded p-5">
-            <h3 class="text-sm font-semibold text-ink-900 mb-1">Papers received at the office</h3>
-            <p class="text-xs text-ink-700/70 mb-3">Tick each paper when the applicant hands it in. The applicant sees what is still missing in the app.</p>
+        return `<section class="bg-white border border-line rounded-lg p-5">
+            <h3 class="text-sm font-semibold text-ink-900 mb-1 section-head">Papers received at the office</h3>
+            <p class="text-xs text-ink-700/70 mt-2 mb-3">Tick each paper when the applicant hands it in. The applicant sees what is still missing in the app.</p>
             ${renderChecklist()}
           </section>`;
       }
@@ -1137,19 +1330,25 @@
         renderChecklist());
     }
 
-    // Map: applicant pin, nearest pole, and the line between them
     function drawAppMap(app, pole) {
       if (appMap || !app.latitude || !app.longitude || !document.getElementById('appMap')) return;
       const home = [Number(app.latitude), Number(app.longitude)];
       appMap = L.map('appMap', { scrollWheelZoom: false });
       addBaseLayers(appMap);
-      L.marker(home).addTo(appMap).bindTooltip('Applicant', { permanent: true, direction: 'top' });
+
+      const appIcon = L.divIcon({
+        html: `<div class="modern-pin" style="background:#0D2E63;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>`,
+        className: '', iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -32],
+      });
+      L.marker(home, { icon: appIcon })
+        .addTo(appMap)
+        .bindTooltip('Applicant', { permanent: true, direction: 'top', className: 'custom-tooltip', offset: [0, -32] });
 
       if (pole) {
         const p = [Number(pole.latitude), Number(pole.longitude)];
         L.circleMarker(p, { radius: 8, color: '#fff', weight: 2, fillColor: pole.is_energized ? '#3F7857' : '#9CA3AF', fillOpacity: 1 })
-          .addTo(appMap).bindTooltip(pole.pole_code, { permanent: true, direction: 'right' });
-        L.polyline([home, p], { color: '#B9722E', weight: 3, dashArray: '6 6' })
+          .addTo(appMap).bindTooltip(pole.pole_code, { permanent: true, direction: 'right', className: 'custom-tooltip' });
+        L.polyline([home, p], { color: '#C28A1A', weight: 3, dashArray: '6 6' })
           .addTo(appMap).bindTooltip(`${Number(app.distance || 0).toFixed(1)} m`, { permanent: true, direction: 'center' });
         appMap.fitBounds([home, p], { padding: [40, 40], maxZoom: 18 });
       } else {
@@ -1158,9 +1357,9 @@
       setTimeout(() => appMap && appMap.invalidateSize(), 150);
     }
 
-    // ------------------------------------------------------------------
-    // ACTIONS
-    // ------------------------------------------------------------------
+    // ============================================================
+    // Actions
+    // ============================================================
     async function updateApp(fields, message) {
       if (!current) return;
       const { error } = await _supabase.from('service_applications').update(fields).eq('id', current.id);
@@ -1186,90 +1385,63 @@
       const date = val('pmesDate');
       if (!date) { toast('Please set the PMES date and time.', false); return; }
       if (isPast(date)) { toast('The PMES schedule cannot be in the past.', false); return; }
-      updateApp({
-        pmes_schedule: fromLocalInput(date),
-        pmes_venue: val('pmesVenue') || null,
-        status: 'PMES Scheduled',
-      }, 'PMES schedule saved. The applicant can now see it in the app.');
+      updateApp({ pmes_schedule: fromLocalInput(date), pmes_venue: val('pmesVenue') || null, status: 'PMES Scheduled' },
+        'PMES schedule saved. The applicant can now see it in the app.');
     }
-
-    function actPmesAttended() {
-      updateApp({ pmes_attended: true, status: 'PMES Completed' }, 'PMES attendance recorded.');
-    }
-
+    function actPmesAttended() { updateApp({ pmes_attended: true, status: 'PMES Completed' }, 'PMES attendance recorded.'); }
     function actSetSubmission() {
       const date = val('subDate');
       if (!date) { toast('Please set the submission date and time.', false); return; }
       if (isPast(date)) { toast('The submission schedule cannot be in the past.', false); return; }
-      updateApp({ submission_schedule: fromLocalInput(date), status: 'Submission Scheduled' },
-        'Submission schedule saved.');
+      updateApp({ submission_schedule: fromLocalInput(date), status: 'Submission Scheduled' }, 'Submission schedule saved.');
     }
-
     function actTransferSchedule() {
-      const date = val('trDate');
-      const crew = val('trCrew');
+      const date = val('trDate'), crew = val('trCrew');
       if (!date) { toast('Please set the transfer date and time.', false); return; }
       if (isPast(date)) { toast('The schedule cannot be in the past.', false); return; }
       if (!crew) { toast('Please enter the assigned crew or lineman.', false); return; }
       updateApp({ transfer_schedule: fromLocalInput(date), assigned_crew: crew, status: 'Transfer Scheduled' },
         'Transfer scheduled. The member can now see it in the app.');
     }
-
     async function actTransferDone() {
       const ok = await confirmDialog({
         title: 'Mark as transferred?',
         message: `Account ${current.account_number || ''} will be served at the new location. The account number stays the same.`,
-        okText: 'Yes, transferred',
-        tone: 'ok',
+        okText: 'Yes, transferred', tone: 'ok',
       });
       if (!ok) return;
-      updateApp({ status: 'Transferred', transferred_at: new Date().toISOString() },
-        'Transfer completed.');
+      updateApp({ status: 'Transferred', transferred_at: new Date().toISOString() }, 'Transfer completed.');
     }
-
     function actSetInspection() {
       if (!allPapersReceived()) { toast('All papers must be received first.', false); return; }
-      const date = val('inspDate');
-      const name = val('inspName');
+      const date = val('inspDate'), name = val('inspName');
       if (!date || !name) { toast('Please set the inspection date and choose the engineer.', false); return; }
       if (isPast(date)) { toast('The inspection schedule cannot be in the past.', false); return; }
-      updateApp({
-        inspection_schedule: fromLocalInput(date),
-        inspector_name: name,
-        inspection_remarks: null,
-        status: 'For Inspection',
-      }, 'Inspection scheduled.');
+      updateApp({ inspection_schedule: fromLocalInput(date), inspector_name: name, inspection_remarks: null, status: 'For Inspection' }, 'Inspection scheduled.');
     }
-
     function actInspectionPassed() {
-      updateApp({
-        inspection_remarks: val('inspRemarks') || null,
-        status: 'For Payment',
-      }, 'Inspection passed. A pole slot was reserved and the applicant was told to pay at the cashier.');
+      updateApp({ inspection_remarks: val('inspRemarks') || null, status: 'For Payment' },
+        'Inspection passed. A pole slot was reserved and the applicant was told to pay at the cashier.');
     }
-
     function actInspectionFailed() {
       const remarks = val('inspRemarks');
       if (!remarks) { toast("Please write the engineer's findings.", false); return; }
       updateApp({ inspection_remarks: remarks, status: 'Inspection Failed' }, 'Inspection marked as failed.');
     }
-
     function actMarkPaid() {
       const or = val('orNumber');
       if (!or) { toast('Please enter the OR number.', false); return; }
-      updateApp({ or_number: or, status: 'Paid' }, isTransfer(current) ? 'OR number saved. You can now schedule the transfer.' : 'OR number saved. You can now schedule the installation.');
+      updateApp({ or_number: or, status: 'Paid' },
+        isTransfer(current) ? 'OR number saved. You can now schedule the transfer.' : 'OR number saved. You can now schedule the installation.');
     }
-
     function actSetInstallation() {
       const date = val('instDate');
       if (!date) { toast('Please set the installation date and time.', false); return; }
       if (isPast(date)) { toast('The installation schedule cannot be in the past.', false); return; }
-      updateApp({ installation_schedule: fromLocalInput(date), status: 'Installation Scheduled' },
-        'Installation scheduled.');
+      updateApp({ installation_schedule: fromLocalInput(date), status: 'Installation Scheduled' }, 'Installation scheduled.');
     }
 
     const ACCT_PATTERN = /^(\d{2})-(\d{4})-(\d{4})$/;
-
     async function usedAccountNumbers() {
       const sources = [
         ['service_applications', 'account_number'],
@@ -1282,7 +1454,6 @@
       ));
       return new Set(results.flat().filter(Boolean));
     }
-
     async function fillNextAccountNumber(manual) {
       const input = document.getElementById('acctNo');
       if (!input) return;
@@ -1301,7 +1472,6 @@
       input.placeholder = 'e.g. 01-2345-6789';
       if (manual) toast('Next available account number generated.');
     }
-
     async function actEnergize() {
       const acct = val('acctNo');
       if (!acct) { toast('Please enter the account number.', false); return; }
@@ -1316,56 +1486,40 @@
       const ok = await confirmDialog({
         title: 'Mark as energized?',
         message: `Account number ${acct} will be given to ${current?.consumer_name || 'the applicant'}. Their app will switch to this account number and billing can start.`,
-        okText: 'Mark as energized',
-        tone: 'ok',
+        okText: 'Mark as energized', tone: 'ok',
       });
       if (!ok) return;
-      updateApp({ account_number: acct, status: 'Energized' },
-        'Energized! The account number was sent to the member\'s profile.');
+      updateApp({ account_number: acct, status: 'Energized' }, "Energized! The account number was sent to the member's profile.");
     }
-
-    function actSaveRemarks() {
-      updateApp({ remarks: val('remarksInput') || null }, 'Note saved.');
-    }
-
+    function actSaveRemarks() { updateApp({ remarks: val('remarksInput') || null }, 'Note saved.'); }
     async function actReject() {
       const reason = val('rejectReason');
       if (!reason) { toast('Please write the reason for rejection.', false); return; }
       const ok = await confirmDialog({
         title: 'Reject this application?',
-        message: 'The applicant will see this reason in their app.' +
-          (current?.slot_reserved ? ' The reserved pole slot will be returned.' : ''),
-        okText: 'Reject',
-        tone: 'danger',
+        message: 'The applicant will see this reason in their app.' + (current?.slot_reserved ? ' The reserved pole slot will be returned.' : ''),
+        okText: 'Reject', tone: 'danger',
       });
       if (!ok) return;
       updateApp({ remarks: reason, status: 'Rejected' }, 'Application rejected.');
     }
+    function actResetStatus(status, message) { updateApp({ status }, message); }
 
-    function actResetStatus(status, message) {
-      updateApp({ status }, message);
-    }
-
-    // ---------------- Reconnection actions ----------------
     function actReconVerify() {
       const r = currentRecon || {};
       if (r.unpaid && r.unpaid.length) { toast('The member still has unpaid bills.', false); return; }
       const or = val('reconOr');
       if (!or) { toast('Please enter the OR number of the reconnection fee.', false); return; }
-      updateApp({ or_number: or, status: 'Payment Verified' },
-        'Payment verified. You can now schedule the reconnection.');
+      updateApp({ or_number: or, status: 'Payment Verified' }, 'Payment verified. You can now schedule the reconnection.');
     }
-
     function actReconSchedule() {
-      const date = val('reconDate');
-      const crew = val('reconCrew');
+      const date = val('reconDate'), crew = val('reconCrew');
       if (!date) { toast('Please set the reconnection date and time.', false); return; }
       if (isPast(date)) { toast('The schedule cannot be in the past.', false); return; }
       if (!crew) { toast('Please enter the assigned crew or lineman.', false); return; }
       updateApp({ reconnection_schedule: fromLocalInput(date), assigned_crew: crew, status: 'Reconnection Scheduled' },
         'Reconnection scheduled. The member can now see it in the app.');
     }
-
     async function actReconDone() {
       const ok = await confirmDialog({
         title: 'Mark as reconnected?',
@@ -1373,12 +1527,10 @@
         okText: 'Yes, reconnected',
       });
       if (!ok) return;
-      updateApp({ status: 'Reconnected', reconnected_at: new Date().toISOString() },
-        'Service reconnected. The account is Active again.');
+      updateApp({ status: 'Reconnected', reconnected_at: new Date().toISOString() }, 'Service reconnected. The account is Active again.');
     }
   </script>
 
-  <!-- Tawagin ang sidebar.js para lumitaw ang shared sidebar -->
   <script src="sidebar.js"></script>
 </body>
 </html>
