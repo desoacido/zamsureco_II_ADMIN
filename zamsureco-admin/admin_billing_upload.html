@@ -5,38 +5,175 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ZAMSURECO II — Billing Statements</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<!-- Shared colors and fonts (taken from the ZAMSURECO II logo) -->
-<script src="theme.js"></script>
-<script src="personnel.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="theme.js"></script>
+<script src="personnel.js"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink:    { 900:'#12203A', 800:'#1B2E4F', 700:'#2A4166' },
+          paper:  { 50:'#F5F3EE', 100:'#EFEDE6' },
+          line:   '#DBD8CF',
+          copper: { 500:'#B9722E', 100:'#F3E4D2' },
+          ok:     { 600:'#3F7857', 100:'#E1EBE3' },
+          danger: { 600:'#A33B34', 100:'#F2E1DF' },
+          info:   { 600:'#2F5D8A', 100:'#DEE7EF' },
+          brand:  { 50:'#EEF1FB', 100:'#DDE3F7', 200:'#C5CCDA', 700:'#1A2B9E', 800:'#0D2E63', 900:'#0B1555' },
+          navy:   { 900:'#0B1555' },
+          gold:   { 100:'#FCEACB', 500:'#C28A1A', 700:'#8A5A12' },
+        },
+        fontFamily: {
+          sans: ['"IBM Plex Sans"','system-ui','sans-serif'],
+          mono: ['"IBM Plex Mono"','ui-monospace','monospace'],
+        },
+        borderRadius: { DEFAULT: '3px' }
+      }
+    }
+  }
+</script>
 <style>
+  /* ===== Page-level ===== */
+  body { font-family: 'IBM Plex Sans', system-ui, sans-serif; }
+  .num { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  
+  /* ===== Header hamburger ===== */
+  .hamburger-btn {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: #fff; border: 1px solid #DBD8CF;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    cursor: pointer; flex-shrink: 0; transition: background .12s;
+  }
+  .hamburger-btn:hover { background: #F5F3EE; }
+  .hamburger-btn .bar { display: block; width: 16px; height: 2px; background: #2A4166; border-radius: 999px; }
+
+  /* ===== Buttons ===== */
+  .btn-primary, .btn-ok, .btn-danger, .btn-ghost {
+    display: inline-flex; align-items: center; gap: 6px; justify-content: center;
+    padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    border: 1px solid transparent; transition: transform .12s, box-shadow .12s, filter .12s;
+    cursor: pointer; white-space: nowrap;
+  }
+  .btn-primary { background: #0D2E63; color: #fff; box-shadow: 0 2px 8px rgba(13,46,99,.18); }
+  .btn-primary:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(13,46,99,.22); }
+  .btn-primary:disabled { background: #9AA3B2; cursor: not-allowed; box-shadow: none; }
+
+  .btn-ok { background: #3F7857; color: #fff; box-shadow: 0 2px 8px rgba(63,120,87,.18); }
+  .btn-ok:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); }
+
+  .btn-danger { background: #A33B34; color: #fff; box-shadow: 0 2px 8px rgba(163,59,52,.18); }
+  .btn-danger:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); }
+
+  .btn-ghost { background: #fff; color: #0D2E63; border: 1px solid #DBD8CF; box-shadow: 0 1px 3px rgba(11,21,85,.06); }
+  .btn-ghost:hover:not(:disabled) { background: #F7F8FA; transform: translateY(-1px); box-shadow: 0 2px 6px rgba(11,21,85,.1); }
+
+  .icon-btn {
+    width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 8px; color: #4A5372; transition: all .12s;
+  }
+  .icon-btn:hover { background: #EEF1FB; color: #0D2E63; transform: translateY(-1px); }
+  .icon-btn.danger:hover { background: #F2E1DF; color: #A33B34; }
+  .icon-btn.warning:hover { background: #FCEACB; color: #8A5A12; }
+  .icon-btn svg { width: 17px; height: 17px; }
+
+  /* ===== Form Fields ===== */
+  .field {
+    width: 100%; padding: 8px 10px; background: #F5F3EE; border: 1px solid #DBD8CF;
+    border-radius: 6px; font-size: 13px; transition: box-shadow .12s, border-color .12s;
+  }
+  .field:focus { outline: none; border-color: #0D2E63; box-shadow: 0 0 0 2px rgba(13,46,99,0.18); background: #fff; }
+  .field:disabled { opacity: .55; cursor: not-allowed; }
+
+  /* ===== KPI Cards ===== */
+  .kpi-card {
+    position: relative; display: flex; align-items: center; gap: 12px;
+    background: #fff; border: 1px solid #DDE3EC; border-left: 3px solid var(--accent, #0D2E63);
+    border-radius: 10px; box-shadow: 0 2px 6px rgba(11,21,85,.05);
+    padding: 14px 16px; min-height: 72px; cursor: pointer; text-align: left; width: 100%;
+    transition: border-color .15s, box-shadow .15s, transform .15s, background .15s;
+    overflow: hidden;
+  }
+  .kpi-card:hover { background: #FCFCFD; box-shadow: 0 6px 18px rgba(11,21,85,.10); transform: translateY(-2px); }
+  .kpi-card::after {
+    content: "›"; position: absolute; right: 12px; top: 50%;
+    transform: translateY(-50%) translateX(4px);
+    font-size: 20px; font-weight: 700; color: var(--accent, #0D2E63);
+    opacity: 0; transition: opacity .15s, transform .15s; pointer-events: none;
+  }
+  .kpi-card:hover::after { opacity: 1; transform: translateY(-50%) translateX(0); }
+  .kpi-card[aria-pressed="true"] { box-shadow: inset 0 -3px 0 #C28A1A, 0 2px 6px rgba(11,21,85,.05); }
+
+  .kpi-card .kpi-icon {
+    width: 38px; height: 38px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .kpi-card .kpi-icon svg { width: 20px; height: 20px; }
+  .kpi-card .kpi-label {
+    font-size: 10px; line-height: 1.2; font-weight: 600; letter-spacing: .02em;
+    text-transform: uppercase; color: #6B7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .kpi-card .kpi-value {
+    font-size: 22px; line-height: 1.1; font-weight: 700; color: #0B1555;
+    font-variant-numeric: tabular-nums; margin-top: 2px;
+    display: flex; align-items: baseline; gap: 6px;
+  }
+  .kpi-card .kpi-sub { font-size: 11px; font-weight: 500; color: #6B7280; font-variant-numeric: tabular-nums; }
+
+  /* ===== Tabs ===== */
+  .page-tab { padding: 10px 4px; margin-right: 24px; font-size: 14px; font-weight: 500; color: #4A5372; border-bottom: 3px solid transparent; transition: color .12s, border-color .12s; }
+  .page-tab:hover { color: #0D2E63; }
+  .page-tab.active { color: #0B1555; font-weight: 600; border-bottom-color: #C28A1A; }
+
+  /* ===== Table & Scroll Box ===== */
+  .scroll-box { overflow-y: auto; scrollbar-width: thin; scrollbar-color: #C5CCDA #F3F5FD; }
+  .scroll-box::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scroll-box::-webkit-scrollbar-track { background: #F3F5FD; border-radius: 4px; }
+  .scroll-box::-webkit-scrollbar-thumb { background: #C5CCDA; border-radius: 4px; border: 2px solid #F3F5FD; }
+  .scroll-box::-webkit-scrollbar-thumb:hover { background: #A9B3C6; }
+  
+  #tableWrapper.scroll-box { max-height: none; min-height: 280px; }
+  @media (max-height: 640px) { #tableWrapper.scroll-box { min-height: 200px; } }
+
+  .app-table thead th {
+    position: sticky; top: 0; z-index: 1;
+    background: #F7F8FA; color: #4A5372;
+    font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+    padding: 10px 16px; border-bottom: 1px solid #DDE3EC;
+    white-space: nowrap;
+  }
+  .app-table tbody tr { transition: background .12s; }
+  .app-table tbody tr:hover { background: #F8FAFF; }
+
+  /* Fix table stretching in flex containers */
+  #statementBody { vertical-align: top; }
+  #statementBody tr { height: 1px; }
+  #statementBody td { vertical-align: middle; }
+
+  /* ===== Drop Zone ===== */
   .drop-zone { border: 2px dashed #C8CEDD; transition: all .15s ease; }
-  .drop-zone.drag-over { border-color: #EBCB00; background: #FFFBE6; }
+  .drop-zone.drag-over { border-color: #C28A1A; background: #FFFBE6; }
+
+  /* ===== Toast & Modals ===== */
   .toast-in { animation: toastIn .2s ease; }
   @keyframes toastIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
-
-  .page-tab { padding: 10px 4px; margin-right: 24px; font-size: 14px; font-weight: 500; color: #4A5372; border-bottom: 3px solid transparent; }
-  .page-tab:hover { color: #1A2B9E; }
-  .page-tab.active { color: #141B3D; font-weight: 600; border-bottom-color: #EBCB00; }
-
-  .stat { transition: border-color .15s, background .15s; text-align: left; }
-  .stat:hover { border-color: #94A2EA; }
-  .stat.active { border-color: #EBCB00; box-shadow: inset 0 -3px 0 #EBCB00; }
-
-  .field { width: 100%; padding: 8px 12px; background: #F5F6FA; border: 1px solid #DFE3EE; border-radius: 6px; font-size: 14px; }
-  .field:focus { outline: none; box-shadow: 0 0 0 2px #1A2B9E; }
 </style>
 </head>
 <body class="bg-paper-50 text-ink-900 font-sans overflow-x-hidden">
+
   <div id="sidebar-root"></div>
 
   <div class="main-content !p-0 flex-1 flex flex-col h-screen overflow-hidden">
-    <!-- Header (same on every page) -->
+    <!-- ===== Navbar ===== -->
     <nav class="bg-white border-b border-line px-6 h-16 flex justify-between items-center flex-shrink-0">
       <div class="flex items-center gap-4">
         <button class="hamburger-btn" id="sidebarToggle" aria-label="Toggle navigation menu">
-          <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+          <span class="bar"></span>
+          <span class="bar"></span>
+          <span class="bar"></span>
         </button>
         <div>
           <h1 class="text-lg font-semibold text-ink-900 leading-tight">Billing Statements</h1>
@@ -46,15 +183,18 @@
       <div></div>
     </nav>
 
-    <main id="mainScroll" class="flex-1 overflow-y-auto p-6 lg:p-8">
-      <div class="max-w-6xl mx-auto space-y-6">
+    <!-- ===== Main (flex fill layout) ===== -->
+    <main class="flex-1 min-h-0 p-4 lg:p-6 flex flex-col">
+      <div class="flex-1 min-h-0 flex flex-col gap-4 lg:gap-5">
 
         <!-- Page tabs -->
-        <div class="border-b border-line flex items-end">
-          <button class="page-tab" data-tab="statements">Statements</button>
-          <button class="page-tab" data-tab="upload">Upload CSV</button>
-          <button id="openSettings" class="ml-auto mb-2 inline-flex items-center gap-2 text-sm font-medium text-brand-700 hover:text-brand-900 bg-white border border-line hover:border-brand-300 px-3 py-1.5 rounded-md">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        <div class="border-b border-line flex items-end justify-between flex-shrink-0">
+          <div class="flex">
+            <button class="page-tab" data-tab="statements">Statements</button>
+            <button class="page-tab" data-tab="upload">Upload CSV</button>
+          </div>
+          <button id="openSettings" class="mb-2 btn-ghost">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
             Billing settings
           </button>
         </div>
@@ -62,49 +202,64 @@
         <!-- =========================================================
              TAB 1: STATEMENTS
              ========================================================= -->
-        <section id="tabStatements" class="space-y-6">
+        <section id="tabStatements" class="flex-1 min-h-0 flex flex-col gap-4 lg:gap-5">
 
-          <!-- Summary (click to filter) -->
-          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <button class="stat bg-white border border-line rounded-lg p-5" data-filter="unpaid">
-              <div class="text-sm text-ink-700">Unpaid</div>
-              <div class="flex items-baseline gap-2 mt-2">
-                <span class="text-3xl font-semibold num" id="sumUnpaid">–</span>
-                <span class="text-sm font-medium text-ink-700" id="sumUnpaidTotal"></span>
+          <!-- KPI Cards -->
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 flex-shrink-0">
+            <button class="kpi-card" data-filter="unpaid" style="--accent:#C28A1A;" aria-pressed="false">
+              <span class="kpi-icon bg-gold-100 text-gold-700">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              </span>
+              <div class="kpi-text min-w-0">
+                <span class="kpi-label">Unpaid</span>
+                <span class="kpi-value" id="sumUnpaid">–</span>
+                <span class="kpi-sub mt-0.5" id="sumUnpaidTotal"></span>
               </div>
             </button>
-            <button class="stat bg-white border border-line rounded-lg p-5" data-filter="overdue">
-              <div class="text-sm text-danger-600 font-medium">Overdue</div>
-              <div class="flex items-baseline gap-2 mt-2">
-                <span class="text-3xl font-semibold num text-danger-600" id="sumOverdue">–</span>
-                <span class="text-sm font-medium text-ink-700" id="sumOverdueTotal"></span>
+            
+            <button class="kpi-card" data-filter="overdue" style="--accent:#A33B34;" aria-pressed="false">
+              <span class="kpi-icon bg-danger-100 text-danger-600">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </span>
+              <div class="kpi-text min-w-0">
+                <span class="kpi-label">Overdue</span>
+                <span class="kpi-value text-danger-600" id="sumOverdue">–</span>
+                <span class="kpi-sub mt-0.5" id="sumOverdueTotal"></span>
               </div>
             </button>
-            <button class="stat bg-white border border-line rounded-lg p-5" data-filter="disconnection">
-              <div class="text-sm text-danger-600 font-medium">For disconnection</div>
-              <div class="flex items-baseline gap-2 mt-2">
-                <span class="text-3xl font-semibold num text-danger-600" id="sumDisc">–</span>
-                <span class="text-xs font-medium text-ink-700" id="sumDiscNote"></span>
+
+            <button class="kpi-card" data-filter="disconnection" style="--accent:#A33B34;" aria-pressed="false">
+              <span class="kpi-icon bg-danger-100 text-danger-600">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 11-12.73 0"/><path d="M12 2v10"/></svg>
+              </span>
+              <div class="kpi-text min-w-0">
+                <span class="kpi-label">For Disconnection</span>
+                <span class="kpi-value text-danger-600" id="sumDisc">–</span>
+                <span class="kpi-sub mt-0.5" id="sumDiscNote"></span>
               </div>
             </button>
-            <button class="stat bg-white border border-line rounded-lg p-5" data-filter="paid">
-              <div class="text-sm text-ok-600 font-medium">Paid</div>
-              <div class="flex items-baseline gap-2 mt-2">
-                <span class="text-3xl font-semibold num text-ok-600" id="sumPaid">–</span>
-                <span class="text-sm font-medium text-ink-700" id="sumPaidTotal"></span>
+
+            <button class="kpi-card" data-filter="paid" style="--accent:#3F7857;" aria-pressed="false">
+              <span class="kpi-icon bg-ok-100 text-ok-600">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              </span>
+              <div class="kpi-text min-w-0">
+                <span class="kpi-label">Paid</span>
+                <span class="kpi-value text-ok-600" id="sumPaid">–</span>
+                <span class="kpi-sub mt-0.5" id="sumPaidTotal"></span>
               </div>
             </button>
           </div>
 
-          <!-- List -->
-          <div class="bg-white border border-line rounded-lg overflow-hidden">
-            <header class="px-5 py-4 border-b border-line flex flex-wrap items-center justify-between gap-3">
+          <!-- Table Card (fills remaining space) -->
+          <section class="bg-white border border-line rounded-lg overflow-hidden flex-1 flex flex-col min-h-0">
+            <header class="px-5 py-4 border-b border-line flex flex-wrap items-end justify-between gap-4 flex-shrink-0">
               <div>
-                <h2 class="text-sm font-semibold section-head">Statements</h2>
-                <p class="text-xs text-ink-700 mt-0.5" id="listCaption">—</p>
+                <h2 class="text-sm font-semibold text-ink-900 section-head">Statements</h2>
+                <p class="text-xs text-ink-700 mt-1" id="listCaption">—</p>
               </div>
               <div class="flex items-center gap-2 flex-wrap">
-                <select id="statusFilter" class="field" style="width:auto">
+                <select id="statusFilter" class="field" style="width:auto;min-width:140px">
                   <option value="all">All statements</option>
                   <option value="unpaid">Unpaid</option>
                   <option value="overdue">Overdue</option>
@@ -112,100 +267,112 @@
                   <option value="disconnected">Disconnected accounts</option>
                   <option value="paid">Paid</option>
                 </select>
-                <input id="searchInput" type="search" placeholder="Search account no. or name…" class="field" style="width:240px">
+                <div class="relative">
+                  <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-700/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                  <input id="searchInput" type="search" placeholder="Search account no. or name..."
+                         class="field pl-9" style="width:240px">
+                </div>
               </div>
             </header>
-            <div class="overflow-x-auto">
-              <table class="w-full text-sm">
-                <thead>
-                  <tr class="text-left text-ink-700 bg-paper-50 border-b border-line">
-                    <th class="px-5 py-2.5 font-medium">Account</th>
-                    <th class="px-3 py-2.5 font-medium">Billing month</th>
-                    <th class="px-3 py-2.5 font-medium text-right">kWh</th>
-                    <th class="px-3 py-2.5 font-medium text-right">Amount</th>
-                    <th class="px-3 py-2.5 font-medium">Due date</th>
-                    <th class="px-3 py-2.5 font-medium">Status</th>
-                    <th class="px-5 py-2.5 font-medium text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody id="statementBody" class="divide-y divide-line">
-                  <tr><td colspan="7" class="px-5 py-8 text-center text-ink-700">Loading…</td></tr>
-                </tbody>
-              </table>
+
+            <div class="flex-1 min-h-0 flex flex-col">
+              <div id="tableWrapper" class="scroll-box flex-1 min-h-0">
+                <table class="app-table w-full text-left border-collapse text-sm">
+                  <thead>
+                    <tr>
+                      <th class="px-5">Account</th>
+                      <th class="px-4">Billing month</th>
+                      <th class="px-4 text-right">kWh</th>
+                      <th class="px-4 text-right">Amount</th>
+                      <th class="px-4">Due date</th>
+                      <th class="px-4">Status</th>
+                      <th class="px-5 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="statementBody" class="divide-y divide-line">
+                    <tr><td colspan="7" class="px-5 py-10 text-center text-ink-700">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          </section>
         </section>
 
         <!-- =========================================================
-             TAB 2: UPLOAD CSV (unchanged process)
+             TAB 2: UPLOAD CSV
              ========================================================= -->
-        <section id="tabUpload" class="space-y-6 hidden">
+        <section id="tabUpload" class="flex-1 min-h-0 hidden overflow-y-auto">
+          <div class="max-w-4xl mx-auto space-y-5 pb-6">
+            
+            <div id="diagBanner" class="hidden bg-danger-100 border border-danger-600/30 text-danger-600 text-sm rounded-lg p-4 flex-shrink-0"></div>
+            <div id="successBanner" class="hidden bg-ok-100 border border-ok-600/30 text-ok-600 text-sm rounded-lg p-4 flex-shrink-0"></div>
 
-          <div id="diagBanner" class="hidden bg-danger-100 border border-danger-600/30 text-danger-600 text-sm rounded-lg p-4"></div>
-          <div id="successBanner" class="hidden bg-ok-100 border border-ok-600/30 text-ok-600 text-sm rounded-lg p-4"></div>
-
-          <!-- Step 1: Batch Info -->
-          <div class="bg-white rounded-lg border border-line p-6">
-            <h3 class="text-sm font-semibold mb-4 section-head">1. Batch Information</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-xs font-medium text-ink-700 mb-1.5">Batch Name</label>
-                <input type="text" id="batchNameInput" placeholder="hal. July 2026 - Ipil Zone A" class="field">
+            <!-- Step 1: Batch Info -->
+            <div class="bg-white rounded-lg border border-line p-5 shadow-sm">
+              <h3 class="text-sm font-semibold text-ink-900 mb-4 section-head">1. Batch Information</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-medium text-ink-700 mb-1.5">Batch Name</label>
+                  <input type="text" id="batchNameInput" placeholder="e.g. July 2026 - Ipil Zone A" class="field">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-ink-700 mb-1.5">Billing Month</label>
+                  <input type="month" id="billingMonthInput" class="field">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-ink-700 mb-1.5">Zone Code (optional)</label>
+                  <input type="text" id="zoneCodeInput" placeholder="e.g. IPIL-A" class="field">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-ink-700 mb-1.5">Uploaded By</label>
+                  <input type="text" id="uploadedByInput" placeholder="Your name" class="field">
+                </div>
               </div>
-              <div>
-                <label class="block text-xs font-medium text-ink-700 mb-1.5">Billing Month</label>
-                <input type="month" id="billingMonthInput" class="field">
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-ink-700 mb-1.5">Zone Code (opsyonal)</label>
-                <input type="text" id="zoneCodeInput" placeholder="hal. IPIL-A" class="field">
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-ink-700 mb-1.5">Uploaded By</label>
-                <input type="text" id="uploadedByInput" placeholder="Pangalan mo" class="field">
-              </div>
-            </div>
-          </div>
-
-          <!-- Step 2: File Upload -->
-          <div class="bg-white rounded-lg border border-line p-6">
-            <h3 class="text-sm font-semibold mb-4 section-head">2. Upload CSV File</h3>
-            <div id="dropZone" class="drop-zone rounded-lg p-10 text-center cursor-pointer">
-              <label class="inline-block bg-brand-700 hover:bg-brand-800 text-white px-5 py-2.5 rounded-md text-sm font-semibold transition cursor-pointer">
-                Choose File
-                <input type="file" id="fileInput" accept=".csv" class="hidden">
-              </label>
-              <p class="text-xs text-ink-700 mt-3">or drag and drop the CSV here</p>
-              <p id="fileNameLabel" class="text-xs text-ink-700 mt-1"></p>
-            </div>
-          </div>
-
-          <!-- Step 3: Preview -->
-          <div id="previewSection" class="hidden bg-white rounded-lg border border-line p-6">
-            <div class="flex justify-between items-center mb-4">
-              <h3 class="text-sm font-semibold section-head">3. Preview (<span id="rowCount">0</span> records)</h3>
-              <span id="parseWarning" class="hidden text-xs text-gold-700 bg-gold-100 border border-gold-500/40 px-3 py-1.5 rounded-md"></span>
-            </div>
-            <div class="overflow-x-auto border border-line rounded-md">
-              <table class="w-full text-left text-xs">
-                <thead>
-                  <tr class="bg-paper-50 text-ink-700 font-medium border-b border-line">
-                    <th class="p-3">Acct No</th>
-                    <th class="p-3">Name</th>
-                    <th class="p-3">Address</th>
-                    <th class="p-3">kWh Used</th>
-                    <th class="p-3">Total Billed</th>
-                    <th class="p-3">Due Date</th>
-                  </tr>
-                </thead>
-                <tbody id="previewTableBody" class="divide-y divide-line num"></tbody>
-              </table>
             </div>
 
-            <div class="mt-6 flex justify-end gap-2.5">
-              <button onclick="resetUpload()" class="bg-paper-100 hover:bg-line text-ink-800 px-4 py-2.5 rounded-md text-sm font-semibold transition">Cancel</button>
-              <button id="confirmUploadBtn" onclick="confirmUpload()" class="bg-brand-700 hover:bg-brand-800 text-white px-5 py-2.5 rounded-md text-sm font-semibold transition">Confirm & Upload to Database</button>
+            <!-- Step 2: File Upload -->
+            <div class="bg-white rounded-lg border border-line p-5 shadow-sm">
+              <h3 class="text-sm font-semibold text-ink-900 mb-4 section-head">2. Upload CSV File</h3>
+              <div id="dropZone" class="drop-zone rounded-xl p-10 text-center cursor-pointer bg-paper-50 hover:bg-white transition-colors">
+                <svg class="w-8 h-8 mx-auto mb-2 text-ink-700/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                <label class="inline-block btn-primary cursor-pointer">
+                  Choose File
+                  <input type="file" id="fileInput" accept=".csv" class="hidden">
+                </label>
+                <p class="text-xs text-ink-700 mt-3">or drag and drop the CSV here</p>
+                <p id="fileNameLabel" class="text-xs font-semibold text-brand-800 mt-1"></p>
+              </div>
             </div>
+
+            <!-- Step 3: Preview -->
+            <div id="previewSection" class="hidden bg-white rounded-lg border border-line p-5 shadow-sm">
+              <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+                <h3 class="text-sm font-semibold text-ink-900 section-head">3. Preview (<span id="rowCount">0</span> records)</h3>
+                <span id="parseWarning" class="hidden text-xs font-semibold text-gold-700 bg-gold-100 border border-gold-500/40 px-3 py-1.5 rounded-md"></span>
+              </div>
+              
+              <div class="overflow-x-auto border border-line rounded-lg max-h-[400px]">
+                <table class="w-full text-left text-xs">
+                  <thead class="sticky top-0 bg-paper-50">
+                    <tr class="text-ink-700 font-semibold uppercase tracking-wide border-b border-line">
+                      <th class="p-3 whitespace-nowrap">Acct No</th>
+                      <th class="p-3">Name</th>
+                      <th class="p-3">Address</th>
+                      <th class="p-3 text-right">kWh Used</th>
+                      <th class="p-3 text-right">Total Billed</th>
+                      <th class="p-3">Due Date</th>
+                    </tr>
+                  </thead>
+                  <tbody id="previewTableBody" class="divide-y divide-line num"></tbody>
+                </table>
+              </div>
+
+              <div class="mt-5 flex justify-end gap-2.5">
+                <button onclick="resetUpload()" class="btn-ghost">Cancel</button>
+                <button id="confirmUploadBtn" onclick="confirmUpload()" class="btn-primary">Confirm & Upload to Database</button>
+              </div>
+            </div>
+            
           </div>
         </section>
 
@@ -213,13 +380,21 @@
     </main>
   </div>
 
-  <!-- Mark-as-paid dialog -->
-  <div id="payModal" class="hidden fixed inset-0 z-[500] flex items-center justify-center p-4" style="background:rgba(11,21,85,0.45)">
+  <!-- ===== Record Payment Modal ===== -->
+  <div id="payModal" class="hidden fixed inset-0 z-[500] items-center justify-center p-4" style="background:rgba(11,21,85,0.45)">
     <div class="bg-white rounded-lg border border-line shadow-2xl w-full max-w-md">
       <div class="px-6 pt-6 pb-4">
-        <h3 class="text-base font-semibold">Record payment</h3>
-        <p class="text-sm text-ink-700 mt-1" id="payInfo"></p>
-        <div class="mt-4 space-y-3">
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 rounded-full bg-ok-100 flex items-center justify-center flex-shrink-0 text-ok-600">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <div class="flex-1">
+            <h3 class="text-base font-semibold text-ink-900">Record payment</h3>
+            <p class="text-sm text-ink-700 mt-1" id="payInfo"></p>
+          </div>
+        </div>
+        
+        <div class="mt-4 space-y-4">
           <div>
             <label class="block text-xs font-medium text-ink-700 mb-1.5">Official receipt (OR) number</label>
             <input id="payOr" type="text" class="field num" placeholder="e.g. 0012345">
@@ -231,21 +406,29 @@
         </div>
       </div>
       <div class="px-6 py-4 bg-paper-50 border-t border-line flex justify-end gap-2 rounded-b-lg">
-        <button id="payCancel" class="bg-white border border-line hover:bg-paper-100 text-ink-800 px-4 py-2 rounded-md text-sm font-semibold">Cancel</button>
-        <button id="paySave" class="bg-ok-600 hover:opacity-90 text-white px-4 py-2 rounded-md text-sm font-semibold">Mark as paid</button>
+        <button id="payCancel" class="btn-ghost">Cancel</button>
+        <button id="paySave" class="btn-ok">Mark as paid</button>
       </div>
     </div>
   </div>
 
-  <!-- Billing settings dialog -->
-  <div id="settingsModal" class="hidden fixed inset-0 z-[500] flex items-center justify-center p-4" style="background:rgba(11,21,85,0.45)">
+  <!-- ===== Billing Settings Modal ===== -->
+  <div id="settingsModal" class="hidden fixed inset-0 z-[500] items-center justify-center p-4" style="background:rgba(11,21,85,0.45)">
     <div class="bg-white rounded-lg border border-line shadow-2xl w-full max-w-md">
       <div class="px-6 pt-6 pb-4">
-        <h3 class="text-base font-semibold">Billing settings</h3>
-        <p class="text-sm text-ink-700 mt-1">Based on ZAMSURECO II policy. Changes apply right away to the admin site and the member app.</p>
-        <div class="mt-4 space-y-3">
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 rounded-full bg-brand-50 flex items-center justify-center flex-shrink-0 text-brand-700">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          </div>
+          <div class="flex-1">
+            <h3 class="text-base font-semibold text-ink-900">Billing settings</h3>
+            <p class="text-sm text-ink-700 mt-1">Based on ZAMSURECO II policy. Changes apply right away to the admin site and the member app.</p>
+          </div>
+        </div>
+        
+        <div class="mt-4 space-y-4">
           <div>
-            <label class="block text-xs font-medium text-ink-700 mb-1.5">Days after the due date before disconnection</label>
+            <label class="block text-xs font-medium text-ink-700 mb-1.5">Days after due date before disconnection</label>
             <input id="setDays" type="number" min="1" class="field num">
           </div>
           <div>
@@ -255,26 +438,27 @@
         </div>
       </div>
       <div class="px-6 py-4 bg-paper-50 border-t border-line flex justify-end gap-2 rounded-b-lg">
-        <button id="settingsCancel" class="bg-white border border-line hover:bg-paper-100 text-ink-800 px-4 py-2 rounded-md text-sm font-semibold">Cancel</button>
-        <button id="settingsSave" class="bg-brand-700 hover:bg-brand-800 text-white px-4 py-2 rounded-md text-sm font-semibold">Save settings</button>
+        <button id="settingsCancel" class="btn-ghost">Cancel</button>
+        <button id="settingsSave" class="btn-primary">Save settings</button>
       </div>
     </div>
   </div>
 
-  <!-- Disconnect dialog -->
-  <div id="discModal" class="hidden fixed inset-0 z-[500] flex items-center justify-center p-4" style="background:rgba(11,21,85,0.45)">
+  <!-- ===== Disconnection Modal ===== -->
+  <div id="discModal" class="hidden fixed inset-0 z-[500] items-center justify-center p-4" style="background:rgba(11,21,85,0.45)">
     <div class="bg-white rounded-lg border border-line shadow-2xl w-full max-w-md">
       <div class="px-6 pt-6 pb-4">
         <div class="flex items-start gap-3">
-          <div class="w-10 h-10 rounded-full bg-danger-100 flex items-center justify-center flex-shrink-0">
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="#B3261E" stroke-width="2"><path d="M18.36 6.64a9 9 0 11-12.73 0"/><path d="M12 2v10"/></svg>
+          <div class="w-10 h-10 rounded-full bg-danger-100 flex items-center justify-center flex-shrink-0 text-danger-600">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 11-12.73 0"/><path d="M12 2v10"/></svg>
           </div>
           <div class="flex-1">
-            <h3 class="text-base font-semibold" id="discTitle">Schedule disconnection</h3>
+            <h3 class="text-base font-semibold text-ink-900" id="discTitle">Schedule disconnection</h3>
             <p class="text-sm text-ink-700 mt-1" id="discInfo"></p>
             <p class="text-xs text-ink-700 mt-2" id="discHelp"></p>
           </div>
         </div>
+        
         <div id="discScheduleFields" class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="block text-xs font-medium text-ink-700 mb-1.5">Date &amp; time</label>
@@ -291,13 +475,13 @@
         </div>
       </div>
       <div class="px-6 py-4 bg-paper-50 border-t border-line flex justify-end gap-2 rounded-b-lg">
-        <button id="discCancel" class="bg-white border border-line hover:bg-paper-100 text-ink-800 px-4 py-2 rounded-md text-sm font-semibold">Close</button>
-        <button id="discSave" class="bg-danger-600 hover:opacity-90 text-white px-4 py-2 rounded-md text-sm font-semibold">Save schedule</button>
+        <button id="discCancel" class="btn-ghost">Close</button>
+        <button id="discSave" class="btn-danger">Save schedule</button>
       </div>
     </div>
   </div>
 
-  <!-- Toast -->
+  <!-- ===== Toast ===== -->
   <div id="toast" class="hidden fixed bottom-6 right-6 max-w-sm px-4 py-3 rounded-lg text-sm font-semibold shadow-lg z-[600]"></div>
 
   <script>
@@ -305,6 +489,14 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_PUfegf_zyb5B_gVas_SLyw_mto9NFGF';
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     window._supabase = _supabase;
+
+    // ===== Icon definitions =====
+    const ICONS = {
+      paid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+      schedule: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+      disconnect: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 11-12.73 0"/><path d="M12 2v10"/></svg>',
+      cancel: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+    };
 
     async function checkAuth() {
       const { data: { session } } = await _supabase.auth.getSession();
@@ -334,57 +526,6 @@
       return new Date(Number(m[1]), Number(m[2]) - 1, 1).toLocaleDateString('en-PH', { month: 'long', year: 'numeric' });
     }
 
-    function toast(msg, ok = true) {
-      const t = document.getElementById('toast');
-      t.className = 'toast-in fixed bottom-6 right-6 max-w-sm px-4 py-3 rounded-lg text-sm font-semibold shadow-lg z-[600] ' +
-        (ok ? 'bg-ok-100 text-ok-600 border border-ok-600/30' : 'bg-danger-100 text-danger-600 border border-danger-600/30');
-      t.textContent = msg;
-      clearTimeout(t._timer);
-      t._timer = setTimeout(() => t.classList.add('hidden'), 5000);
-    }
-
-    // ------------------------------------------------------------------
-    // PAGE TABS (Statements / Upload CSV)
-    // ------------------------------------------------------------------
-    function showTab(name) {
-      document.querySelectorAll('.page-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
-      document.getElementById('tabStatements').classList.toggle('hidden', name !== 'statements');
-      document.getElementById('tabUpload').classList.toggle('hidden', name !== 'upload');
-      const url = new URL(window.location.href);
-      if (name === 'upload') url.searchParams.set('tab', 'upload'); else url.searchParams.delete('tab');
-      history.replaceState(null, '', url);
-    }
-    document.querySelectorAll('.page-tab').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
-
-    // ------------------------------------------------------------------
-    // STATEMENTS
-    // ------------------------------------------------------------------
-    let statements = [];
-    let settings = { days: 30, fee: 150 };    // defaults until loaded from system_settings
-    let accountStatus = {};                    // acct_no -> row from account_status
-
-    const isPaid = (s) => String(s.status || '').toLowerCase() === 'paid';
-    function isOverdue(s) {
-      if (isPaid(s) || !s.due_date) return false;
-      const d = new Date(s.due_date);
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      return !isNaN(d) && d < today;
-    }
-
-    // Days past the due date (0 if not yet due or already paid)
-    function daysOverdue(s) {
-      if (isPaid(s) || !s.due_date) return 0;
-      const d = new Date(s.due_date);
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      return isNaN(d) ? 0 : Math.max(0, Math.floor((today - d) / 864e5));
-    }
-    const acctRow = (acct) => accountStatus[acct] || {};
-    const isDisconnected = (acct) => acctRow(acct).status === 'Disconnected';
-    const isDiscScheduled = (acct) => acctRow(acct).status === 'Disconnection Scheduled';
-    // Rule: unpaid for at least the set number of days, and not yet disconnected
-    // (accounts with a scheduled order stay in the list until the lineman is done)
-    const isForDisconnection = (s) => daysOverdue(s) >= settings.days && !isDisconnected(s.acct_no);
-
     function fmtDateTime(v) {
       if (!v) return '—';
       const d = new Date(v);
@@ -395,7 +536,57 @@
       return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
     }
 
-    // Start with the filter from the link (e.g. ?filter=unpaid from the Dashboard)
+    function toast(msg, ok = true) {
+      const t = document.getElementById('toast');
+      t.className = 'toast-in fixed bottom-6 right-6 max-w-sm px-4 py-3 rounded-lg text-sm font-semibold shadow-lg z-[600] ' +
+        (ok ? 'bg-ok-100 text-ok-600 border border-ok-600/30' : 'bg-danger-100 text-danger-600 border border-danger-600/30');
+      t.textContent = msg;
+      t.classList.remove('hidden');
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => t.classList.add('hidden'), 5000);
+    }
+
+    // ------------------------------------------------------------------
+    // PAGE TABS (Statements / Upload CSV)
+    // ------------------------------------------------------------------
+    function showTab(name) {
+      document.querySelectorAll('.page-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+      document.getElementById('tabStatements').classList.toggle('hidden', name !== 'statements');
+      document.getElementById('tabStatements').classList.toggle('flex', name === 'statements');
+      document.getElementById('tabUpload').classList.toggle('hidden', name !== 'upload');
+      
+      const url = new URL(window.location.href);
+      if (name === 'upload') url.searchParams.set('tab', 'upload'); else url.searchParams.delete('tab');
+      history.replaceState(null, '', url);
+    }
+    document.querySelectorAll('.page-tab').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+
+    // ------------------------------------------------------------------
+    // STATEMENTS
+    // ------------------------------------------------------------------
+    let statements = [];
+    let settings = { days: 30, fee: 150 };
+    let accountStatus = {};
+
+    const isPaid = (s) => String(s.status || '').toLowerCase() === 'paid';
+    function isOverdue(s) {
+      if (isPaid(s) || !s.due_date) return false;
+      const d = new Date(s.due_date);
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      return !isNaN(d) && d < today;
+    }
+
+    function daysOverdue(s) {
+      if (isPaid(s) || !s.due_date) return 0;
+      const d = new Date(s.due_date);
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      return isNaN(d) ? 0 : Math.max(0, Math.floor((today - d) / 864e5));
+    }
+    const acctRow = (acct) => accountStatus[acct] || {};
+    const isDisconnected = (acct) => acctRow(acct).status === 'Disconnected';
+    const isDiscScheduled = (acct) => acctRow(acct).status === 'Disconnection Scheduled';
+    const isForDisconnection = (s) => daysOverdue(s) >= settings.days && !isDisconnected(s.acct_no);
+
     (function initFromUrl() {
       const params = new URLSearchParams(window.location.search);
       const f = params.get('filter');
@@ -427,7 +618,7 @@
 
       const body = document.getElementById('statementBody');
       if (error) {
-        body.innerHTML = `<tr><td colspan="7" class="px-5 py-8 text-center text-danger-600">Error: ${escapeHtml(error.message)}</td></tr>`;
+        body.innerHTML = `<tr><td colspan="7" class="px-5 py-10 text-center text-danger-600">Error: ${escapeHtml(error.message)}</td></tr>`;
         return;
       }
       statements = data || [];
@@ -445,14 +636,18 @@
       document.getElementById('sumUnpaidTotal').textContent = unpaid.length ? peso(total(unpaid)) : '';
       document.getElementById('sumOverdue').textContent = overdue.length;
       document.getElementById('sumOverdueTotal').textContent = overdue.length ? peso(total(overdue)) : '';
+      
       const discAccounts = new Set(statements.filter(isForDisconnection).map(s => s.acct_no));
       document.getElementById('sumDisc').textContent = discAccounts.size;
       document.getElementById('sumDiscNote').textContent = `account${discAccounts.size === 1 ? '' : 's'} · ${settings.days}+ days`;
+      
       document.getElementById('sumPaid').textContent = paid.length;
       document.getElementById('sumPaidTotal').textContent = paid.length ? peso(total(paid)) : '';
 
       const current = document.getElementById('statusFilter').value;
-      document.querySelectorAll('.stat').forEach(b => b.classList.toggle('active', b.dataset.filter === current));
+      document.querySelectorAll('.kpi-card').forEach(b => {
+        if (b.dataset.filter) b.setAttribute('aria-pressed', b.dataset.filter === current ? 'true' : 'false');
+      });
     }
 
     function statusBadge(s) {
@@ -475,7 +670,6 @@
         return true;
       });
 
-      // Unpaid first (oldest due date first), then paid (latest first)
       rows = rows.sort((a, b) => {
         if (isPaid(a) !== isPaid(b)) return isPaid(a) ? 1 : -1;
         const da = new Date(a.due_date || 0), db = new Date(b.due_date || 0);
@@ -493,44 +687,43 @@
         const empty = ['unpaid', 'overdue', 'disconnection'].includes(filter)
           ? 'No unpaid bills. All members are up to date.'
           : (statements.length ? 'No statements match your search.' : 'No statements yet. Upload a CSV in the Upload CSV tab.');
-        body.innerHTML = `<tr><td colspan="7" class="px-5 py-10 text-center text-ink-700">${empty}</td></tr>`;
+        body.innerHTML = `<tr><td colspan="7" class="px-5 py-16 text-center text-ink-700">${empty}</td></tr>`;
         return;
       }
 
       body.innerHTML = rows.map(s => `
-        <tr class="hover:bg-brand-50/50">
+        <tr>
           <td class="px-5 py-3">
-            <div class="font-medium text-ink-900">${escapeHtml(s.acct_name || '—')}${isDisconnected(s.acct_no) ? ' <span class="ml-1 text-[10px] font-semibold uppercase tracking-wide text-white bg-danger-600 px-1.5 py-0.5 rounded">Disconnected</span>' : ''}</div>
-            <div class="text-xs text-ink-700 num">${escapeHtml(s.acct_no || '')}</div>
-            ${isDiscScheduled(s.acct_no) ? `<div class="mt-1 inline-block text-[11px] leading-snug font-medium bg-gold-100 text-gold-700 px-1.5 py-1 rounded">
+            <div class="font-semibold text-ink-900">${escapeHtml(s.acct_name || '—')}${isDisconnected(s.acct_no) ? ' <span class="ml-1 text-[10px] font-semibold uppercase tracking-wide text-white bg-danger-600 px-1.5 py-0.5 rounded">Disconnected</span>' : ''}</div>
+            <div class="text-xs text-ink-700 num mt-0.5">${escapeHtml(s.acct_no || '')}</div>
+            ${isDiscScheduled(s.acct_no) ? `<div class="mt-1.5 inline-block text-[11px] leading-snug font-medium bg-gold-100 text-gold-700 px-2 py-1 rounded">
               <div class="whitespace-nowrap">Disconnection · ${escapeHtml(fmtDateTime(acctRow(s.acct_no).disconnection_schedule))}</div>
               ${acctRow(s.acct_no).assigned_crew ? `<div class="whitespace-nowrap">${escapeHtml(acctRow(s.acct_no).assigned_crew)}</div>` : ''}
             </div>` : ''}
           </td>
-          <td class="px-3 py-3 text-ink-700 whitespace-nowrap">${fmtMonth(s.billing_year_month)}</td>
-          <td class="px-3 py-3 text-ink-700 num text-right">${s.kwh_used ?? '—'}</td>
-          <td class="px-3 py-3 font-semibold num text-right whitespace-nowrap">${peso(s.total_billed)}</td>
-          <td class="px-3 py-3 text-ink-700 num whitespace-nowrap ${isOverdue(s) ? 'text-danger-600 font-medium' : ''}">${fmtDate(s.due_date)}</td>
-          <td class="px-3 py-3">${statusBadge(s)}</td>
-          <td class="px-5 py-3"><div class="flex flex-wrap justify-end gap-1.5">
-            ${isPaid(s)
-              ? `<span class="text-xs text-ink-700">${s.or_number ? 'OR ' + escapeHtml(s.or_number) : ''}${s.paid_at ? ' · ' + fmtDate(s.paid_at) : ''}</span>`
-              : `${discButtons(s)}<button class="text-xs font-semibold bg-ok-600 hover:opacity-90 text-white px-3 py-1.5 rounded-md whitespace-nowrap" data-pay="${escapeHtml(s.id)}">Mark as paid</button>`}
-          </div></td>
+          <td class="px-4 py-3 text-ink-700 whitespace-nowrap">${fmtMonth(s.billing_year_month)}</td>
+          <td class="px-4 py-3 text-ink-700 num text-right">${s.kwh_used ?? '—'}</td>
+          <td class="px-4 py-3 font-semibold num text-right whitespace-nowrap">${peso(s.total_billed)}</td>
+          <td class="px-4 py-3 text-ink-700 num whitespace-nowrap ${isOverdue(s) ? 'text-danger-600 font-medium' : ''}">${fmtDate(s.due_date)}</td>
+          <td class="px-4 py-3">${statusBadge(s)}</td>
+          <td class="px-5 py-3 text-right">
+            <div class="flex items-center justify-end gap-1">
+              ${isPaid(s)
+                ? `<span class="text-xs text-ink-700 font-medium">${s.or_number ? 'OR ' + escapeHtml(s.or_number) : ''}${s.paid_at ? ' · ' + fmtDate(s.paid_at) : ''}</span>`
+                : `${discButtons(s)}<button class="icon-btn" data-pay="${escapeHtml(s.id)}" title="Mark as paid">${ICONS.paid}</button>`}
+            </div>
+          </td>
         </tr>`).join('');
     }
 
-    // Disconnection buttons for one row:
-    //   not scheduled yet → "Schedule disconnection"
-    //   scheduled         → "Mark as disconnected" (after the lineman reports) + "Cancel order"
     function discButtons(s) {
       if (!isForDisconnection(s)) return '';
       const a = escapeHtml(s.acct_no);
       if (isDiscScheduled(s.acct_no)) {
-        return `<button class="text-xs font-semibold bg-danger-600 hover:opacity-90 text-white px-3 py-1.5 rounded-md whitespace-nowrap" data-disc-mode="done" data-disc="${a}">Mark as disconnected</button>`
-             + `<button class="text-xs font-semibold border border-line text-ink-800 hover:bg-paper-100 px-3 py-1.5 rounded-md whitespace-nowrap" data-disc-mode="cancel" data-disc="${a}">Cancel order</button>`;
+        return `<button class="icon-btn danger" data-disc-mode="done" data-disc="${a}" title="Mark as disconnected">${ICONS.disconnect}</button>`
+             + `<button class="icon-btn" data-disc-mode="cancel" data-disc="${a}" title="Cancel order">${ICONS.cancel}</button>`;
       }
-      return `<button class="text-xs font-semibold border border-danger-600 text-danger-600 hover:bg-danger-100 px-3 py-1.5 rounded-md whitespace-nowrap" data-disc-mode="schedule" data-disc="${a}">Schedule disconnection</button>`;
+      return `<button class="icon-btn danger" data-disc-mode="schedule" data-disc="${a}" title="Schedule disconnection">${ICONS.schedule}</button>`;
     }
 
     function setFilter(value) {
@@ -544,8 +737,7 @@
 
     document.getElementById('statusFilter').addEventListener('change', e => setFilter(e.target.value));
     document.getElementById('searchInput').addEventListener('input', renderStatements);
-    // Click a summary box to filter; click it again to show all
-    document.querySelectorAll('.stat').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.kpi-card[data-filter]').forEach(b => b.addEventListener('click', () => {
       setFilter(document.getElementById('statusFilter').value === b.dataset.filter ? 'all' : b.dataset.filter);
     }));
 
@@ -604,7 +796,6 @@
         toast('Error: ' + error.message + hint, false);
         return;
       }
-      // If this account had a disconnection order and this was its last unpaid bill, cancel the order
       const paid = statements.find(x => x.id === payingId);
       const acct = paid && paid.acct_no;
       let cancelled = false;
@@ -625,7 +816,7 @@
     // MARK AS DISCONNECTED (account level)
     // ------------------------------------------------------------------
     let discAcct = null;
-    let discMode = 'schedule';   // schedule | done | cancel
+    let discMode = 'schedule';
 
     const DISC_MODES = {
       schedule: {
@@ -672,9 +863,7 @@
       document.getElementById('discRemarks').value = '';
       const save = document.getElementById('discSave');
       save.textContent = m.button;
-      save.className = (discMode === 'cancel'
-        ? 'bg-brand-700 hover:bg-brand-800'
-        : 'bg-danger-600 hover:opacity-90') + ' text-white px-4 py-2 rounded-md text-sm font-semibold';
+      save.className = (discMode === 'cancel' ? 'btn-primary' : 'btn-danger');
       document.getElementById('discModal').classList.remove('hidden');
     });
 
@@ -749,7 +938,7 @@
     });
 
     // ------------------------------------------------------------------
-    // UPLOAD CSV (same process as before)
+    // UPLOAD CSV
     // ------------------------------------------------------------------
     const REQUIRED_COLUMNS = [
       'acct_no', 'acct_name', 'address', 'meter_brand', 'meter_serial',
@@ -760,7 +949,7 @@
     let parsedRows = [];
 
     function scrollToTop() {
-      document.getElementById('mainScroll').scrollTo({ top: 0, behavior: 'smooth' });
+      document.getElementById('tabUpload').scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function showError(msg) {
@@ -797,7 +986,7 @@
 
     function handleFile(file) {
       if (!file.name.toLowerCase().endsWith('.csv')) {
-        showError('Kailangan .csv file lang ang i-upload.');
+        showError('Please upload a .csv file only.');
         return;
       }
       document.getElementById('fileNameLabel').textContent = `Selected: ${file.name}`;
@@ -813,7 +1002,7 @@
           parsedRows = results.data;
           renderPreview(results.meta.fields);
         },
-        error: (err) => showError('Error sa pag-parse ng file: ' + err.message)
+        error: (err) => showError('Error parsing file: ' + err.message)
       });
     }
 
@@ -821,7 +1010,7 @@
       const missing = REQUIRED_COLUMNS.filter(col => !headers.includes(col));
       const warningEl = document.getElementById('parseWarning');
       if (missing.length > 0) {
-        warningEl.textContent = `Kulang na columns: ${missing.join(', ')}`;
+        warningEl.textContent = `Missing columns: ${missing.join(', ')}`;
         warningEl.classList.remove('hidden');
       } else {
         warningEl.classList.add('hidden');
@@ -833,17 +1022,17 @@
       parsedRows.slice(0, 10).forEach(row => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td class="p-3">${escapeHtml(row.acct_no)}</td>
+          <td class="p-3 whitespace-nowrap">${escapeHtml(row.acct_no)}</td>
           <td class="p-3">${escapeHtml(row.acct_name)}</td>
           <td class="p-3">${escapeHtml(row.address)}</td>
-          <td class="p-3">${escapeHtml(row.kwh_used)}</td>
-          <td class="p-3">${escapeHtml(row.total_billed)}</td>
-          <td class="p-3">${escapeHtml(row.due_date)}</td>`;
+          <td class="p-3 text-right">${escapeHtml(row.kwh_used)}</td>
+          <td class="p-3 text-right font-semibold">${escapeHtml(row.total_billed)}</td>
+          <td class="p-3 whitespace-nowrap">${escapeHtml(row.due_date)}</td>`;
         tbody.appendChild(tr);
       });
       if (parsedRows.length > 10) {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="6" class="p-3 text-center text-ink-700">... at ${parsedRows.length - 10} pang records</td>`;
+        tr.innerHTML = `<td colspan="6" class="p-3 text-center text-ink-700 bg-paper-50">... and ${parsedRows.length - 10} more records</td>`;
         tbody.appendChild(tr);
       }
       document.getElementById('previewSection').classList.remove('hidden');
@@ -884,8 +1073,8 @@
       const zoneCode = document.getElementById('zoneCodeInput').value.trim();
       const uploadedBy = document.getElementById('uploadedByInput').value.trim();
 
-      if (!batchName || !billingMonth) { showError('Kailangan punan ang Batch Name at Billing Month bago mag-upload.'); return; }
-      if (parsedRows.length === 0) { showError('Wala pang na-upload na CSV file.'); return; }
+      if (!batchName || !billingMonth) { showError('Batch Name and Billing Month are required.'); return; }
+      if (parsedRows.length === 0) { showError('No CSV file has been uploaded yet.'); return; }
 
       const btn = document.getElementById('confirmUploadBtn');
       btn.disabled = true;
@@ -925,20 +1114,20 @@
         }));
 
         const invalidRows = statementsToInsert.filter(s => !s.acct_no);
-        if (invalidRows.length > 0) throw new Error(`${invalidRows.length} row(s) ang walang acct_no. Paki-check ang CSV file.`);
+        if (invalidRows.length > 0) throw new Error(`${invalidRows.length} row(s) have no acct_no. Please check the CSV file.`);
 
         const { error: insertError } = await _supabase.from('billing_statements').insert(statementsToInsert);
         if (insertError) throw insertError;
 
         const matched = await countMatchedAccounts(statementsToInsert.map(s => s.acct_no));
-        const matchText = matched === null ? '' : ` ${matched} account(s) ang tugma sa members sa app at makikita na nila ang bill.`;
-        showSuccess(`✓ Successfully na-upload ang ${statementsToInsert.length} billing statement(s) para sa "${batchName}".${matchText}`);
+        const matchText = matched === null ? '' : ` ${matched} account(s) matched with members in the app and can now see their bill.`;
+        showSuccess(`✓ Successfully uploaded ${statementsToInsert.length} billing statement(s) for "${batchName}".${matchText}`);
 
         resetUpload();
         document.getElementById('batchNameInput').value = '';
         document.getElementById('billingMonthInput').value = '';
         document.getElementById('zoneCodeInput').value = '';
-        loadStatements();   // the new bills appear in the Statements tab
+        loadStatements(); 
       } catch (err) {
         showError('Error: ' + (err.message || JSON.stringify(err)));
       } finally {
