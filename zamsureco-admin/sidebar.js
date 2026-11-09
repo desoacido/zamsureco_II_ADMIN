@@ -263,15 +263,6 @@
       margin-bottom: 6px;
       position: relative;
     }
-    .brand::after {
-      content: "";
-      position: absolute;
-      left: 8px;
-      right: 8px;
-      bottom: 0;
-      height: 2px;
-      background: linear-gradient(90deg, var(--sb-yellow) 0 32px, rgba(255,255,255,0.08) 32px 100%);
-    }
     .brand-badge {
       width: 38px;
       height: 38px;
