@@ -5,104 +5,267 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ZAMSURECO II — Field Personnel</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="theme.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="theme.js"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink:    { 900:'#12203A', 800:'#1B2E4F', 700:'#2A4166' },
+          paper:  { 50:'#F5F3EE', 100:'#EFEDE6' },
+          line:   '#DBD8CF',
+          copper: { 500:'#B9722E', 100:'#F3E4D2' },
+          ok:     { 600:'#3F7857', 100:'#E1EBE3' },
+          danger: { 600:'#A33B34', 100:'#F2E1DF' },
+          info:   { 600:'#2F5D8A', 100:'#DEE7EF' },
+          brand:  { 50:'#EEF1FB', 100:'#DDE3F7', 200:'#C5CCDA', 700:'#1A2B9E', 800:'#0D2E63', 900:'#0B1555' },
+          navy:   { 900:'#0B1555' },
+          gold:   { 100:'#FCEACB', 500:'#C28A1A', 700:'#8A5A12' },
+        },
+        fontFamily: {
+          sans: ['"IBM Plex Sans"','system-ui','sans-serif'],
+          mono: ['"IBM Plex Mono"','ui-monospace','monospace'],
+        },
+        borderRadius: { DEFAULT: '3px' }
+      }
+    }
+  }
+</script>
 <style>
+  /* ===== Page-level ===== */
+  body { font-family: 'IBM Plex Sans', system-ui, sans-serif; }
+  .num { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  
+  /* ===== Header hamburger ===== */
+  .hamburger-btn {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: #fff; border: 1px solid #DBD8CF;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    cursor: pointer; flex-shrink: 0; transition: background .12s;
+  }
+  .hamburger-btn:hover { background: #F5F3EE; }
+  .hamburger-btn .bar { display: block; width: 16px; height: 2px; background: #2A4166; border-radius: 999px; }
+
+  /* ===== Buttons ===== */
+  .btn-primary, .btn-ok, .btn-danger, .btn-ghost {
+    display: inline-flex; align-items: center; gap: 6px; justify-content: center;
+    padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    border: 1px solid transparent; transition: transform .12s, box-shadow .12s, filter .12s;
+    cursor: pointer; white-space: nowrap;
+  }
+  .btn-primary { background: #0D2E63; color: #fff; box-shadow: 0 2px 8px rgba(13,46,99,.18); }
+  .btn-primary:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(13,46,99,.22); }
+  .btn-primary:disabled { background: #9AA3B2; cursor: not-allowed; box-shadow: none; }
+
+  .btn-ok { background: #3F7857; color: #fff; box-shadow: 0 2px 8px rgba(63,120,87,.18); }
+  .btn-ok:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); }
+
+  .btn-danger { background: #A33B34; color: #fff; box-shadow: 0 2px 8px rgba(163,59,52,.18); }
+  .btn-danger:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); }
+
+  .btn-ghost { background: #fff; color: #0D2E63; border: 1px solid #DBD8CF; box-shadow: 0 1px 3px rgba(11,21,85,.06); }
+  .btn-ghost:hover:not(:disabled) { background: #F7F8FA; transform: translateY(-1px); box-shadow: 0 2px 6px rgba(11,21,85,.1); }
+
+  .icon-btn {
+    width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 8px; color: #4A5372; transition: all .12s;
+  }
+  .icon-btn:hover { background: #EEF1FB; color: #0D2E63; transform: translateY(-1px); }
+  .icon-btn.danger:hover { background: #F2E1DF; color: #A33B34; }
+  .icon-btn svg { width: 17px; height: 17px; }
+
+  /* ===== Form Fields ===== */
+  .field {
+    width: 100%; padding: 8px 10px; background: #F5F3EE; border: 1px solid #DBD8CF;
+    border-radius: 6px; font-size: 13px; transition: box-shadow .12s, border-color .12s;
+  }
+  .field:focus { outline: none; border-color: #0D2E63; box-shadow: 0 0 0 2px rgba(13,46,99,0.18); background: #fff; }
+  .field:disabled { opacity: .55; cursor: not-allowed; }
+
+  /* ===== KPI Cards ===== */
+  .kpi-card {
+    position: relative; display: flex; align-items: center; gap: 12px;
+    background: #fff; border: 1px solid #DDE3EC; border-left: 3px solid var(--accent, #0D2E63);
+    border-radius: 10px; box-shadow: 0 2px 6px rgba(11,21,85,.05);
+    padding: 14px 16px; min-height: 72px; cursor: pointer; text-align: left; width: 100%;
+    transition: border-color .15s, box-shadow .15s, transform .15s, background .15s;
+    overflow: hidden;
+  }
+  .kpi-card:hover { background: #FCFCFD; box-shadow: 0 6px 18px rgba(11,21,85,.10); transform: translateY(-2px); }
+  .kpi-card::after {
+    content: "›"; position: absolute; right: 12px; top: 50%;
+    transform: translateY(-50%) translateX(4px);
+    font-size: 20px; font-weight: 700; color: var(--accent, #0D2E63);
+    opacity: 0; transition: opacity .15s, transform .15s; pointer-events: none;
+  }
+  .kpi-card:hover::after { opacity: 1; transform: translateY(-50%) translateX(0); }
+  .kpi-card[aria-pressed="true"] { box-shadow: inset 0 -3px 0 #C28A1A, 0 2px 6px rgba(11,21,85,.05); }
+
+  .kpi-card .kpi-icon {
+    width: 38px; height: 38px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .kpi-card .kpi-icon svg { width: 20px; height: 20px; }
+  .kpi-card .kpi-label {
+    font-size: 10px; line-height: 1.2; font-weight: 600; letter-spacing: .02em;
+    text-transform: uppercase; color: #6B7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .kpi-card .kpi-value {
+    font-size: 22px; line-height: 1.1; font-weight: 700; color: #0B1555;
+    font-variant-numeric: tabular-nums; margin-top: 2px;
+    display: flex; align-items: baseline; gap: 6px;
+  }
+  .kpi-card .kpi-sub { font-size: 11px; font-weight: 500; color: #6B7280; font-variant-numeric: tabular-nums; }
+
+  /* ===== Table & Scroll Box ===== */
+  .scroll-box { overflow-y: auto; scrollbar-width: thin; scrollbar-color: #C5CCDA #F3F5FD; }
+  .scroll-box::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scroll-box::-webkit-scrollbar-track { background: #F3F5FD; border-radius: 4px; }
+  .scroll-box::-webkit-scrollbar-thumb { background: #C5CCDA; border-radius: 4px; border: 2px solid #F3F5FD; }
+  .scroll-box::-webkit-scrollbar-thumb:hover { background: #A9B3C6; }
+  
+  #tableWrapper.scroll-box { max-height: none; min-height: 280px; }
+  @media (max-height: 640px) { #tableWrapper.scroll-box { min-height: 200px; } }
+
+  .app-table thead th {
+    position: sticky; top: 0; z-index: 1;
+    background: #F7F8FA; color: #4A5372;
+    font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+    padding: 10px 16px; border-bottom: 1px solid #DDE3EC;
+    white-space: nowrap;
+  }
+  .app-table tbody tr { transition: background .12s; }
+  .app-table tbody tr:hover { background: #F8FAFF; }
+
+  /* Fix table stretching in flex containers */
+  #personnelRows { vertical-align: top; }
+  #personnelRows tr { height: 1px; }
+  #personnelRows td { vertical-align: middle; }
+
+  /* ===== Toast & Modals ===== */
   .toast-in { animation: toastIn .2s ease; }
   @keyframes toastIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
-
-  .field { width: 100%; padding: 9px 12px; background: #F5F6FA; border: 1px solid #DFE3EE; border-radius: 6px; font-size: 14px; }
-  .field:focus { outline: none; box-shadow: 0 0 0 2px #1A2B9E; background: #fff; }
-
-  .stat-card { text-align: left; background: #fff; border: 1px solid #DFE3EE; border-radius: 8px; padding: 16px 20px; transition: border-color .15s, box-shadow .15s, background .15s; }
-  .stat-card:hover { border-color: #94A2EA; }
-  .stat-card.active { border-color: var(--accent); box-shadow: inset 0 3px 0 var(--accent), 0 1px 6px rgba(17,31,120,.08); background: var(--tint); }
-
-  .icon-btn { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; color: #4A5372; }
-  .icon-btn:hover { background: #E2E6FA; color: #111F78; }
-  .icon-btn.danger:hover { background: #F9E3E1; color: #B3261E; }
-  .icon-btn svg { width: 17px; height: 17px; }
 </style>
 </head>
 <body class="bg-paper-50 text-ink-900 font-sans overflow-x-hidden">
+
   <div id="sidebar-root"></div>
 
   <div class="main-content !p-0 flex-1 flex flex-col h-screen overflow-hidden">
+
+    <!-- ===== Navbar ===== -->
     <nav class="bg-white border-b border-line px-6 h-16 flex justify-between items-center flex-shrink-0">
       <div class="flex items-center gap-4">
         <button class="hamburger-btn" id="sidebarToggle" aria-label="Toggle navigation menu">
-          <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+          <span class="bar"></span>
+          <span class="bar"></span>
+          <span class="bar"></span>
         </button>
         <div>
           <h1 class="text-lg font-semibold text-ink-900 leading-tight">Field Personnel</h1>
           <p class="text-xs text-ink-700">Engineers who inspect sites and line crews who respond in the field</p>
         </div>
       </div>
-      <button id="addBtn" class="bg-brand-800 hover:bg-brand-900 text-white px-4 py-2 rounded-md text-sm font-semibold">+ Add personnel</button>
+      <button id="addBtn" class="btn-primary">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+        Add personnel
+      </button>
     </nav>
 
-    <main class="flex-1 overflow-y-auto p-6 lg:p-8">
-      <div class="max-w-5xl mx-auto space-y-5">
+    <!-- ===== Main (flex fill layout) ===== -->
+    <main class="flex-1 min-h-0 p-4 lg:p-6 flex flex-col">
+      <div class="flex-1 min-h-0 flex flex-col gap-4 lg:gap-5">
 
-        <div id="diagBanner" class="hidden bg-danger-100 border border-danger-600/30 text-danger-600 text-sm rounded-lg p-4"></div>
+        <div id="diagBanner" class="hidden bg-danger-100 border border-danger-600/30 text-danger-600 text-sm rounded-lg p-4 flex-shrink-0"></div>
 
-        <div id="roleCards" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <button class="stat-card" data-filter="Engineer" style="--accent:#1A2B9E;--tint:#F3F5FD">
-            <div class="text-xs font-semibold uppercase tracking-wide text-brand-700">Engineers</div>
-            <div id="countEngineer" class="text-2xl font-semibold num mt-1">0</div>
-            <div class="text-xs text-ink-700 mt-0.5">Shown in Applications → Inspection</div>
+        <!-- KPI Cards -->
+        <div id="roleCards" class="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-shrink-0">
+          <button class="kpi-card" data-filter="Engineer" style="--accent:#0D2E63;" aria-pressed="false">
+            <span class="kpi-icon bg-brand-50 text-brand-700">
+              <!-- Hard hat / Engineer icon -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v2z"/><path d="M10 10V5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v5"/><path d="M4 15v-3a6 6 0 0 1 6-6h0"/><path d="M14 6h0a6 6 0 0 1 6 6v3"/></svg>
+            </span>
+            <div class="kpi-text min-w-0">
+              <span class="kpi-label">Engineers</span>
+              <span id="countEngineer" class="kpi-value">0</span>
+              <span class="kpi-sub mt-0.5">Shown in Applications → Inspection</span>
+            </div>
           </button>
-          <button class="stat-card" data-filter="Line Crew" style="--accent:#C9A800;--tint:#FFFBE6">
-            <div class="text-xs font-semibold uppercase tracking-wide text-gold-700">Line crew</div>
-            <div id="countCrew" class="text-2xl font-semibold num mt-1">0</div>
-            <div class="text-xs text-ink-700 mt-0.5">Shown in Reconnection, Transfer, Disconnection and Incidents</div>
+
+          <button class="kpi-card" data-filter="Line Crew" style="--accent:#C28A1A;" aria-pressed="false">
+            <span class="kpi-icon bg-gold-100 text-gold-700">
+              <!-- Users / Team icon -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </span>
+            <div class="kpi-text min-w-0">
+              <span class="kpi-label">Line Crew</span>
+              <span id="countCrew" class="kpi-value">0</span>
+              <span class="kpi-sub mt-0.5">Reconnection, Transfer, Disconnection</span>
+            </div>
           </button>
-          <button class="stat-card" data-filter="inactive" style="--accent:#98A1B8;--tint:#F5F6FA">
-            <div class="text-xs font-semibold uppercase tracking-wide text-ink-700">Inactive</div>
-            <div id="countInactive" class="text-2xl font-semibold num mt-1">0</div>
-            <div class="text-xs text-ink-700 mt-0.5">Hidden from all dropdowns</div>
+
+          <button class="kpi-card" data-filter="inactive" style="--accent:#9AA3B2;" aria-pressed="false">
+            <span class="kpi-icon bg-paper-100 text-ink-700">
+              <!-- User-minus / Inactive icon -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+            </span>
+            <div class="kpi-text min-w-0">
+              <span class="kpi-label">Inactive</span>
+              <span id="countInactive" class="kpi-value">0</span>
+              <span class="kpi-sub mt-0.5">Hidden from all dropdowns</span>
+            </div>
           </button>
         </div>
 
-        <div class="flex flex-wrap items-end gap-3">
-          <div>
-            <h2 id="listTitle" class="text-base font-semibold">All active personnel</h2>
-            <p id="listHint" class="text-xs text-ink-700">Click a card above to filter.</p>
-          </div>
-          <div class="w-full sm:w-72 sm:ml-auto"><input id="searchInput" type="text" class="field" placeholder="Search name, team, contact…"></div>
-        </div>
+        <!-- Table Card (fills remaining space) -->
+        <section class="bg-white border border-line rounded-lg overflow-hidden flex-1 flex flex-col min-h-0">
+          <header class="px-5 py-4 border-b border-line flex items-end justify-between gap-4 flex-wrap flex-shrink-0">
+            <div>
+              <h2 id="listTitle" class="text-sm font-semibold text-ink-900 section-head">All active personnel</h2>
+              <p id="listHint" class="text-xs text-ink-700 mt-1">Click a card above to filter.</p>
+            </div>
+            <div class="relative">
+              <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-700/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <input id="searchInput" type="search" placeholder="Search name, team, contact..."
+                     class="field pl-9" style="width:240px">
+            </div>
+          </header>
 
-        <section class="bg-white border border-line rounded-lg overflow-hidden">
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm">
-              <thead>
-                <tr class="bg-paper-50 border-b border-line text-xs font-semibold text-ink-700 uppercase tracking-wide">
-                  <th class="px-5 py-3">Name</th>
-                  <th class="px-3 py-3">Role</th>
-                  <th class="px-3 py-3">Team</th>
-                  <th class="px-3 py-3">Contact</th>
-                  <th class="px-3 py-3">Status</th>
-                  <th class="px-5 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="personnelRows" class="divide-y divide-line">
-                <tr><td colspan="6" class="px-5 py-10 text-center text-ink-700">Loading…</td></tr>
-              </tbody>
-            </table>
+          <div class="flex-1 min-h-0 flex flex-col">
+            <div id="tableWrapper" class="scroll-box flex-1 min-h-0">
+              <table class="app-table w-full text-left border-collapse text-sm">
+                <thead>
+                  <tr>
+                    <th class="px-5">Name</th>
+                    <th class="px-4">Role</th>
+                    <th class="px-4">Team</th>
+                    <th class="px-4">Contact</th>
+                    <th class="px-4">Status</th>
+                    <th class="px-5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="personnelRows" class="divide-y divide-line">
+                  <tr><td colspan="6" class="px-5 py-10 text-center text-ink-700">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
 
-        <p class="text-xs text-ink-700">For line crews, the <b>Team</b> name is what appears in the dropdowns, so members of the same team are listed once. Engineers appear by name.</p>
       </div>
     </main>
   </div>
 
+  <!-- ===== Add / Edit Modal ===== -->
   <div id="formModal" class="hidden fixed inset-0 z-[500] items-center justify-center p-4" style="background:rgba(11,21,85,0.45)">
     <div class="bg-white rounded-lg border border-line shadow-2xl w-full max-w-md">
       <div class="px-6 pt-6 pb-2">
-        <h3 id="formTitle" class="text-base font-semibold">Add personnel</h3>
+        <h3 id="formTitle" class="text-base font-semibold text-ink-900">Add personnel</h3>
       </div>
-      <div class="px-6 py-4 space-y-3">
+      <div class="px-6 py-4 space-y-4">
         <div>
           <label class="block text-xs font-medium text-ink-700 mb-1.5">Role</label>
           <select id="fRole" class="field">
@@ -123,32 +286,41 @@
           <label class="block text-xs font-medium text-ink-700 mb-1.5">Contact number</label>
           <input id="fContact" type="text" class="field num" placeholder="09XXXXXXXXX" maxlength="11">
         </div>
-        <label class="flex items-center gap-2 text-sm text-ink-800">
-          <input id="fActive" type="checkbox" class="w-4 h-4" checked>
+        <label class="flex items-center gap-2 text-sm text-ink-800 cursor-pointer">
+          <input id="fActive" type="checkbox" class="w-4 h-4 accent-green-700 rounded" checked>
           Active (shown in dropdowns)
         </label>
         <div id="formError" class="hidden text-xs text-danger-600 bg-danger-100 border border-danger-600/30 rounded-md p-3"></div>
       </div>
       <div class="px-6 py-4 bg-paper-50 border-t border-line flex justify-end gap-2 rounded-b-lg">
-        <button id="formCancel" class="bg-white border border-line hover:bg-paper-100 text-ink-800 px-4 py-2 rounded-md text-sm font-semibold">Cancel</button>
-        <button id="formSave" class="bg-brand-800 hover:bg-brand-900 text-white px-4 py-2 rounded-md text-sm font-semibold">Save</button>
+        <button id="formCancel" class="btn-ghost">Cancel</button>
+        <button id="formSave" class="btn-primary">Save</button>
       </div>
     </div>
   </div>
 
+  <!-- ===== Confirm Delete Modal ===== -->
   <div id="confirmModal" class="hidden fixed inset-0 z-[550] items-center justify-center p-4" style="background:rgba(11,21,85,0.45)">
     <div class="bg-white rounded-lg border border-line shadow-2xl w-full max-w-sm">
       <div class="px-6 pt-6 pb-4">
-        <h3 class="text-base font-semibold">Remove from the list?</h3>
-        <p class="text-sm text-ink-700 mt-1.5" id="confirmText"></p>
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 rounded-full bg-danger-100 flex items-center justify-center flex-shrink-0 text-danger-600">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          </div>
+          <div class="flex-1">
+            <h3 class="text-base font-semibold text-ink-900">Remove from the list?</h3>
+            <p class="text-sm text-ink-700 mt-1" id="confirmText"></p>
+          </div>
+        </div>
       </div>
       <div class="px-6 py-4 bg-paper-50 border-t border-line flex justify-end gap-2 rounded-b-lg">
-        <button id="confirmNo" class="bg-white border border-line hover:bg-paper-100 text-ink-800 px-4 py-2 rounded-md text-sm font-semibold">Cancel</button>
-        <button id="confirmYes" class="bg-danger-600 hover:opacity-90 text-white px-4 py-2 rounded-md text-sm font-semibold">Remove</button>
+        <button id="confirmNo" class="btn-ghost">Cancel</button>
+        <button id="confirmYes" class="btn-danger">Remove</button>
       </div>
     </div>
   </div>
 
+  <!-- ===== Toast ===== -->
   <div id="toast" class="hidden fixed bottom-6 right-6 max-w-sm px-4 py-3 rounded-lg text-sm font-semibold shadow-lg z-[600]"></div>
 
   <script>
@@ -157,10 +329,14 @@
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const ICONS = {
-      edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>',
-      pause: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M10 9v6M14 9v6"/></svg>',
-      play: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 6L9 17l-5-5"/></svg>',
-      trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>',
+      // Standard Pencil / Edit
+      edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>',
+      // User-X (Deactivate / Set Inactive)
+      pause: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="22" y2="13"/><line x1="22" y1="8" x2="17" y2="13"/></svg>',
+      // User-Check (Activate / Set Active)
+      play: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>',
+      // Standard Trash / Delete
+      trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
     };
     const ROLE_STYLE = {
       'Engineer': 'bg-brand-100 text-brand-800',
@@ -188,6 +364,7 @@
       t.className = 'toast-in fixed bottom-6 right-6 max-w-sm px-4 py-3 rounded-lg text-sm font-semibold shadow-lg z-[600] ' +
         (ok ? 'bg-ok-100 text-ok-600 border border-ok-600/30' : 'bg-danger-100 text-danger-600 border border-danger-600/30');
       t.textContent = msg;
+      t.classList.remove('hidden');
       clearTimeout(t._timer);
       t._timer = setTimeout(() => t.classList.add('hidden'), 4500);
     }
@@ -235,7 +412,10 @@
       document.getElementById('countCrew').textContent = people.filter(p => isActive(p) && roleOf(p) === 'Line Crew').length;
       document.getElementById('countInactive').textContent = people.filter(p => !isActive(p)).length;
 
-      document.querySelectorAll('#roleCards .stat-card').forEach(c => c.classList.toggle('active', c.dataset.filter === filter));
+      document.querySelectorAll('#roleCards .kpi-card').forEach(c => {
+        c.setAttribute('aria-pressed', c.dataset.filter === filter ? 'true' : 'false');
+      });
+      
       document.getElementById('listTitle').textContent = TITLES[filter];
       document.getElementById('listHint').textContent = filter === 'all' ? 'Click a card above to filter.' : 'Click the card again to show all active personnel.';
 
@@ -244,23 +424,23 @@
       const tbody = document.getElementById('personnelRows');
 
       if (!list.length) {
-        tbody.innerHTML = `<tr><td colspan="6" class="px-5 py-10 text-center text-ink-700">${people.length ? 'No personnel here.' : 'No personnel yet. Click "+ Add personnel" to add an engineer or line crew member.'}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="px-5 py-16 text-center text-ink-700">${people.length ? 'No personnel here.' : 'No personnel yet. Click "+ Add personnel" to add an engineer or line crew member.'}</td></tr>`;
         return;
       }
 
       tbody.innerHTML = list.map(p => `
-        <tr class="hover:bg-paper-50 ${isActive(p) ? '' : 'opacity-60'}">
-          <td class="px-5 py-3 font-medium">${escapeHtml(p.name)}</td>
-          <td class="px-3 py-3"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium ${ROLE_STYLE[roleOf(p)]}">${roleOf(p)}</span></td>
-          <td class="px-3 py-3 text-ink-700">${roleOf(p) === 'Line Crew' ? escapeHtml(p.team || '—') : '<span class="text-ink-700/50">—</span>'}</td>
-          <td class="px-3 py-3 text-ink-700 num">${escapeHtml(p.contact_number || '—')}</td>
-          <td class="px-3 py-3">${isActive(p)
+        <tr class="${isActive(p) ? '' : 'opacity-60'}">
+          <td class="px-5 py-3 font-semibold text-ink-900">${escapeHtml(p.name)}</td>
+          <td class="px-4 py-3"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium border ${ROLE_STYLE[roleOf(p)]} border-transparent">${roleOf(p)}</span></td>
+          <td class="px-4 py-3 text-ink-700">${roleOf(p) === 'Line Crew' ? escapeHtml(p.team || '—') : '<span class="text-ink-700/50">—</span>'}</td>
+          <td class="px-4 py-3 text-ink-700 num">${escapeHtml(p.contact_number || '—')}</td>
+          <td class="px-4 py-3">${isActive(p)
             ? '<span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-ok-100 text-ok-600">Active</span>'
             : '<span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-paper-100 text-ink-700">Inactive</span>'}</td>
           <td class="px-5 py-3 text-right whitespace-nowrap">
-            <button class="icon-btn" data-act="edit" data-id="${p.id}" title="Edit">${ICONS.edit}</button>
-            <button class="icon-btn" data-act="toggle" data-id="${p.id}" title="${isActive(p) ? 'Set inactive' : 'Set active'}">${isActive(p) ? ICONS.pause : ICONS.play}</button>
-            <button class="icon-btn danger" data-act="delete" data-id="${p.id}" title="Remove">${ICONS.trash}</button>
+            <button class="icon-btn" data-act="edit" data-id="${p.id}" title="Edit personnel">${ICONS.edit}</button>
+            <button class="icon-btn" data-act="toggle" data-id="${p.id}" title="${isActive(p) ? 'Deactivate' : 'Activate'}">${isActive(p) ? ICONS.pause : ICONS.play}</button>
+            <button class="icon-btn danger" data-act="delete" data-id="${p.id}" title="Remove permanently">${ICONS.trash}</button>
           </td>
         </tr>`).join('');
     }
@@ -355,7 +535,7 @@
       }
     });
 
-    document.querySelectorAll('#roleCards .stat-card').forEach(card => card.addEventListener('click', () => {
+    document.querySelectorAll('#roleCards .kpi-card').forEach(card => card.addEventListener('click', () => {
       filter = filter === card.dataset.filter ? 'all' : card.dataset.filter;
       render();
     }));
