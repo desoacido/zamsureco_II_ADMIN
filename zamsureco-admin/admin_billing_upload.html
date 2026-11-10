@@ -160,6 +160,12 @@
   /* ===== Toast & Modals ===== */
   .toast-in { animation: toastIn .2s ease; }
   @keyframes toastIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+  /* Modals: naka-center kapag binuksan (ang JS ay nag-a-alis lang ng "hidden") */
+  #payModal:not(.hidden),
+  #settingsModal:not(.hidden),
+  #discModal:not(.hidden) {
+    display: flex;
+  }
 </style>
 </head>
 <body class="bg-paper-50 text-ink-900 font-sans overflow-x-hidden">
