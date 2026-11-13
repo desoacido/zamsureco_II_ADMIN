@@ -454,6 +454,17 @@
         </div>
 
         <div id="mDispatch" class="border-t border-line pt-4 md:pt-5">
+          <div id="mVerify" class="hidden mb-5">
+            <h4 class="text-sm font-semibold mb-1">Verify before dispatch</h4>
+            <p class="text-xs text-ink-700 mb-3">Check the warnings below, then tick all four. Dispatch stays locked until every item is ticked. Reject if the report cannot be confirmed.</p>
+            <div id="mSignals" class="space-y-2 text-xs mb-3"></div>
+            <div class="space-y-2 text-sm">
+              <label class="flex items-start gap-2"><input type="checkbox" class="vchk mt-1" data-k="photo"> <span>The photo or description shows the problem</span></label>
+              <label class="flex items-start gap-2"><input type="checkbox" class="vchk mt-1" data-k="location"> <span>The location is in our service area and matches the nearest pole</span></label>
+              <label class="flex items-start gap-2"><input type="checkbox" class="vchk mt-1" data-k="grid"> <span>The pole's grid status matches the report, or I checked it on site</span></label>
+              <label class="flex items-start gap-2"><input type="checkbox" class="vchk mt-1" data-k="duplicate"> <span>This is not a duplicate of another open report</span></label>
+            </div>
+          </div>
           <h4 class="text-sm font-semibold mb-3">Dispatch</h4>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
@@ -506,6 +517,11 @@
     let activeTab = 'open';
     let current = null;
     let rejecting = false;
+    let adminEmail = '';
+    let verifyChecks = {};
+    const VERIFY_ITEMS = [
+      { k: 'photo' }, { k: 'location' }, { k: 'grid' }, { k: 'duplicate' },
+    ];
     let overviewMap = null, overviewLayer = null, overviewPoleLayer = null;
     let modalMap = null, modalLayer = null;
 
@@ -615,6 +631,7 @@
     async function checkAuth() {
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (!session) { window.location.href = 'admin_login.html'; return; }
+      adminEmail = session.user?.email || '';
       initOverviewMap();
       await Promise.all([loadPoles(), loadOffice()]);
       await fetchIncidents();
@@ -916,6 +933,79 @@
       fitOverview();
     }
 
+    /* ===== Verification ===== */
+    function nearbyReports(r, meters, hours) {
+      const here = [Number(r.latitude), Number(r.longitude)];
+      const since = Date.now() - hours * 3600 * 1000;
+      return reports.filter(o => o.id !== r.id && hasPoint(o)
+        && new Date(o.created_at).getTime() >= since
+        && metersBetween(here, [Number(o.latitude), Number(o.longitude)]) <= meters);
+    }
+
+    // Automatic warnings only. The admin still makes the decision.
+    function signalsFor(r) {
+      const out = [];
+      if (!hasPoint(r)) {
+        out.push({ tone: 'warn', text: 'No map pin. Confirm the location with the member before dispatching.' });
+        return out;
+      }
+      const near = nearestPole(r);
+      if (near && near.d > 150) {
+        out.push({ tone: 'warn', text: `Nearest pole ${near.pole.pole_code} is ${Math.round(near.d)} m away. The location may be wrong.` });
+      }
+      if (r.is_flagged === true) {
+        out.push({ tone: 'warn', text: `Member app flagged the photo: ${r.verification_badge || 'see photo check'}.` });
+      }
+      const dups = nearbyReports(r, 100, 6).filter(isOpen);
+      if (dups.length) {
+        out.push({ tone: 'warn', text: `Possible duplicate: ${dups.map(ticketRef).join(', ')} within 100 m in the last 6 hours.` });
+      }
+      const same = nearbyReports(r, 150, 24);
+      if (same.length) {
+        out.push({ tone: 'info', text: `${same.length} other report(s) within 150 m in the last 24 hours. Stronger signal, still confirm on site.` });
+      }
+      const powerIssue = /no power|walang kuryente|brownout|outage|blackout/i.test(`${r.category || ''} ${r.description || ''}`);
+      if (powerIssue && near && near.pole.is_energized) {
+        out.push({ tone: 'warn', text: `The grid shows ${near.pole.pole_code} as energized, but the member reports no power. Check on site.` });
+      }
+      return out;
+    }
+
+    function renderVerification(r) {
+      const box = document.getElementById('mVerify');
+      const show = statusOf(r) === 'Pending';
+      box.classList.toggle('hidden', !show);
+      if (!show) return;
+      const signals = signalsFor(r);
+      document.getElementById('mSignals').innerHTML = signals.length
+        ? signals.map(s => `<div class="rounded-md px-3 py-2 border ${s.tone === 'warn'
+            ? 'bg-gold-100 border-gold-600/30 text-gold-700'
+            : 'bg-brand-100 border-brand-700/30 text-brand-800'}">${escapeHtml(s.text)}</div>`).join('')
+        : '<div class="text-ink-700">No automatic warnings.</div>';
+      document.querySelectorAll('#mVerify .vchk').forEach(cb => {
+        cb.checked = !!verifyChecks[cb.dataset.k];
+        cb.onchange = () => { verifyChecks[cb.dataset.k] = cb.checked; renderActions(); };
+      });
+    }
+
+    function verificationComplete() {
+      return VERIFY_ITEMS.every(i => verifyChecks[i.k]);
+    }
+
+    // What the member app recorded about the photo (badge, source, time, duplicates)
+    function photoCheckHtml(r) {
+      if (!r.image_url) return '<span class="text-ink-700">No photo attached</span>';
+      const flagged = r.is_flagged === true;
+      const dupes = r.image_hash ? reports.filter(o => o.id !== r.id && o.image_hash === r.image_hash) : [];
+      const lines = [
+        `<span class="font-semibold ${flagged ? 'text-gold-700' : 'text-ok-600'}">${escapeHtml(r.verification_badge || 'No badge recorded')}</span>`,
+        r.capture_source ? `Source: ${escapeHtml(r.capture_source)}` : '',
+        r.photo_taken_at ? `Photo taken: ${escapeHtml(fmtDate(r.photo_taken_at))}` : 'Photo time: not available',
+        dupes.length ? `<span class="text-danger-600">Same photo also used in: ${escapeHtml(dupes.map(ticketRef).join(', '))}</span>` : '',
+      ].filter(Boolean);
+      return lines.map(l => `<div class="text-xs">${l}</div>`).join('');
+    }
+
     /* ===== Modal ===== */
     function stepsHtml(r) {
       const s = statusOf(r);
@@ -941,6 +1031,7 @@
       if (!r) return;
       current = r;
       rejecting = false;
+      verifyChecks = {};
       const s = statusOf(r);
 
       document.getElementById('mTicket').textContent = ticketRef(r);
@@ -962,6 +1053,7 @@
           ? `${escapeHtml(name || 'Member')}${who && who.account_number ? ` <span class="num text-xs text-ink-700">· ${escapeHtml(who.account_number)}</span>` : ''}${phone ? `<div class="text-xs text-ink-700 num">${escapeHtml(phone)}</div>` : ''}`
           : '<span class="text-ink-700">Member</span>'),
         detailRow('Date reported', fmtDate(r.created_at)),
+        detailRow('Photo check', photoCheckHtml(r)),
       ].join('');
 
       document.getElementById('mPhoto').innerHTML = r.image_url
@@ -981,6 +1073,7 @@
       document.getElementById('rejectBox').classList.add('hidden');
       document.getElementById('mDispatch').classList.toggle('hidden', rejected);
 
+      renderVerification(r);
       renderActions();
 
       const modal = document.getElementById('reviewModal');
@@ -1047,14 +1140,15 @@
         list = [btn('Back', GHOST, () => { rejecting = false; document.getElementById('rejectBox').classList.add('hidden'); renderActions(); }),
                 btn('Confirm rejection', DANGER, confirmReject)];
       } else if (s === 'Pending') {
-        list = [btn('Reject', DANGER_GHOST, startReject), btn('Dispatch crew', PRIMARY, dispatchCrew)];
+        list = [btn('Reject', DANGER_GHOST, startReject),
+                { ...btn('Dispatch crew', PRIMARY, dispatchCrew), disabled: !verificationComplete() }];
       } else if (s === 'In Progress') {
         list = [btn('Save crew / ETR', GHOST, saveDispatch), btn('Mark as resolved', OK, markResolved)];
       }
       list.unshift(btn('Close', GHOST, closeReview));
 
       const box = document.getElementById('mActions');
-      box.innerHTML = list.map((b, i) => `<button data-i="${i}" class="${b.cls} px-4 py-2 rounded-md text-sm font-semibold">${b.label}</button>`).join('');
+      box.innerHTML = list.map((b, i) => `<button data-i="${i}" ${b.disabled ? 'disabled' : ''} class="${b.cls} px-4 py-2 rounded-md text-sm font-semibold ${b.disabled ? 'opacity-50 cursor-not-allowed' : ''}">${b.label}</button>`).join('');
       box.querySelectorAll('button').forEach(el => el.addEventListener('click', () => list[Number(el.dataset.i)].handler()));
     }
 
@@ -1064,6 +1158,7 @@
       modal.classList.remove('flex');
       current = null;
       rejecting = false;
+      verifyChecks = {};
     }
 
     function formError(msg) {
@@ -1094,8 +1189,12 @@
     async function dispatchCrew() {
       const { crew, etr } = dispatchValues();
       if (!crew) { formError('Choose the line crew who will respond.'); return; }
-      await saveReport({ status: 'In Progress', assigned_to: crew, etr, dispatched_at: new Date().toISOString() },
-        `${crew} dispatched. The member can see this in the app.`);
+      if (!verificationComplete()) { formError('Tick all four verification checks before dispatching.'); return; }
+      const now = new Date().toISOString();
+      await saveReport({
+        status: 'In Progress', assigned_to: crew, etr, dispatched_at: now,
+        verification: { ...verifyChecks }, verified_by: adminEmail, verified_at: now,
+      }, `${crew} dispatched. The member can see this in the app.`);
     }
 
     async function saveDispatch() {
@@ -1120,7 +1219,10 @@
     async function confirmReject() {
       const reason = document.getElementById('rejectInput').value.trim();
       if (!reason) { formError('Enter the reason so the member knows why the report was rejected.'); return; }
-      await saveReport({ status: 'Rejected', reject_reason: reason }, 'Report rejected.');
+      await saveReport({
+        status: 'Rejected', reject_reason: reason,
+        verification: { ...verifyChecks }, verified_by: adminEmail, verified_at: new Date().toISOString(),
+      }, 'Report rejected.');
     }
 
     function openFromUrl() {
