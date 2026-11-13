@@ -555,7 +555,7 @@
 
     function ticketRef(r) {
       const year = new Date(r.created_at).getFullYear();
-      return `ZSII-${year}-${String(r.id).padStart(5, '0')}`;
+      return `ZSII-${year}-${String(r.id).slice(0, 8)}…`;
     }
 
     function fmtDate(v) {
