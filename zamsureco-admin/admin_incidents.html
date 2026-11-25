@@ -972,10 +972,9 @@
     }
 
     function renderVerification(r) {
-      const box = document.getElementById('mVerify');
-      const show = statusOf(r) === 'Pending';
-      box.classList.toggle('hidden', !show);
-      if (!show) return;
+      // Checklist removed: the member app already verifies the photo, location and duplicates.
+      document.getElementById('mVerify').classList.add('hidden');
+      return;
       const signals = signalsFor(r);
       document.getElementById('mSignals').innerHTML = signals.length
         ? signals.map(s => `<div class="rounded-md px-3 py-2 border ${s.tone === 'warn'
@@ -989,7 +988,7 @@
     }
 
     function verificationComplete() {
-      return VERIFY_ITEMS.every(i => verifyChecks[i.k]);
+      return true;
     }
 
     // What the member app recorded about the photo (badge, source, time, duplicates)
@@ -1082,11 +1081,42 @@
       setTimeout(() => showOnModalMap(r), 50);
     }
 
+    // The modal has its own tile layers (a Leaflet layer can't be shown on two maps at once).
+    // Satellite is the default here; the toggle button switches between satellite and street.
+    let modalStreet = null, modalSatellite = null, modalIsSatellite = true;
+
+    function setModalBase(useSatellite) {
+      modalIsSatellite = useSatellite;
+      modalStreet.remove();
+      modalSatellite.remove();
+      (useSatellite ? modalSatellite : modalStreet).addTo(modalMap);
+      const btn = document.getElementById('modalMapStyle');
+      if (btn) btn.textContent = useSatellite ? 'Street' : 'Satellite';
+    }
+
     function showOnModalMap(r) {
       if (!modalMap) {
         modalMap = L.map('modalMap');
-        streetLayer.addTo(modalMap);
+        modalStreet = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors · style by HOT', maxZoom: 19 });
+        modalSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+          attribution: 'Tiles &copy; Esri', maxZoom: 19 });
+        setModalBase(true);
         modalLayer = L.layerGroup().addTo(modalMap);
+
+        const ToggleControl = L.Control.extend({
+          onAdd() {
+            const b = L.DomUtil.create('button', 'map-style-btn');
+            b.id = 'modalMapStyle';
+            b.type = 'button';
+            b.textContent = 'Street';
+            b.style.margin = '8px';
+            L.DomEvent.disableClickPropagation(b);
+            b.addEventListener('click', () => setModalBase(!modalIsSatellite));
+            return b;
+          },
+        });
+        new ToggleControl({ position: 'topright' }).addTo(modalMap);
       }
       modalMap.invalidateSize();
       modalLayer.clearLayers();
@@ -1094,12 +1124,13 @@
       const nearestBox = document.getElementById('mNearest');
       const route = document.getElementById('mRoute');
       if (!hasPoint(r)) {
-        modalMap.setView(DEFAULT_CENTER, 13);
-        nearestBox.innerHTML = '<span class="text-ink-700">The member did not pin a location on the map.</span>';
+        document.getElementById('modalMap').classList.add('hidden');
+        nearestBox.innerHTML = '<span class="text-ink-700">No map pin. Use the address above to locate the incident.</span>';
         route.classList.add('hidden');
         return;
       }
 
+      document.getElementById('modalMap').classList.remove('hidden');
       const here = [Number(r.latitude), Number(r.longitude)];
       L.marker(here, { icon: incidentPin(statusOf(r)) }).addTo(modalLayer);
 
