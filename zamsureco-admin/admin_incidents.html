@@ -438,10 +438,11 @@
           <p id="mRejectedText" class="text-sm text-danger-600 mt-1"></p>
         </div>
 
+        <div id="mPhoto" class="mb-5"></div>
+
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5">
           <div class="space-y-4">
             <div id="mDetails" class="space-y-3 text-sm"></div>
-            <div id="mPhoto"></div>
           </div>
           <div class="space-y-3">
             <div id="modalMap" class="rounded-md border border-line overflow-hidden"></div>
@@ -1057,7 +1058,7 @@
 
       document.getElementById('mPhoto').innerHTML = r.image_url
         ? `<div class="text-xs font-medium text-ink-700 mb-1.5">Photo from the member</div>
-           <a href="${escapeHtml(r.image_url)}" target="_blank" rel="noopener"><img src="${escapeHtml(r.image_url)}" class="w-full max-h-64 object-cover rounded-md border border-line" alt="Incident photo"></a>`
+           <a href="${escapeHtml(r.image_url)}" target="_blank" rel="noopener"><img src="${escapeHtml(r.image_url)}" class="w-full max-h-96 object-contain bg-slate-100 rounded-md border border-line" alt="Incident photo"></a>`
         : '';
 
       const crew = document.getElementById('crewInput');
