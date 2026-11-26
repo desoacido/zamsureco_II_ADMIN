@@ -86,6 +86,16 @@
         },
       ],
     },
+    {
+      title: "System",
+      items: [
+        {
+          href: "admin_manage_admins.html",
+          label: "Manage Admins",
+          icon: '<circle cx="9" cy="8" r="4"/><path d="M1 21v-1a6 6 0 0 1 12 0v1"/><path d="M19 8v6M16 11h6"/>',
+        },
+      ],
+    },
   ];
 
   const currentPage = window.location.pathname.split("/").pop() || "admin_dashboard.html";
