@@ -66,6 +66,7 @@
               <option value="technical">Technical</option>
               <option value="teller">Teller</option>
               <option value="admin">Admin</option>
+              <option value="isd">ISD</option>
             </select>
           </div>
           <button type="submit" id="addBtn" class="btn w-full">Create account</button>
@@ -103,7 +104,7 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_PUfegf_zyb5B_gVas_SLyw_mto9NFGF';
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const ROLE_LABELS = { admin: 'Admin', cdmr: 'CDMR', billing: 'Billing', technical: 'Technical', teller: 'Teller' };
+    const ROLE_LABELS = { admin: 'Admin', cdmr: 'CDMR', billing: 'Billing', technical: 'Technical', teller: 'Teller', isd: 'ISD' };
 
     const addForm = document.getElementById('addForm');
     const addBtn = document.getElementById('addBtn');
