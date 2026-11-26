@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZAMSURECO II — Manage Admins</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  .card { background:#fff; border:1px solid #DFE3EE; border-radius:12px; }
+  .btn { background:#0D2E63; color:#fff; font-weight:600; border-radius:8px; padding:9px 16px; font-size:14px; transition:background .15s; }
+  .btn:hover { background:#153a7a; }
+  .btn:disabled { opacity:.6; cursor:default; }
+  .btn-ghost { background:#fff; color:#A33B34; border:1px solid #E7C4C2; border-radius:8px; padding:6px 10px; font-size:13px; }
+  .btn-ghost:hover { background:#FCE8EA; }
+  .btn-ghost:disabled { opacity:.4; cursor:default; }
+  .field { width:100%; border:1px solid #DFE3EE; border-radius:8px; padding:9px 12px; font-size:14px; background:#FBFCFE; }
+  .field:focus { outline:none; border-color:#153a7a; box-shadow:0 0 0 3px rgba(21,58,122,.12); background:#fff; }
+  .lbl { font-size:12px; font-weight:600; color:#0D2E63; text-transform:uppercase; letter-spacing:.5px; display:block; margin-bottom:6px; }
+  .msg { padding:10px 12px; border-radius:8px; font-size:13px; display:none; }
+  .msg.ok { background:#E7F3EC; color:#3F7857; border:1px solid #bfe0cc; }
+  .msg.err { background:#FCE8EA; color:#DC3545; border:1px solid #f5c2c7; }
+</style>
+</head>
+<body class="bg-[#F5F6FA] text-[#16233F] font-sans overflow-x-hidden">
+
+  <!-- Sidebar is injected by sidebar.js -->
+  <div id="sidebar-root"></div>
+
+  <div class="main-content flex-1 flex flex-col min-h-screen">
+
+    <nav class="bg-white border-b border-[#DFE3EE] px-6 h-16 flex justify-between items-center">
+      <div>
+        <h1 class="text-lg font-semibold text-[#141B3D] leading-tight">Manage Admins</h1>
+        <p class="text-xs text-[#4A5372]">Add staff accounts and assign their department role</p>
+      </div>
+      <div class="hidden sm:flex items-center gap-4 text-sm text-[#4A5372]">
+        <span id="adminEmail" class="font-medium"></span>
+      </div>
+    </nav>
+
+    <main class="p-4 lg:p-6 grid gap-6 lg:grid-cols-2 items-start">
+
+      <!-- Add new account -->
+      <section class="card p-5">
+        <h2 class="text-sm font-semibold text-[#141B3D] mb-4">Add new staff account</h2>
+        <form id="addForm" class="space-y-4">
+          <div>
+            <label class="lbl" for="fName">Full name</label>
+            <input id="fName" class="field" required>
+          </div>
+          <div>
+            <label class="lbl" for="fEmail">Email</label>
+            <input id="fEmail" type="email" class="field" required>
+          </div>
+          <div>
+            <label class="lbl" for="fPass">Temporary password</label>
+            <input id="fPass" type="text" class="field" required minlength="8">
+            <p class="text-xs text-[#9AA3B5] mt-1">At least 8 characters, with one uppercase letter and one number. Give this to the staff in person.</p>
+          </div>
+          <div>
+            <label class="lbl" for="fRole">Role</label>
+            <select id="fRole" class="field">
+              <option value="cdmr">CDMR</option>
+              <option value="billing">Billing</option>
+              <option value="technical">Technical</option>
+              <option value="teller">Teller</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <button type="submit" id="addBtn" class="btn w-full">Create account</button>
+          <div id="addMsg" class="msg"></div>
+        </form>
+      </section>
+
+      <!-- Current admins -->
+      <section class="card p-5">
+        <h2 class="text-sm font-semibold text-[#141B3D] mb-4">Current admins</h2>
+        <div id="listMsg" class="msg mb-3"></div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-[#4A5372] border-b border-[#DFE3EE]">
+                <th class="p-3 font-medium">Name</th>
+                <th class="p-3 font-medium">Email</th>
+                <th class="p-3 font-medium">Role</th>
+                <th class="p-3 font-medium text-right">Access</th>
+              </tr>
+            </thead>
+            <tbody id="adminRows">
+              <tr><td colspan="4" class="p-6 text-center text-[#4A5372]">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="sidebar.js"></script>
+  <script>
+    const SUPABASE_URL = 'https://zrnvivattocqvxlxzsld.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_PUfegf_zyb5B_gVas_SLyw_mto9NFGF';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const ROLE_LABELS = { admin: 'Admin', cdmr: 'CDMR', billing: 'Billing', technical: 'Technical', teller: 'Teller' };
+
+    const addForm = document.getElementById('addForm');
+    const addBtn = document.getElementById('addBtn');
+    const addMsg = document.getElementById('addMsg');
+    const listMsg = document.getElementById('listMsg');
+    const adminRows = document.getElementById('adminRows');
+    let currentUserId = null;
+
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    function showMsg(el, text, ok) {
+      el.textContent = text;
+      el.className = 'msg ' + (ok ? 'ok' : 'err');
+      el.style.display = 'block';
+    }
+
+    // Calls the Edge Function. The function checks the role again on the server.
+    async function callManage(body) {
+      const { data, error } = await _supabase.functions.invoke('manage-admins', { body });
+      if (error) {
+        let text = error.message;
+        try {
+          const j = await error.context.json();
+          if (j && j.error) text = j.error;
+        } catch (e) { /* keep default text */ }
+        return { ok: false, error: text };
+      }
+      if (data && data.error) return { ok: false, error: data.error };
+      return { ok: true };
+    }
+
+    async function init() {
+      const { data: { session } } = await _supabase.auth.getSession();
+      if (!session) { window.location.href = 'admin_login.html'; return; }
+      currentUserId = session.user.id;
+      document.getElementById('adminEmail').textContent = session.user.email;
+
+      const { data: me } = await _supabase.from('admins').select('role').eq('user_id', currentUserId).maybeSingle();
+      if (!me || me.role !== 'admin') { window.location.href = 'admin_dashboard.html'; return; }
+
+      loadList();
+    }
+
+    async function loadList() {
+      const { data, error } = await _supabase
+        .from('admins')
+        .select('user_id, full_name, email, role')
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        adminRows.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-[#DC3545]">Unable to load the list.</td></tr>`;
+        return;
+      }
+      if (!data || data.length === 0) {
+        adminRows.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-[#4A5372]">No admins yet.</td></tr>`;
+        return;
+      }
+
+      adminRows.innerHTML = data.map(a => {
+        const isMe = a.user_id === currentUserId;
+        const noRole = !a.role ? '<option value="" selected>No role yet</option>' : '';
+        const opts = Object.entries(ROLE_LABELS)
+          .map(([v, label]) => `<option value="${v}" ${a.role === v ? 'selected' : ''}>${label}</option>`)
+          .join('');
+        return `
+          <tr class="border-t border-[#EEF1F7]">
+            <td class="p-3 font-medium">${esc(a.full_name || '—')}${isMe ? ' <span class="text-xs text-[#9AA3B5]">(you)</span>' : ''}</td>
+            <td class="p-3 text-[#4A5372]">${esc(a.email || '—')}</td>
+            <td class="p-3">
+              <select class="field !py-1.5 !text-[13px]" data-role-for="${a.user_id}" ${isMe ? 'disabled' : ''}>${noRole}${opts}</select>
+            </td>
+            <td class="p-3 text-right">
+              <button class="btn-ghost" data-remove="${a.user_id}" ${isMe ? 'disabled' : ''}>Remove access</button>
+            </td>
+          </tr>`;
+      }).join('');
+    }
+
+    addForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      addBtn.disabled = true;
+      addBtn.textContent = 'Creating…';
+
+      const res = await callManage({
+        action: 'create',
+        full_name: document.getElementById('fName').value.trim(),
+        email: document.getElementById('fEmail').value.trim(),
+        password: document.getElementById('fPass').value,
+        role: document.getElementById('fRole').value,
+      });
+
+      addBtn.disabled = false;
+      addBtn.textContent = 'Create account';
+
+      if (res.ok) {
+        showMsg(addMsg, 'Account created. Give the temporary password to the staff in person.', true);
+        addForm.reset();
+        loadList();
+      } else {
+        showMsg(addMsg, res.error, false);
+      }
+    });
+
+    // Change role
+    adminRows.addEventListener('change', async (e) => {
+      const sel = e.target.closest('select[data-role-for]');
+      if (!sel || !sel.value) return;
+      const res = await callManage({ action: 'set_role', user_id: sel.dataset.roleFor, role: sel.value });
+      showMsg(listMsg, res.ok ? 'Role updated.' : res.error, res.ok);
+      if (!res.ok) loadList();
+    });
+
+    // Remove access
+    adminRows.addEventListener('click', async (e) => {
+      const btn = e.target.closest('button[data-remove]');
+      if (!btn) return;
+      if (!confirm('Remove this person\'s admin access? The account is kept, but they can no longer sign in to the admin site.')) return;
+      const res = await callManage({ action: 'remove', user_id: btn.dataset.remove });
+      showMsg(listMsg, res.ok ? 'Access removed.' : res.error, res.ok);
+      loadList();
+    });
+
+    init();
+  </script>
+</body>
+</html>
