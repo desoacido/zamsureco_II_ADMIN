@@ -16,6 +16,8 @@
     --amber-deep:#C97C1B;
     --red:#DC3545;
     --red-bg:#FCE8EA;
+    --green:#3F7857;
+    --green-bg:#E7F3EC;
     --border:#E2E6ED;
     --text:#16233F;
     --text-faint:#9AA3B5;
@@ -51,64 +53,29 @@
   input:focus{outline:none; border-color:var(--navy-700); box-shadow:0 0 0 3px rgba(21,58,122,0.12); background:#fff;}
 
   /* ===== PASSWORD FIELD WITH TOGGLE ===== */
-  .password-wrapper {
-    position: relative;
-    width: 100%;
+  .password-wrapper{position:relative; width:100%;}
+  .password-wrapper input{padding-right:42px;}
+  .toggle-password{
+    position:absolute; right:10px; top:50%; transform:translateY(-50%);
+    background:none; border:none; cursor:pointer; padding:0;
+    width:24px; height:24px; display:flex; align-items:center; justify-content:center;
+    color:var(--text-faint); transition:color .15s ease; margin:0; border-radius:0; font-size:0;
   }
-  .password-wrapper input {
-    padding-right: 42px; /* space for the eye icon */
-  }
-  .toggle-password {
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-faint);
-    transition: color 0.15s ease;
-    margin: 0;
-    border-radius: 0;
-    font-size: 0; /* hide any accidental text */
-  }
-  .toggle-password:hover {
-    color: var(--navy-800);
-  }
-  .toggle-password:focus-visible {
-    outline: 2px solid var(--navy-700);
-    outline-offset: 2px;
-    border-radius: 4px;
-  }
-  .toggle-password svg {
-    width: 20px;
-    height: 20px;
-    display: block;
-  }
-  /* Hide the "eye-off" icon by default; show when .is-visible */
-  .toggle-password .icon-eye-off { display: none; }
-  .toggle-password.is-visible .icon-eye { display: none; }
-  .toggle-password.is-visible .icon-eye-off { display: block; }
+  .toggle-password:hover{color:var(--navy-800);}
+  .toggle-password:focus-visible{outline:2px solid var(--navy-700); outline-offset:2px; border-radius:4px;}
+  .toggle-password svg{width:20px; height:20px; display:block;}
+  .toggle-password .icon-eye-off{display:none;}
+  .toggle-password.is-visible .icon-eye{display:none;}
+  .toggle-password.is-visible .icon-eye-off{display:block;}
 
-  .forgot-password-container {
-    text-align: right;
-    margin-top: 8px;
-    margin-bottom: 4px;
+  .forgot-password-container{text-align:right; margin-top:8px; margin-bottom:4px;}
+  .forgot-password-container button{
+    background:none; border:none; cursor:pointer; padding:0;
+    font-size:12px; color:var(--navy-700); font-family:'Inter',sans-serif;
   }
-  .forgot-password-container a {
-    font-size: 12px;
-    color: var(--navy-700);
-    text-decoration: none;
-  }
-  .forgot-password-container a:hover {
-    text-decoration: underline;
-  }
+  .forgot-password-container button:hover{text-decoration:underline;}
+  .forgot-password-container button:disabled{opacity:0.6; cursor:default;}
+
   button[type="submit"]{
     width:100%; margin-top:18px; padding:12px; font-size:14px;
     background:var(--navy-800); color:#fff; border:none; border-radius:8px;
@@ -118,10 +85,13 @@
   button[type="submit"]:hover{background:var(--navy-700);}
   button[type="submit"]:active{transform:scale(0.98);}
   button[type="submit"]:disabled{opacity:0.6; cursor:default;}
-  .login-error{
+
+  .login-msg{
     margin-top:14px; padding:10px 12px; border-radius:8px; font-size:12.5px; font-weight:500; display:none;
-    background:var(--red-bg); color:var(--red); border:1px solid #f5c2c7;
   }
+  .login-msg.error{background:var(--red-bg); color:var(--red); border:1px solid #f5c2c7;}
+  .login-msg.success{background:var(--green-bg); color:var(--green); border:1px solid #bfe0cc;}
+
   .login-footnote{text-align:center; font-size:11.5px; color:var(--text-faint); margin-top:20px; line-height:1.5;}
   .back-link{display:block; text-align:center; margin-top:15px; font-size:12px; color:var(--navy-700); text-decoration:none;}
   .back-link:hover{text-decoration:underline;}
@@ -142,7 +112,7 @@
     <form id="loginForm">
       <label for="loginEmail">Email</label>
       <input type="email" id="loginEmail" placeholder="admin@zamsureco2.com" required autocomplete="username">
-      
+
       <label for="loginPassword">Password</label>
       <div class="password-wrapper">
         <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
@@ -166,8 +136,8 @@
 
       <button type="submit" id="loginBtn">Sign In</button>
     </form>
-    
-    <p id="loginError" class="login-error"></p>
+
+    <p id="loginMsg" class="login-msg error"></p>
     <p class="login-footnote">System for managing reports and announcements.</p>
     <a href="index.html" class="back-link">&larr; Back to Home</a>
   </div>
@@ -180,8 +150,14 @@
     const HOME_PAGE = 'admin_dashboard.html';
 
     const loginForm = document.getElementById('loginForm');
-    const loginError = document.getElementById('loginError');
+    const loginMsg = document.getElementById('loginMsg');
     const loginBtn = document.getElementById('loginBtn');
+
+    function showMsg(text, type) {
+      loginMsg.textContent = text;
+      loginMsg.className = 'login-msg ' + type;
+      loginMsg.style.display = 'block';
+    }
 
     // ===== PASSWORD TOGGLE LOGIC =====
     const passwordInput = document.getElementById('loginPassword');
@@ -193,41 +169,64 @@
       toggleBtn.classList.toggle('is-visible', isPassword);
       toggleBtn.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
       toggleBtn.setAttribute('aria-pressed', isPassword ? 'true' : 'false');
-      // Keep focus on the input for better UX
       passwordInput.focus();
     });
 
-    // Auto-redirect if already logged in
+    // Auto-redirect only if already logged in AND listed in admins
     (async () => {
       const { data: { session } } = await _supabase.auth.getSession();
-      if (session) {
+      if (session && await isAdmin(session.user.id)) {
         window.location.href = HOME_PAGE;
       }
     })();
 
+    // Checks the admins table. Only users listed there can enter the admin site.
+    async function isAdmin(userId) {
+      const { data, error } = await _supabase
+        .from('admins')
+        .select('user_id')
+        .eq('user_id', userId)
+        .maybeSingle();
+      return !error && !!data;
+    }
+
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      loginError.style.display = 'none';
+      loginMsg.style.display = 'none';
       loginBtn.disabled = true;
       loginBtn.textContent = 'Signing in...';
 
       const email = document.getElementById('loginEmail').value.trim();
       const password = document.getElementById('loginPassword').value;
 
-      const { error } = await _supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
 
       if (error) {
         loginBtn.disabled = false;
         loginBtn.textContent = 'Sign In';
-        loginError.textContent = /invalid/i.test(error.message)
-          ? 'Invalid email or password. Please try again.'
-          : error.message;
-        loginError.style.display = 'block';
+        const msg = error.message.toLowerCase();
+        if (msg.includes('email not confirmed')) {
+          showMsg('Please confirm your email first. Check your inbox for the confirmation link.', 'error');
+        } else if (msg.includes('invalid login')) {
+          showMsg('Invalid email or password. Please try again.', 'error');
+        } else {
+          showMsg(error.message, 'error');
+        }
+        return;
+      }
+
+      // Walang access kung wala sa admins table
+      if (!(await isAdmin(data.user.id))) {
+        await _supabase.auth.signOut();
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Sign In';
+        showMsg('This account is not authorized for admin access.', 'error');
         return;
       }
 
       window.location.href = HOME_PAGE;
     });
+
   </script>
 </body>
 </html>
