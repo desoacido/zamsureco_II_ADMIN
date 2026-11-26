@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Email Confirmed | ZAMSURECO</title>
+  <style>
+    :root {
+      --brand: #0D2C6C;
+      --accent: #FFC72C;
+      --ok: #3F7857;
+      --bg: #F3F5F8;
+      --card: #FFFFFF;
+      --text: #1F2937;
+      --muted: #6B7280;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #0F172A;
+        --card: #1E293B;
+        --text: #F1F5F9;
+        --muted: #94A3B8;
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg: #0F172A;
+      --card: #1E293B;
+      --text: #F1F5F9;
+      --muted: #94A3B8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: var(--card);
+      border-radius: 16px;
+      padding: 32px 24px;
+      text-align: center;
+      box-shadow: 0 8px 24px rgba(13, 44, 108, 0.12);
+    }
+    .icon {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 16px;
+      border-radius: 50%;
+      background: var(--ok);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .icon svg { width: 40px; height: 40px; }
+    .brand {
+      font-weight: 700;
+      color: var(--brand);
+      letter-spacing: 0.5px;
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 22px;
+      color: var(--text);
+    }
+    p {
+      margin: 0 0 12px;
+      line-height: 1.5;
+      color: var(--muted);
+      font-size: 15px;
+    }
+    .steps {
+      margin: 20px 0 0;
+      padding: 16px 16px 16px 36px;
+      border-radius: 12px;
+      background: var(--bg);
+      text-align: left;
+      font-size: 14px;
+      color: var(--text);
+    }
+    .steps li { margin-bottom: 6px; }
+    .badge {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: var(--accent);
+      color: var(--brand);
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .hint {
+      margin-top: 16px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+    </div>
+
+    <div class="brand">ZAMSURECO</div>
+    <h1>Email Confirmed!</h1>
+    <p>Thank you. Your email address has been verified.</p>
+
+    <ol class="steps">
+      <li>Return to the ZAMSURECO app.</li>
+      <li>Log in using the email and password you created.</li>
+      <li>Start your New Connection application.</li>
+    </ol>
+
+    <span class="badge">Account Activated</span>
+
+    <p class="hint">You may now close this page.</p>
+  </main>
+</body>
+</html>
