@@ -41,11 +41,13 @@
       items: [
         {
           href: "admin_poles.html",
+          roles: ["admin", "technical"],
           label: "Grid & Poles",
           icon: '<path d="M12 2v20"/><path d="M5 6h14"/><path d="M7 10h10"/><circle cx="5" cy="6" r="1.5"/><circle cx="19" cy="6" r="1.5"/>',
         },
         {
           href: "admin_application.html",
+          roles: ["admin", "cdmr"],
           label: "Applications",
           // Badge: applications still waiting for an admin step
           count: { table: "service_applications", exclude: ["Energized", "Reconnected", "Transferred", "Rejected"] },
@@ -53,6 +55,7 @@
         },
         {
           href: "admin_incidents.html",
+          roles: ["admin", "technical"],
           label: "Incident Reports",
           // Badge: incidents not yet resolved
           count: { table: "incident_reports", exclude: ["Resolved", "Rejected", "Closed"] },
@@ -61,6 +64,7 @@
         },
         {
           href: "manage_linemen.html",
+          roles: ["admin", "technical"],
           label: "Field Personnel",
           icon: '<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0116 0v1"/>',
         },
@@ -71,16 +75,19 @@
       items: [
         {
           href: "admin_announcements.html",
+          roles: ["admin", "isd"],
           label: "Announcements",
           icon: '<path d="M3 11l18-5v12L3 13v-2z"/><path d="M11 13v6a2 2 0 002 2h1"/>',
         },
         {
           href: "admin_billing_upload.html",
+          roles: ["admin", "billing"],
           label: "Billing Statements",
           icon: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 14h2"/><path d="M8 17h5"/>',
         },
         {
           href: "admin_inquiries.html",
+          roles: ["admin", "isd"],
           label: "Service Inquiries",
           icon: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
         },
@@ -91,6 +98,7 @@
       items: [
         {
           href: "admin_manage_admins.html",
+          roles: ["admin"],
           label: "Manage Admins",
           icon: '<circle cx="9" cy="8" r="4"/><path d="M1 21v-1a6 6 0 0 1 12 0v1"/><path d="M19 8v6M16 11h6"/>',
         },
@@ -516,6 +524,9 @@
     // 5. Same header on every page: white, same height, email + time on the right
     standardizeHeader();
 
+    // Role check: show only the menu this role may use
+    applyRoleMenu();
+
     // 6. Numbers next to "Applications" and "Incident Reports" in the menu
     loadNavCounts();
 
@@ -540,6 +551,52 @@
       });
     }
   });
+
+  /* ------------------------------------------------------------
+     ROLE MENU
+     Shows only the menu items this admin's role may use, and sends
+     them back to the Dashboard if they open a page they cannot use.
+     This is the first layer only. The database rules (RLS) must
+     also be set, because hiding a menu is not real security.
+     Items without "roles" are open to every signed-in admin.
+     ------------------------------------------------------------ */
+  async function applyRoleMenu() {
+    let client = window.supabaseClient || window._supabase || null;
+    try { if (!client && typeof _supabase !== "undefined") client = _supabase; } catch (e) {}
+    if (!client) return;
+
+    const { data: sessionData } = await client.auth.getSession();
+    const session = sessionData && sessionData.session;
+    if (!session) return;
+
+    const { data: row } = await client
+      .from("admins")
+      .select("role")
+      .eq("user_id", session.user.id)
+      .maybeSingle();
+    const role = row && row.role;
+
+    const items = NAV_GROUPS.flatMap(g => g.items);
+    const allowed = (item) => !item.roles || (!!role && item.roles.includes(role));
+
+    // 1. Pages this role cannot use go back to the Dashboard
+    const current = items.find(i => i.href === currentPage);
+    if (current && !allowed(current)) {
+      window.location.replace("admin_dashboard.html");
+      return;
+    }
+
+    // 2. Hide the menu links this role cannot use
+    document.querySelectorAll(".nav-link").forEach(a => {
+      const item = items.find(i => i.href === a.getAttribute("href"));
+      if (item && !allowed(item)) a.remove();
+    });
+
+    // 3. Hide group titles that no longer have any link
+    document.querySelectorAll(".nav-group").forEach(g => {
+      if (!g.querySelector(".nav-link")) g.remove();
+    });
+  }
 
   // Kapag bumalik gamit ang Back arrow (galing sa cache), i-reload para ma-check ulit ang session
   window.addEventListener("pageshow", function (e) {
