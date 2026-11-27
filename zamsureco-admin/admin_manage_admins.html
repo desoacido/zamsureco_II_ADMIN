@@ -64,9 +64,8 @@
               <option value="cdmr">CDMR</option>
               <option value="billing">Billing</option>
               <option value="technical">Technical</option>
-              <option value="teller">Teller</option>
-              <option value="admin">Admin</option>
               <option value="isd">ISD</option>
+              <option value="admin">Admin</option>
             </select>
           </div>
           <button type="submit" id="addBtn" class="btn w-full">Create account</button>
@@ -77,6 +76,17 @@
       <!-- Current admins -->
       <section class="card p-5">
         <h2 class="text-sm font-semibold text-[#141B3D] mb-4">Current admins</h2>
+        <div class="flex flex-wrap gap-2 mb-3">
+          <input id="fSearch" type="search" class="field !w-auto flex-1 min-w-[180px]" placeholder="Search name or email…">
+          <select id="fRoleFilter" class="field !w-auto min-w-[140px]">
+            <option value="">All roles</option>
+            <option value="admin">Admin</option>
+            <option value="cdmr">CDMR</option>
+            <option value="billing">Billing</option>
+            <option value="technical">Technical</option>
+            <option value="isd">ISD</option>
+          </select>
+        </div>
         <div id="listMsg" class="msg mb-3"></div>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
@@ -104,7 +114,7 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_PUfegf_zyb5B_gVas_SLyw_mto9NFGF';
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const ROLE_LABELS = { admin: 'Admin', cdmr: 'CDMR', billing: 'Billing', technical: 'Technical', teller: 'Teller', isd: 'ISD' };
+    const ROLE_LABELS = { admin: 'Admin', cdmr: 'CDMR', billing: 'Billing', technical: 'Technical', isd: 'ISD' };
 
     const addForm = document.getElementById('addForm');
     const addBtn = document.getElementById('addBtn');
@@ -112,6 +122,7 @@
     const listMsg = document.getElementById('listMsg');
     const adminRows = document.getElementById('adminRows');
     let currentUserId = null;
+    let allAdmins = [];
 
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -158,12 +169,31 @@
         adminRows.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-[#DC3545]">Unable to load the list.</td></tr>`;
         return;
       }
-      if (!data || data.length === 0) {
+      allAdmins = data || [];
+      renderList();
+    }
+
+    // Shows the list, filtered by the search box and the role filter
+    function renderList() {
+      const q = document.getElementById('fSearch').value.trim().toLowerCase();
+      const roleFilter = document.getElementById('fRoleFilter').value;
+
+      if (allAdmins.length === 0) {
         adminRows.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-[#4A5372]">No admins yet.</td></tr>`;
         return;
       }
 
-      adminRows.innerHTML = data.map(a => {
+      const rows = allAdmins.filter(a =>
+        (!roleFilter || a.role === roleFilter) &&
+        (!q || (a.full_name || '').toLowerCase().includes(q) || (a.email || '').toLowerCase().includes(q))
+      );
+
+      if (rows.length === 0) {
+        adminRows.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-[#4A5372]">No accounts match your search or filter.</td></tr>`;
+        return;
+      }
+
+      adminRows.innerHTML = rows.map(a => {
         const isMe = a.user_id === currentUserId;
         const noRole = !a.role ? '<option value="" selected>No role yet</option>' : '';
         const opts = Object.entries(ROLE_LABELS)
@@ -174,10 +204,10 @@
             <td class="p-3 font-medium">${esc(a.full_name || '—')}${isMe ? ' <span class="text-xs text-[#9AA3B5]">(you)</span>' : ''}</td>
             <td class="p-3 text-[#4A5372]">${esc(a.email || '—')}</td>
             <td class="p-3">
-              <select class="field !py-1.5 !text-[13px]" data-role-for="${a.user_id}" ${isMe ? 'disabled' : ''}>${noRole}${opts}</select>
+              <select class="field !w-auto min-w-[130px] !py-1.5 !text-[13px]" data-role-for="${a.user_id}" ${isMe ? 'disabled' : ''}>${noRole}${opts}</select>
             </td>
             <td class="p-3 text-right">
-              <button class="btn-ghost" data-remove="${a.user_id}" ${isMe ? 'disabled' : ''}>Remove access</button>
+              <button class="btn-ghost whitespace-nowrap" data-remove="${a.user_id}" ${isMe ? 'disabled' : ''}>Remove access</button>
             </td>
           </tr>`;
       }).join('');
@@ -226,6 +256,9 @@
       showMsg(listMsg, res.ok ? 'Access removed.' : res.error, res.ok);
       loadList();
     });
+
+    document.getElementById('fSearch').addEventListener('input', renderList);
+    document.getElementById('fRoleFilter').addEventListener('change', renderList);
 
     init();
   </script>
