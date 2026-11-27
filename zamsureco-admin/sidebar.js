@@ -152,6 +152,10 @@
       </nav>
 
       <div class="sidebar-bottom">
+        <div class="sb-user" id="sbUser" style="display:none">
+          <div class="sb-user-name"></div>
+          <div class="sb-user-role"></div>
+        </div>
         <a href="admin_login.html" id="logoutBtn" class="logout-btn" title="Sign Out">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
@@ -375,6 +379,26 @@
       background: var(--sb-yellow);
     }
 
+    /* Signed-in user: name and department, above Sign Out */
+    .sb-user { padding: 10px 12px 12px 12px; }
+    .sb-user-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sb-user-role {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: var(--sb-yellow);
+      margin-top: 2px;
+    }
+    html.sidebar-collapsed .sb-user { display: none !important; }
+
     /* Bottom: sign out + footer */
     .sidebar-bottom {
       margin-top: auto;
@@ -581,10 +605,19 @@
 
     const { data: row } = await client
       .from("admins")
-      .select("role")
+      .select("full_name, role")
       .eq("user_id", session.user.id)
       .maybeSingle();
     const role = row && row.role;
+
+    // Show who is signed in, and their department, at the bottom of the sidebar
+    const ROLE_NAMES = { admin: "Admin", cdmr: "CDMR", billing: "Billing", technical: "Technical", isd: "ISD" };
+    const userBox = document.getElementById("sbUser");
+    if (userBox) {
+      userBox.querySelector(".sb-user-name").textContent = (row && row.full_name) || session.user.email;
+      userBox.querySelector(".sb-user-role").textContent = role ? (ROLE_NAMES[role] || role) : "No role yet";
+      userBox.style.display = "";
+    }
 
     const items = NAV_GROUPS.flatMap(g => g.items);
     const allowed = (item) => !item.roles || (!!role && item.roles.includes(role));
