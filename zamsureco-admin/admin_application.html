@@ -1360,10 +1360,38 @@
     // ============================================================
     // Actions
     // ============================================================
+    // What the member sees in the notification list for each status change
+    const NOTICE = {
+      'PMES Scheduled':         ['PMES scheduled', 'Your PMES schedule has been set. Check the details in your application.'],
+      'PMES Completed':         ['PMES done', 'Your PMES attendance has been recorded.'],
+      'Submission Scheduled':   ['Papers submission', 'Your submission schedule has been set. Bring your requirements to the office.'],
+      'For Inspection':         ['For inspection', 'Your application is now for inspection.'],
+      'For Payment':            ['For payment', 'Your application is ready for payment at the office.'],
+      'Paid':                   ['Payment received', 'Your payment has been recorded.'],
+      'Installation Scheduled': ['Installation scheduled', 'Your installation schedule has been set.'],
+      'Energized':              ['Energized', 'Your connection is now energized. Welcome to ZAMSURECO II!'],
+      'Rejected':               ['Application rejected', 'Your application was rejected. Please check the remarks.'],
+      'Transfer Scheduled':     ['Transfer scheduled', 'Your transfer schedule has been set.'],
+      'Transferred':            ['Transferred', 'Your service has been transferred.'],
+      'Reconnection Scheduled': ['Reconnection scheduled', 'Your reconnection schedule has been set.'],
+      'Reconnected':            ['Reconnected', 'Your electricity has been reconnected.'],
+    };
+
+    // Writes a notification for the applicant. A failure here does not block the status update.
+    async function notifyApplicant(app, status) {
+      const n = NOTICE[status];
+      if (!n || !app || !app.user_id) return;
+      const { error } = await _supabase
+        .from('notifications')
+        .insert({ user_id: app.user_id, title: n[0], message: n[1] });
+      if (error) console.error('Notification error:', error.message);
+    }
+
     async function updateApp(fields, message) {
       if (!current) return;
       const { error } = await _supabase.from('service_applications').update(fields).eq('id', current.id);
       if (error) { toast('Error: ' + error.message, false); return false; }
+      if (fields.status) await notifyApplicant(current, fields.status);
       toast(message);
       await loadCurrent(current.id);
       fetchApplications();
