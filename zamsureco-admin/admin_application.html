@@ -989,7 +989,7 @@
             <p class="text-sm text-ink-800 mb-3">Scheduled: <b>${escapeHtml(fmtDate(app.pmes_schedule))}</b>${app.pmes_venue ? ` · ${escapeHtml(app.pmes_venue)}` : ''}</p>
             <div class="flex gap-2 flex-wrap">
               <button class="btn-ok" onclick="actPmesAttended()">Mark as attended</button>
-              <button class="btn-ghost" onclick="actResetStatus('Pending', 'Moved back so you can set a new PMES schedule.')">Reschedule</button>
+              <button class="btn-ghost" onclick="actReschedule()">Reschedule</button>
             </div>
             <p class="text-xs text-ink-700/70 mt-2">Marking attendance also checks off the PMES requirement automatically.</p>`);
 
@@ -1409,17 +1409,30 @@
       await loadCurrent(current.id);
     }
 
+    // Set by the Reschedule button, so the next PMES save is sent as "rescheduled"
+    let pendingResched = false;
+    function actReschedule() {
+      pendingResched = true;
+      actResetStatus('Pending', 'Moved back so you can set a new PMES schedule.');
+    }
+
     function actSetPmes() {
       const date = val('pmesDate');
       if (!date) { toast('Please set the PMES date and time.', false); return; }
       if (isPast(date)) { toast('The PMES schedule cannot be in the past.', false); return; }
       // A schedule that already existed means the admin used Reschedule
-      const isResched = !!current.pmes_schedule;
+      const isResched = pendingResched || !!current.pmes_schedule;
+      pendingResched = false;
+      // The notification shows the same date, time and venue the admin set
+      const when = new Date(date).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+      const where = val('pmesVenue');
+      const place = where ? ` at ${where}` : '';
+      const notice = isResched
+        ? ['PMES rescheduled', `Your PMES was changed to ${when}${place}. Please follow the new schedule.`]
+        : ['PMES scheduled', `Your PMES is on ${when}${place}.`];
       updateApp({ pmes_schedule: fromLocalInput(date), pmes_venue: val('pmesVenue') || null, status: 'PMES Scheduled' },
         'PMES schedule saved. The applicant can now see it in the app.',
-        isResched
-          ? ['PMES rescheduled', 'Your PMES schedule has been changed. Check the new date and time in your application.']
-          : null);
+        notice);
     }
     function actPmesAttended() { updateApp({ pmes_attended: true, status: 'PMES Completed' }, 'PMES attendance recorded.'); }
     function actSetSubmission() {
