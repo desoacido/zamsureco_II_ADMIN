@@ -37,14 +37,8 @@
       ],
     },
     {
-      title: "Grid & Service",
+      title: "CDMR",
       items: [
-        {
-          href: "admin_poles.html",
-          roles: ["admin", "technical"],
-          label: "Grid & Poles",
-          icon: '<path d="M12 2v20"/><path d="M5 6h14"/><path d="M7 10h10"/><circle cx="5" cy="6" r="1.5"/><circle cx="19" cy="6" r="1.5"/>',
-        },
         {
           href: "admin_application.html",
           roles: ["admin", "cdmr"],
@@ -52,6 +46,17 @@
           // Badge: applications still waiting for an admin step
           count: { table: "service_applications", exclude: ["Energized", "Reconnected", "Transferred", "Rejected"] },
           icon: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+        },
+      ],
+    },
+    {
+      title: "Technical",
+      items: [
+        {
+          href: "admin_poles.html",
+          roles: ["admin", "technical"],
+          label: "Grid & Poles",
+          icon: '<path d="M12 2v20"/><path d="M5 6h14"/><path d="M7 10h10"/><circle cx="5" cy="6" r="1.5"/><circle cx="19" cy="6" r="1.5"/>',
         },
         {
           href: "admin_incidents.html",
@@ -71,19 +76,24 @@
       ],
     },
     {
-      title: "Members",
+      title: "Billing",
+      items: [
+        {
+          href: "admin_billing_upload.html",
+          roles: ["admin", "billing"],
+          label: "Billing Statements",
+          icon: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 14h2"/><path d="M8 17h5"/>',
+        },
+      ],
+    },
+    {
+      title: "ISD",
       items: [
         {
           href: "admin_announcements.html",
           roles: ["admin", "isd"],
           label: "Announcements",
           icon: '<path d="M3 11l18-5v12L3 13v-2z"/><path d="M11 13v6a2 2 0 002 2h1"/>',
-        },
-        {
-          href: "admin_billing_upload.html",
-          roles: ["admin", "billing"],
-          label: "Billing Statements",
-          icon: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 14h2"/><path d="M8 17h5"/>',
         },
         {
           href: "admin_inquiries.html",
