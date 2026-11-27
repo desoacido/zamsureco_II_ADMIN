@@ -1378,8 +1378,8 @@
     };
 
     // Writes a notification for the applicant. A failure here does not block the status update.
-    async function notifyApplicant(app, status) {
-      const n = NOTICE[status];
+    async function notifyApplicant(app, status, override) {
+      const n = override || NOTICE[status];
       if (!n || !app || !app.user_id) return;
       const { error } = await _supabase
         .from('notifications')
@@ -1387,11 +1387,11 @@
       if (error) console.error('Notification error:', error.message);
     }
 
-    async function updateApp(fields, message) {
+    async function updateApp(fields, message, notice) {
       if (!current) return;
       const { error } = await _supabase.from('service_applications').update(fields).eq('id', current.id);
       if (error) { toast('Error: ' + error.message, false); return false; }
-      if (fields.status) await notifyApplicant(current, fields.status);
+      if (fields.status) await notifyApplicant(current, fields.status, notice);
       toast(message);
       await loadCurrent(current.id);
       fetchApplications();
@@ -1413,8 +1413,13 @@
       const date = val('pmesDate');
       if (!date) { toast('Please set the PMES date and time.', false); return; }
       if (isPast(date)) { toast('The PMES schedule cannot be in the past.', false); return; }
+      // A schedule that already existed means the admin used Reschedule
+      const isResched = !!current.pmes_schedule;
       updateApp({ pmes_schedule: fromLocalInput(date), pmes_venue: val('pmesVenue') || null, status: 'PMES Scheduled' },
-        'PMES schedule saved. The applicant can now see it in the app.');
+        'PMES schedule saved. The applicant can now see it in the app.',
+        isResched
+          ? ['PMES rescheduled', 'Your PMES schedule has been changed. Check the new date and time in your application.']
+          : null);
     }
     function actPmesAttended() { updateApp({ pmes_attended: true, status: 'PMES Completed' }, 'PMES attendance recorded.'); }
     function actSetSubmission() {
