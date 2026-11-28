@@ -1339,14 +1339,14 @@
       });
       L.marker(home, { icon: appIcon })
         .addTo(appMap)
-        .bindTooltip('Applicant', { permanent: true, direction: 'top', className: 'custom-tooltip', offset: [0, -32] });
+        .bindTooltip('Applicant', { direction: 'top', className: 'custom-tooltip', offset: [0, -32] }); // hover to see
 
       if (pole) {
         const p = [Number(pole.latitude), Number(pole.longitude)];
         L.circleMarker(p, { radius: 8, color: '#fff', weight: 2, fillColor: pole.is_energized ? '#3F7857' : '#9CA3AF', fillOpacity: 1 })
-          .addTo(appMap).bindTooltip(pole.pole_code, { permanent: true, direction: 'right', className: 'custom-tooltip' });
+          .addTo(appMap).bindTooltip(pole.pole_code, { direction: 'right', className: 'custom-tooltip' }); // hover to see
         L.polyline([home, p], { color: '#C28A1A', weight: 3, dashArray: '6 6' })
-          .addTo(appMap).bindTooltip(`${Number(app.distance || 0).toFixed(1)} m`, { permanent: true, direction: 'center' });
+          .addTo(appMap).bindTooltip(`${Number(app.distance || 0).toFixed(1)} m`, { direction: 'center' }); // hover to see
         appMap.fitBounds([home, p], { padding: [40, 40], maxZoom: 18 });
       } else {
         appMap.setView(home, 17);
