@@ -1047,11 +1047,11 @@
               <button class="btn-ok" onclick="actInspectionPassed()">Passed → For payment</button>
               <button class="btn-danger" onclick="actInspectionFailed()">Failed</button>
             </div>
-            <p class="text-xs text-ink-700/70 mt-2">When passed, one service slot on ${escapeHtml(app.nearest_pole || 'the nearest pole')} is reserved automatically.</p>`);
+            <p class="text-xs text-ink-700/70 mt-2">When passed, one service slot on ${escapeHtml(app.nearest_pole || 'the nearest pole')} is reserved.</p>`);
 
         case 'For Payment':
           return actionCard('Record the official receipt (OR)', `
-            <p class="text-sm text-ink-800 mb-3">The applicant pays the connection fees at the ZAMSURECO II cashier. When they show the official receipt, enter its OR number here.</p>
+            <p class="text-sm text-ink-800 mb-3">Enter the OR number from the applicant's receipt issued by the cashier.</p>
             <label class="text-xs font-medium text-ink-700">Official receipt (OR) number</label>
             <input id="orNumber" type="text" class="field mt-1 num" placeholder="e.g. 0012345" value="${escapeHtml(app.or_number || '')}">
             <button class="btn-ok mt-3" onclick="actMarkPaid()">Save OR number</button>`);
@@ -1390,6 +1390,7 @@
       'PMES Completed':         ['PMES done', 'Your PMES attendance has been recorded.'],
       'Submission Scheduled':   ['Papers submission', 'Your submission schedule has been set. Bring your requirements to the office.'],
       'For Inspection':         ['For inspection', 'Your application is now for inspection.'],
+      'Inspection Failed':      ['Inspection failed', 'Your inspection did not pass. Check the engineer remarks in your application.'],
       'For Payment':            ['For payment', 'Your application is ready for payment at the office.'],
       'Paid':                   ['Payment received', 'Your payment has been recorded.'],
       'Installation Scheduled': ['Installation scheduled', 'Your installation schedule has been set.'],
