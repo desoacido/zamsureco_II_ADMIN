@@ -378,7 +378,7 @@
       { status: 'PMES Completed',         label: 'PMES done' },
       { status: 'Submission Scheduled',   label: 'Papers' },
       { status: 'For Inspection',         label: 'Inspection' },
-      { status: 'For Payment',            label: 'Payment' },
+      { status: 'For Payment',            label: 'OR recording' },
       { status: 'Paid',                   label: 'Paid' },
       { status: 'Installation Scheduled', label: 'Installation' },
       { status: 'Energized',              label: 'Energized' },
@@ -401,7 +401,7 @@
     const TRANSFER_STEPS = [
       { status: 'Pending',            label: 'Requested' },
       { status: 'For Inspection',     label: 'Inspection' },
-      { status: 'For Payment',        label: 'Payment' },
+      { status: 'For Payment',        label: 'OR recording' },
       { status: 'Paid',               label: 'Paid' },
       { status: 'Transfer Scheduled', label: 'Scheduled' },
       { status: 'Transferred',        label: 'Transferred' },
@@ -1054,6 +1054,8 @@
             <p class="text-sm text-ink-800 mb-3">Enter the OR number from the applicant's receipt issued by the cashier.</p>
             <label class="text-xs font-medium text-ink-700">Official receipt (OR) number</label>
             <input id="orNumber" type="text" class="field mt-1 num" placeholder="e.g. 0012345" value="${escapeHtml(app.or_number || '')}">
+            <label class="text-xs font-medium text-ink-700 block mt-3">Date on the receipt</label>
+            <input id="orDate" type="date" class="field mt-1" max="${new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10)}" value="${app.paid_at ? new Date(new Date(app.paid_at).getTime() + 8 * 3600000).toISOString().slice(0, 10) : new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10)}">
             <button class="btn-ok mt-3" onclick="actMarkPaid()">Save OR number</button>`);
 
         case 'Paid':
@@ -1528,7 +1530,7 @@
       updateApp({ inspection_schedule: fromLocalInput(date), inspector_name: name, inspection_remarks: null, status: 'For Inspection' }, 'Inspection scheduled.');
     }
     function actInspectionPassed() {
-      updateApp({ inspection_remarks: val('inspRemarks') || null, status: 'For Payment' },
+      updateApp({ inspection_remarks: val('inspRemarks') || null, status: 'For Payment', passed_at: new Date().toISOString() },
         'Inspection passed. A pole slot was reserved and the applicant was told to pay at the cashier.');
     }
     function actInspectionFailed() {
@@ -1536,10 +1538,24 @@
       if (!remarks) { toast("Please write the engineer's findings.", false); return; }
       updateApp({ inspection_remarks: remarks, status: 'Inspection Failed' }, 'Inspection marked as failed.');
     }
-    function actMarkPaid() {
+    async function actMarkPaid() {
       const or = val('orNumber');
+      const orDate = val('orDate');
       if (!or) { toast('Please enter the OR number.', false); return; }
-      updateApp({ or_number: or, status: 'Paid' },
+      if (!orDate) { toast('Please enter the date on the receipt.', false); return; }
+      const today = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
+      if (orDate > today) { toast('The receipt date cannot be in the future.', false); return; }
+      // The receipt cannot be older than the day the inspection passed (Manila date).
+      // Older records without passed_at skip this check.
+      if (current.passed_at) {
+        const passDay = new Date(new Date(current.passed_at).getTime() + 8 * 3600000).toISOString().slice(0, 10);
+        if (orDate < passDay) { toast(`The receipt date cannot be earlier than the day the inspection passed (${passDay}).`, false); return; }
+      }
+      // One OR number can only be used once
+      const { data: dup } = await _supabase.from('service_applications')
+        .select('id').eq('or_number', or).neq('id', current.id).limit(1);
+      if (dup && dup.length) { toast(`OR number ${or} is already recorded for another application.`, false); return; }
+      updateApp({ or_number: or, paid_at: new Date(orDate + 'T12:00:00+08:00').toISOString(), status: 'Paid' },
         isTransfer(current) ? 'OR number saved. You can now schedule the transfer.' : 'OR number saved. You can now schedule the installation.');
     }
     function actSetInstallation() {
