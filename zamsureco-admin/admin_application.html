@@ -1396,13 +1396,33 @@
     }
 
     async function toggleRequirement(reqId, checked) {
+      const wasComplete = currentReqs.length > 0 && currentReqs.every(x => x.is_received === true);
+      // Unticking a paper means it needs correction: ask what to fix
+      let correction = null;
+      if (!checked) {
+        const answer = prompt('What needs to be corrected for this paper? The applicant will see this in the app.');
+        if (answer === null) { await loadCurrent(current.id); return; } // cancelled, keep it ticked
+        correction = answer.trim() || 'Please correct and resubmit this paper.';
+      }
       const { error } = await _supabase
         .from('application_requirements')
-        .update({ is_received: checked, received_at: checked ? new Date().toISOString() : null })
+        .update({
+          is_received: checked,
+          received_at: checked ? new Date().toISOString() : null,
+          correction_note: checked ? null : correction,
+        })
         .eq('id', reqId);
       if (error) { toast('Error: ' + error.message, false); return; }
       const r = currentReqs.find(x => String(x.id) === String(reqId));
-      if (r) { r.is_received = checked; r.received_at = checked ? new Date().toISOString() : null; }
+      if (r) { r.is_received = checked; r.received_at = checked ? new Date().toISOString() : null; r.correction_note = checked ? null : correction; }
+      if (!checked && correction) {
+        await notifyApplicant(current, null, ['Please correct your paper', `${r ? r.name : 'A paper'}: ${correction}`]);
+      }
+      const nowComplete = currentReqs.length > 0 && currentReqs.every(x => x.is_received === true);
+      // Tell the applicant once, when the last paper is ticked
+      if (checked && nowComplete && !wasComplete) {
+        await notifyApplicant(current, null, ['Papers received', 'All your papers have been received. Please wait for your inspection schedule.']);
+      }
       await loadCurrent(current.id);
     }
 
