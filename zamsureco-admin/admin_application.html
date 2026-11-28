@@ -419,13 +419,20 @@
 
     const isRecon = (a) => (a && a.application_type) === 'Reconnection';
     const isTransfer = (a) => (a && a.application_type) === 'Transfer of Connection';
-    const nextLabel = (a) => (isRecon(a) ? RECON_NEXT : (isTransfer(a) ? TRANSFER_NEXT : NEXT_STEP))[a.status || 'Pending'] || '—';
+    // Papers count per application, filled by fetchApplications (used by the list's Next step)
+    const nextLabel = (a) => {
+      if (!isRecon(a) && !isTransfer(a) && a.status === 'PMES Completed') {
+        const p = papersByApp[a.id];
+        if (p && p.total > 0 && p.received === p.total) return 'Schedule inspection';
+      }
+      return (isRecon(a) ? RECON_NEXT : (isTransfer(a) ? TRANSFER_NEXT : NEXT_STEP))[a.status || 'Pending'] || '—';
+    };
     const FINISHED = ['Energized', 'Reconnected', 'Transferred', 'Rejected'];
 
     const NEXT_STEP = {
       'Pending':                'Set PMES schedule',
       'PMES Scheduled':         'Mark PMES attendance',
-      'PMES Completed':         'Tick received papers',
+      'PMES Completed':         'Check papers',
       'Submission Scheduled':   'Check received papers',
       'For Inspection':         'Record inspection result',
       'Inspection Failed':      'Re-inspect or reject',
@@ -509,6 +516,7 @@
     let currentType = 'new';
 
     let applications = [];
+    let papersByApp = {};
     let pmesHints = {};
     let current = null;
     let currentReqs = [];
@@ -666,6 +674,16 @@
       }
 
       applications = data || [];
+
+      // Count received papers per application so the list can show "Schedule inspection"
+      const { data: reqs } = await _supabase.from('application_requirements').select('application_id, is_received');
+      papersByApp = {};
+      (reqs || []).forEach(r => {
+        const p = papersByApp[r.application_id] || (papersByApp[r.application_id] = { total: 0, received: 0 });
+        p.total++;
+        if (r.is_received) p.received++;
+      });
+
       renderStats();
       renderTable();
       if (window.refreshOverviewTabs) window.refreshOverviewTabs();
@@ -1449,6 +1467,7 @@
         await notifyApplicant(current, null, ['Papers received', 'All your papers have been received. Please wait for your inspection schedule.']);
       }
       await loadCurrent(current.id);
+      fetchApplications();
     }
 
     // Set by the Reschedule button, so the next PMES save is sent as "rescheduled"
