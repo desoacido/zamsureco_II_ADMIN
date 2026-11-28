@@ -999,12 +999,9 @@
               <p class="text-xs text-ok-600 font-semibold mb-3">The applicant already handed in all papers, so no submission schedule is needed.</p>
               ${inspectionForm(app, false)}`);
           }
-          return actionCard('Schedule the submission of papers', `
-            <p class="text-xs text-ink-700 mb-3">The applicant will bring the papers to the office on this date. Nothing is uploaded.</p>
-            <label class="text-xs font-medium text-ink-700">Date &amp; time</label>
-            <input id="subDate" type="datetime-local" class="field mt-1" min="${nowLocalInput()}" value="${toLocalInput(app.submission_schedule)}">
-            <button class="btn-primary mt-3" onclick="actSetSubmission()">Save submission schedule</button>
-            <p class="text-xs text-ink-700/70 mt-3">If the applicant already brought the papers, just tick them in the checklist below. Once all are ticked, you can schedule the inspection right away.</p>`);
+          return actionCard('Papers can be submitted anytime', `
+            <p class="text-sm text-ink-800 mb-3">The applicant can bring the papers to the office at any time after the PMES. Nothing is uploaded.</p>
+            <p class="text-xs text-ink-700/70">Tick each paper in the checklist below as it is received. When all are ticked, you can schedule the inspection.</p>`);
 
         case 'Submission Scheduled': {
           const ready = allPapersReceived();
