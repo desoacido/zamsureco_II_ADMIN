@@ -1199,7 +1199,16 @@
                 ${r.details ? `<span class="block text-xs text-ink-700/70">${escapeHtml(r.details)}</span>` : ''}
                 ${r.is_received && r.received_at ? `<span class="block text-[11px] text-ok-600 num">Received ${escapeHtml(fmtDate(r.received_at))}</span>` : ''}
               </span>
-            </label>`).join('')}
+            </label>
+            ${pendingUntick && pendingUntick.id === String(r.id) ? `
+            <div class="p-3 bg-paper-50 border-t border-line">
+              <p class="text-xs text-ink-800 mb-2">What needs to be corrected for <b>${escapeHtml(r.name)}</b>? The applicant will see this in the app.</p>
+              <textarea id="corrText" rows="2" class="field" placeholder="e.g. Expired Valid ID"></textarea>
+              <div class="flex gap-2 mt-2">
+                <button class="btn-primary" onclick="saveCorrection('${r.id}')">Save correction</button>
+                <button class="btn-ghost" onclick="cancelCorrection()">Cancel</button>
+              </div>
+            </div>` : ''}`).join('')}
         </div>`;
     }
 
@@ -1395,14 +1404,30 @@
       return true;
     }
 
-    async function toggleRequirement(reqId, checked) {
+    // Paper waiting for a correction note (the box shows right under it)
+    let pendingUntick = null;
+
+    async function saveCorrection(reqId) {
+      const text = (document.getElementById('corrText')?.value || '').trim() || 'Please correct and resubmit this paper.';
+      pendingUntick = null;
+      await toggleRequirement(reqId, false, text);
+    }
+
+    function cancelCorrection() {
+      pendingUntick = null;
+      loadCurrent(current.id);
+    }
+
+    async function toggleRequirement(reqId, checked, correctionText = null) {
       const wasComplete = currentReqs.length > 0 && currentReqs.every(x => x.is_received === true);
       // Unticking a paper means it needs correction: ask what to fix
-      let correction = null;
-      if (!checked) {
-        const answer = prompt('What needs to be corrected for this paper? The applicant will see this in the app.');
-        if (answer === null) { await loadCurrent(current.id); return; } // cancelled, keep it ticked
-        correction = answer.trim() || 'Please correct and resubmit this paper.';
+      const correction = correctionText;
+      if (!checked && correction === null) {
+        // Show the correction box right under this paper
+        pendingUntick = { id: String(reqId) };
+        await loadCurrent(current.id);
+        document.getElementById('corrText')?.focus();
+        return;
       }
       const { error } = await _supabase
         .from('application_requirements')
