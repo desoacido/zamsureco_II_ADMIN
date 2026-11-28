@@ -166,7 +166,7 @@
         </button>
         <div>
           <h1 class="text-lg font-semibold text-ink-900 leading-tight">Field Personnel</h1>
-          <p class="text-xs text-ink-700">Engineers who inspect sites and line crews who respond in the field</p>
+          <p class="text-xs text-ink-700">Engineers who inspect sites and linemen who respond in the field</p>
         </div>
       </div>
       <button id="addBtn" class="btn-primary">
@@ -201,7 +201,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             </span>
             <div class="kpi-text min-w-0">
-              <span class="kpi-label">Line Crew</span>
+              <span class="kpi-label">Lineman</span>
               <span id="countCrew" class="kpi-value">0</span>
               <span class="kpi-sub mt-0.5">Reconnection, Transfer, Disconnection</span>
             </div>
@@ -239,6 +239,7 @@
               <table class="app-table w-full text-left border-collapse text-sm">
                 <thead>
                   <tr>
+                    <th class="px-5 w-12">#</th>
                     <th class="px-5">Name</th>
                     <th class="px-4">Role</th>
                     <th class="px-4">Team</th>
@@ -248,7 +249,7 @@
                   </tr>
                 </thead>
                 <tbody id="personnelRows" class="divide-y divide-line">
-                  <tr><td colspan="6" class="px-5 py-10 text-center text-ink-700">Loading…</td></tr>
+                  <tr><td colspan="7" class="px-5 py-10 text-center text-ink-700">Loading…</td></tr>
                 </tbody>
               </table>
             </div>
@@ -270,7 +271,7 @@
           <label class="block text-xs font-medium text-ink-700 mb-1.5">Role</label>
           <select id="fRole" class="field">
             <option value="Engineer">Engineer</option>
-            <option value="Line Crew">Line Crew</option>
+            <option value="Line Crew">Lineman</option>
           </select>
         </div>
         <div>
@@ -279,7 +280,7 @@
         </div>
         <div id="teamWrap">
           <label class="block text-xs font-medium text-ink-700 mb-1.5">Team</label>
-          <input id="fTeam" type="text" list="teamList" class="field" placeholder="e.g. Line Crew Team 1">
+          <input id="fTeam" type="text" list="teamList" class="field" placeholder="e.g. Lineman Team 1">
           <datalist id="teamList"></datalist>
         </div>
         <div>
@@ -345,7 +346,7 @@
     const TITLES = {
       all: 'All active personnel',
       'Engineer': 'Engineers',
-      'Line Crew': 'Line crew',
+      'Line Crew': 'Linemen',
       inactive: 'Inactive personnel',
     };
 
@@ -353,6 +354,13 @@
     let filter = 'all';
     let editingId = null;
     let pendingDelete = null;
+
+    function initials(name) {
+      const parts = String(name || '').replace(/^Engr\.\s*/i, '').trim().split(/\s+/).filter(Boolean);
+      const first = parts[0] ? parts[0][0] : '';
+      const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
+      return (first + last).toUpperCase();
+    }
 
     function escapeHtml(str) {
       if (str === null || str === undefined) return '';
@@ -379,6 +387,7 @@
     function closeModal(id) { const m = document.getElementById(id); m.classList.add('hidden'); m.classList.remove('flex'); }
 
     const roleOf = (p) => p.role === 'Engineer' ? 'Engineer' : 'Line Crew';
+    const roleLabel = (r) => r === 'Line Crew' ? 'Lineman' : r;
     const isActive = (p) => (p.status || 'active') === 'active';
 
     async function checkAuth() {
@@ -391,7 +400,7 @@
       const { data, error } = await supabaseClient.from('linemen').select('*').order('name', { ascending: true });
       if (error) {
         showBanner('Could not load personnel: ' + error.message);
-        document.getElementById('personnelRows').innerHTML = `<tr><td colspan="6" class="px-5 py-10 text-center text-danger-600">${escapeHtml(error.message)}</td></tr>`;
+        document.getElementById('personnelRows').innerHTML = `<tr><td colspan="7" class="px-5 py-10 text-center text-danger-600">${escapeHtml(error.message)}</td></tr>`;
         return;
       }
       people = data || [];
@@ -424,14 +433,15 @@
       const tbody = document.getElementById('personnelRows');
 
       if (!list.length) {
-        tbody.innerHTML = `<tr><td colspan="6" class="px-5 py-16 text-center text-ink-700">${people.length ? 'No personnel here.' : 'No personnel yet. Click "+ Add personnel" to add an engineer or line crew member.'}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="px-5 py-16 text-center text-ink-700">${people.length ? 'No personnel here.' : 'No personnel yet. Click "+ Add personnel" to add an engineer or line crew member.'}</td></tr>`;
         return;
       }
 
-      tbody.innerHTML = list.map(p => `
+      tbody.innerHTML = list.map((p, i) => `
         <tr class="${isActive(p) ? '' : 'opacity-60'}">
-          <td class="px-5 py-3 font-semibold text-ink-900">${escapeHtml(p.name)}</td>
-          <td class="px-4 py-3"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium border ${ROLE_STYLE[roleOf(p)]} border-transparent">${roleOf(p)}</span></td>
+          <td class="px-4 py-3 num text-ink-700 text-xs">${i + 1}</td>
+          <td class="px-5 py-3"><div class="flex items-center gap-3"><span class="w-8 h-8 rounded-full bg-brand-100 text-brand-800 text-xs font-semibold flex items-center justify-center flex-shrink-0">${escapeHtml(initials(p.name))}</span><span class="font-semibold text-ink-900">${escapeHtml(p.name)}</span></div></td>
+          <td class="px-4 py-3"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium border ${ROLE_STYLE[roleOf(p)]} border-transparent">${roleLabel(roleOf(p))}</span></td>
           <td class="px-4 py-3 text-ink-700">${roleOf(p) === 'Line Crew' ? escapeHtml(p.team || '—') : '<span class="text-ink-700/50">—</span>'}</td>
           <td class="px-4 py-3 text-ink-700 num">${escapeHtml(p.contact_number || '—')}</td>
           <td class="px-4 py-3">${isActive(p)
@@ -497,7 +507,7 @@
         return;
       }
       closeModal('formModal');
-      toast(editingId ? `${name} updated.` : `${name} added as ${role === 'Engineer' ? 'an engineer' : 'line crew'}.`);
+      toast(editingId ? `${name} updated.` : `${name} added as ${role === 'Engineer' ? 'an engineer' : 'a lineman'}.`);
       loadPeople();
     }
 
